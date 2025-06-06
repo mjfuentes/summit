@@ -34,7 +34,24 @@ class VectorKnowledgeBase:
         try:
             api_key = os.getenv("OPENAI_API_KEY")
             if api_key:
-                self.openai_client = OpenAI(api_key=api_key)
+                # Try multiple initialization approaches to handle different environments
+                try:
+                    self.openai_client = OpenAI(api_key=api_key)
+                except TypeError as te:
+                    if "proxies" in str(te):
+                        # Fallback for environments with proxy configuration issues
+                        print("Warning: Proxies configuration conflict detected, trying alternative initialization...")
+                        # Try without any extra parameters
+                        old_proxy = os.environ.get('https_proxy', None)
+                        if old_proxy:
+                            del os.environ['https_proxy']
+                        try:
+                            self.openai_client = OpenAI(api_key=api_key)
+                        finally:
+                            if old_proxy:
+                                os.environ['https_proxy'] = old_proxy
+                    else:
+                        raise te
                 self.embeddings_enabled = True
             else:
                 self.openai_client = None
@@ -42,6 +59,7 @@ class VectorKnowledgeBase:
                 print("Warning: OPENAI_API_KEY not set. Vector search disabled, using keyword search only.")
         except Exception as e:
             print(f"Warning: Could not initialize OpenAI client: {e}")
+            print("Vector search disabled, falling back to keyword search only.")
             self.openai_client = None
             self.embeddings_enabled = False
         
