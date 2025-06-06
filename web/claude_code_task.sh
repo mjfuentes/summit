@@ -208,8 +208,8 @@ cat >> task_context.md << EOF
 ## Getting Started
 Open this file in Claude Code and start working on the task. Use the terminal for any commands you need to run.
 
-When completely finished, create a completion file:
-echo "$SAVE_WORD" > completion.txt
+When completely finished, create a completion file containing the completion signal.
+Check the container logs or welcome script for the exact signal format.
 
 This will signal that your task is complete.
 EOF
@@ -238,7 +238,7 @@ echo "  git status      - Check repository status"
 echo "  git log --oneline -5 - Show recent commits"
 echo "  npm test        - Run tests"
 echo "  pytest          - Run Python tests"
-echo "  echo '$SAVE_WORD' > completion.txt - Signal task completion"
+echo "  echo 'COMPLETION_SIGNAL' > completion.txt - Signal task completion"
 echo "  exit            - Exit the session"
 echo ""
 echo "Claude Code Permissions:"
@@ -285,21 +285,21 @@ echo "[$(date '+%H:%M:%S')] Web terminal available at http://localhost:7681"
 echo "[$(date '+%H:%M:%S')] Claude Code CLI ready for interactive use"
 
 # Keep the container running and monitor for completion signal
-echo "[$(date '+%H:%M:%S')] Monitoring for completion signal: $SAVE_WORD"
+echo "[$(date '+%H:%M:%S')] Monitoring for completion signal: [CONFIGURED]"
 
 # Create a monitoring loop
 while true; do
     sleep 10
     
-    # Check if completion signal appears in output files (excluding task_context.md)
-    if find /workspace -name "*.log" -o -name "output.txt" -o -name "completion.txt" | xargs grep -l "$SAVE_WORD" 2>/dev/null | head -1; then
+    # Check if completion signal appears in output files (excluding setup files)
+    if find /workspace -name "completion.txt" -exec grep -l "$SAVE_WORD" {} \; 2>/dev/null | head -1; then
         echo "[$(date '+%H:%M:%S')] Completion signal detected!"
         echo "$SAVE_WORD"
         break
     fi
     
-    # Also check terminal logs but exclude initial setup files
-    if find /workspace -name "terminal.log" -o -name "claude_output.log" | xargs grep -l "$SAVE_WORD" 2>/dev/null | head -1; then
+    # Also check for completion signal in user-created log files (not setup files)
+    if find /workspace -name "claude_output.log" -o -name "user_terminal.log" | xargs grep -l "$SAVE_WORD" 2>/dev/null | head -1; then
         echo "[$(date '+%H:%M:%S')] Completion signal detected!"
         echo "$SAVE_WORD"
         break
