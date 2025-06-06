@@ -608,8 +608,7 @@ async def run_autonomous_task(task_id: str, task_data: Dict):
             task_data["logs"].append("Claude Code CLI environment ready for interactive development")
             await broadcast_task_update(task_data)
             
-            # Wait for container to start
-            await container_process.wait()
+            # Get container ID (command runs in detached mode)
             container_id = f"claude-task-{task_id}"
             
             # Monitor container logs and status
@@ -728,14 +727,9 @@ async def run_autonomous_task(task_id: str, task_data: Dict):
                     await asyncio.sleep(5)
             
             if task_data["status"] != "completed":
-                if container_process.returncode == 0:
-                    task_data["status"] = "completed"
-                    task_data["progress"] = "Task finished"
-                    task_data["logs"].append("Container finished successfully")
-                else:
-                    task_data["status"] = "failed"
-                    task_data["progress"] = f"Container exited with code {container_process.returncode}"
-                    task_data["logs"].append(f"Container failed with exit code {container_process.returncode}")
+                task_data["status"] = "failed"
+                task_data["progress"] = "Task ended without completion signal"
+                task_data["logs"].append("Task monitoring ended without completion signal")
             
         except Exception as e:
             task_data["status"] = "failed"
