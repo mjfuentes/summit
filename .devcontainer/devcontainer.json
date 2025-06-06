@@ -1,0 +1,47 @@
+{
+  "name": "Summit AI Development Environment",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11",
+  
+  "features": {
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.pylint",
+        "ms-python.black-formatter",
+        "ms-toolsai.jupyter",
+        "github.vscode-pull-request-github",
+        "eamodio.gitlens",
+        "ms-vscode.vscode-json"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.formatting.provider": "black",
+        "python.linting.enabled": true,
+        "python.linting.pylintEnabled": true,
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+          "source.organizeImports": true
+        }
+      }
+    }
+  },
+  
+  "updateContentCommand": "pip install -r requirements.txt",
+  "postCreateCommand": "git config --global --add safe.directory ${containerWorkspaceFolder}",
+  
+  "forwardPorts": [8000, 3000],
+  "portsAttributes": {
+    "8000": {
+      "label": "Summit MCP Server",
+      "onAutoForward": "notify"
+    }
+  },
+  
+  "remoteUser": "vscode",
+  "workspaceFolder": "/workspaces/summit"
+} 

@@ -5,7 +5,9 @@ import os
 import sys
 import time
 import subprocess
-from typing import Any
+import json
+import requests
+from typing import Any, Dict, List, Optional
 
 import mcp.server.stdio
 import mcp.types as types
@@ -18,7 +20,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'config'))
 
 from config import setup_environment, SUMMIT_CONFIG
 from cost_tracker import CostTracker
-from vector_knowledge_base import VectorKnowledgeBase
+from vector_knowledge_base import EnhancedKnowledgeBase
 
 # Set up environment variables from config
 setup_environment()
@@ -34,7 +36,7 @@ cost_tracker = CostTracker(
 )
 
 # Initialize knowledge base for shared experiences
-knowledge_base = VectorKnowledgeBase()
+knowledge_base = EnhancedKnowledgeBase()
 
 # Initialize Anthropic client
 def get_anthropic_client():
@@ -43,8 +45,57 @@ def get_anthropic_client():
         return None
     return Anthropic(api_key=api_key)
 
+# GitHub API configuration for Codespaces
+def get_github_headers():
+    """Get GitHub API headers with authentication"""
+    token = os.getenv("GITHUB_TOKEN")
+    if not token:
+        return None
+    return {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28"
+    }
+
+def get_github_repo_info():
+    """Get GitHub repository information from environment or git config"""
+    # Try environment variables first
+    owner = os.getenv("GITHUB_OWNER")
+    repo = os.getenv("GITHUB_REPO")
+    
+    if owner and repo:
+        return owner, repo
+    
+    # Try to extract from git remote
+    try:
+        result = subprocess.run(
+            ["git", "remote", "get-url", "origin"],
+            capture_output=True,
+            text=True,
+            cwd=os.path.dirname(__file__)
+        )
+        if result.returncode == 0:
+            remote_url = result.stdout.strip()
+            # Parse GitHub URL (supports both SSH and HTTPS)
+            if "github.com" in remote_url:
+                if remote_url.startswith("git@"):
+                    # SSH format: git@github.com:owner/repo.git
+                    parts = remote_url.split(":")[-1].replace(".git", "").split("/")
+                    return parts[0], parts[1]
+                elif remote_url.startswith("https://"):
+                    # HTTPS format: https://github.com/owner/repo.git
+                    parts = remote_url.split("/")
+                    return parts[-2], parts[-1].replace(".git", "")
+    except:
+        pass
+    
+    return None, None
+
 # Track server start time
 start_time = time.time()
+
+# Store active codespaces for management
+active_codespaces = {}
 
 @server.list_tools()
 async def handle_list_tools() -> list[types.Tool]:
@@ -120,8 +171,95 @@ async def handle_list_tools() -> list[types.Tool]:
                         "type": "string",
                         "description": "Optional: Specific focus area (e.g., 'patterns', 'trends', 'insights', 'experiences')",
                     },
+                    "max_results": {
+                        "type": "number",
+                        "description": "Optional: Maximum number of results to return (default: 5)",
+                    },
                 },
                 "required": ["query"],
+            },
+        ),
+        types.Tool(
+            name="summit_analytics",
+            description="Get search analytics and knowledge base insights",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "include_suggestions": {
+                        "type": "boolean",
+                        "description": "Optional: Include query suggestions (default: false)",
+                    },
+                },
+            },
+        ),
+        types.Tool(
+            name="summit_insights",
+            description="Get content insights and knowledge gaps analysis",
+            inputSchema={
+                "type": "object",
+                "properties": {},
+            },
+        ),
+        types.Tool(
+            name="summit_learn_capability",
+            description="Learn a new capability by modifying Summit's codebase using GitHub Codespaces",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "capability_description": {
+                        "type": "string",
+                        "description": "Detailed description of the new capability to implement",
+                    },
+                    "requirements": {
+                        "type": "string",
+                        "description": "Optional: Specific technical requirements or constraints",
+                    },
+                    "machine_type": {
+                        "type": "string",
+                        "description": "Optional: Codespace machine type (standardLinux32gb, premiumLinux32gb, etc.)",
+                    },
+                },
+                "required": ["capability_description"],
+            },
+        ),
+        types.Tool(
+            name="summit_codespace_status",
+            description="Check status of active development environments (codespaces)",
+            inputSchema={
+                "type": "object",
+                "properties": {},
+            },
+        ),
+        types.Tool(
+            name="summit_deploy_changes",
+            description="Deploy and activate changes from a completed development session",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "codespace_name": {
+                        "type": "string",
+                        "description": "Name of the codespace with completed changes",
+                    },
+                    "commit_message": {
+                        "type": "string",
+                        "description": "Commit message for the changes",
+                    },
+                },
+                "required": ["codespace_name", "commit_message"],
+            },
+        ),
+        types.Tool(
+            name="summit_cleanup_environment",
+            description="Clean up development environment after learning is complete",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "codespace_name": {
+                        "type": "string",
+                        "description": "Name of the codespace to clean up",
+                    },
+                },
+                "required": ["codespace_name"],
             },
         ),
     ]
@@ -363,37 +501,68 @@ I appreciate your contribution to my growing understanding. Each shared experien
     elif name == "summit_learn":
         query = arguments.get("query")
         focus = arguments.get("focus")
+        max_results = arguments.get("max_results", 5)
         
         if not query:
             raise ValueError("Query is required for learning")
         
-        # Perform semantic search in the knowledge base
-        search_results = knowledge_base.search_knowledge(query)
+        # Perform enhanced semantic search in the knowledge base
+        search_results = knowledge_base.search_knowledge(query, max_results=max_results)
         
         if not search_results:
+            # Get suggestions for alternative queries
+            suggestions = knowledge_base.suggest_related_queries(query)
+            suggestion_text = ""
+            if suggestions:
+                suggestion_text = f"\n\nTry these related queries:\n" + "\n".join(f"• {s}" for s in suggestions)
+            
             return [
                 types.TextContent(
                     type="text",
-                    text="No results found for your query. Please try a different query or focus."
+                    text=f"No results found for your query '{query}'. Please try a different query or focus.{suggestion_text}"
                 )
             ]
         
-        # Extract relevant information from the search results
+        # Extract relevant information from the search results with enhanced details
         relevant_information = []
-        for result in search_results[:5]:  # Limit to top 5 results
+        for i, result in enumerate(search_results, 1):
+            score = result['similarity_score']
+            relevance = result['relevance']
+            
             if result['type'] == 'shared_item':
                 item = result['data']
-                relevant_information.append(f"- {item['content']} (Category: {item['category']})")
+                timestamp = item['timestamp'][:10]  # Just the date
+                info_line = f"{i}. {item['content']} (Category: {item['category']}, Date: {timestamp})"
+                if score > 1.0:
+                    info_line += f" ★ High relevance ({score:.1f})"
+                relevant_information.append(info_line)
             elif result['type'] == 'synthesized_insight':
                 insight = result['data']
-                relevant_information.append(f"- Insight: {insight['insight']}")
+                timestamp = insight['timestamp'][:10]
+                info_line = f"{i}. 💡 Insight: {insight['insight']} (Date: {timestamp})"
+                if score > 1.0:
+                    info_line += f" ★ High relevance ({score:.1f})"
+                relevant_information.append(info_line)
         
-        # Build the response
-        response = f"""Summit's accumulated knowledge and experiences related to your query:
+        # Get additional context if focus is specified
+        focus_context = ""
+        if focus:
+            if focus.lower() in ['patterns', 'trends']:
+                insights = knowledge_base.get_content_insights()
+                if insights['content_themes']:
+                    focus_context = f"\n\nKey themes in the knowledge base: {', '.join(insights['content_themes'])}"
+            elif focus.lower() == 'gaps':
+                insights = knowledge_base.get_content_insights()
+                if insights['knowledge_gaps']:
+                    focus_context = f"\n\nKnowledge gaps identified: {', '.join(insights['knowledge_gaps'])}"
+        
+        # Build the enhanced response
+        search_mode = "semantic + keyword" if knowledge_base.embeddings_enabled else "enhanced keyword"
+        response = f"""Summit's Knowledge Search Results (using {search_mode} search):
 
 {chr(10).join(relevant_information)}
 
-This information is based on shared experiences, insights, and observations in my knowledge base. If you want to learn more about a specific topic or find similar experiences, please specify a focus area."""
+Found {len(search_results)} relevant items from {knowledge_base.get_knowledge_summary()['total_shares']} total shared experiences.{focus_context}"""
         
         return [
             types.TextContent(
@@ -402,8 +571,504 @@ This information is based on shared experiences, insights, and observations in m
             )
         ]
     
+    elif name == "summit_analytics":
+        include_suggestions = arguments.get("include_suggestions", False)
+        
+        # Get comprehensive analytics
+        analytics = knowledge_base.get_search_analytics()
+        summary = knowledge_base.get_knowledge_summary()
+        
+        response = f"""Summit Search Analytics & Performance
+
+Search Statistics:
+• Total searches performed: {analytics['total_searches']}
+• Semantic searches: {analytics['semantic_searches']} ({analytics['semantic_percentage']:.1f}%)
+• Keyword searches: {analytics['keyword_searches']} ({analytics['keyword_percentage']:.1f}%)
+• Empty results rate: {analytics['empty_rate']:.1f}%
+
+Query Patterns:
+• Question queries: {analytics['query_types'].get('question', 0)}
+• Search queries: {analytics['query_types'].get('search', 0)}
+• Similarity queries: {analytics['query_types'].get('similarity', 0)}
+• Recommendation queries: {analytics['query_types'].get('recommendation', 0)}
+• General queries: {analytics['query_types'].get('general', 0)}
+
+Knowledge Base Status:
+• Search mode: {summary['search_mode']}
+• Total content items: {summary['total_shares']}
+• Synthesized insights: {summary['synthesized_insights']}
+• Vector embeddings: {summary['total_embeddings']}
+
+Popular Categories (from search results):
+{chr(10).join(f"• {cat}: {count} searches" for cat, count in analytics['popular_categories'].items()) if analytics['popular_categories'] else "• No search data yet"}"""
+
+        if include_suggestions and analytics['total_searches'] > 0:
+            # Add optimization suggestions
+            response += f"""
+
+Performance Insights:
+• Search efficiency: {'Good' if analytics['empty_rate'] < 20 else 'Could be improved'}
+• Content diversity: {'Good' if len(summary['categories']) > 3 else 'Limited categories'}
+• Vector search: {'Active' if summary['search_mode'].startswith('semantic') else 'Consider enabling OPENAI_API_KEY for semantic search'}"""
+        
+        return [
+            types.TextContent(
+                type="text",
+                text=response
+            )
+        ]
+    
+    elif name == "summit_insights":
+        insights = knowledge_base.get_content_insights()
+        summary = knowledge_base.get_knowledge_summary()
+        
+        response = f"""Summit Knowledge Base Content Analysis
+
+Content Overview:
+• Total shared items: {insights['total_items']}
+• Synthesized insights: {insights['total_insights']}
+• Active categories: {len(insights['categories_distribution'])}
+
+Category Distribution:
+{chr(10).join(f"• {cat}: {count} items" for cat, count in insights['categories_distribution'].items())}
+
+Content Themes (most frequent topics):
+{chr(10).join(f"• {theme}" for theme in insights['content_themes']) if insights['content_themes'] else "• Not enough content for theme analysis"}
+
+Knowledge Gaps & Recommendations:
+{chr(10).join(f"• {gap}" for gap in insights['knowledge_gaps']) if insights['knowledge_gaps'] else "• Knowledge base appears well-balanced"}
+
+Recent Activity:
+{f"• {insights['recent_activity']['count']} recent items in categories: {', '.join(insights['recent_activity']['categories'])}" if insights['recent_activity'] else "• No recent activity"}
+{f"• {insights['recent_activity']['timespan']}" if insights['recent_activity'] else ""}
+
+Growth Opportunities:
+• Consider adding more content in under-represented categories
+• Synthesize insights from existing content to create new knowledge
+• Encourage sharing in diverse domains for richer search results"""
+        
+        return [
+            types.TextContent(
+                type="text",
+                text=response
+            )
+        ]
+    
+    elif name == "summit_learn_capability":
+        capability_description = arguments.get("capability_description")
+        requirements = arguments.get("requirements")
+        machine_type = arguments.get("machine_type", "standardLinux32gb")
+        
+        if not capability_description:
+            raise ValueError("Capability description is required")
+        
+        try:
+            # Get repository information
+            owner, repo = get_github_repo_info()
+            if not owner or not repo:
+                return [types.TextContent(type="text", text="Error: Could not determine GitHub repository. Please set GITHUB_OWNER and GITHUB_REPO environment variables.")]
+            
+            # Plan the implementation
+            implementation_plan = await plan_capability_implementation(capability_description, requirements)
+            
+            # Create a new codespace for development
+            codespace_data = await create_codespace(owner, repo, machine_type)
+            
+            # Start the codespace
+            await start_codespace(codespace_data['name'])
+            
+            # Generate implementation instructions
+            instructions = await implement_capability_in_codespace(
+                codespace_data['web_url'], 
+                implementation_plan, 
+                capability_description
+            )
+            
+            # Share this learning session with the knowledge base
+            knowledge_base.add_shared_item(
+                f"Learning new capability: {capability_description}",
+                "capability_development",
+                f"Created codespace {codespace_data['name']} for implementation"
+            )
+            
+            response = f"""Summit is learning a new capability! 🚀
+
+Capability: {capability_description}
+Development Environment: {codespace_data['name']}
+Status: {codespace_data['state']}
+
+{instructions}
+
+I'll track this learning session and help you deploy the changes when ready."""
+            
+            return [types.TextContent(type="text", text=response)]
+            
+        except Exception as e:
+            return [types.TextContent(type="text", text=f"Error starting learning session: {e}")]
+    
+    elif name == "summit_codespace_status":
+        try:
+            # List all codespaces
+            all_codespaces = await list_user_codespaces()
+            
+            # Filter for Summit-related codespaces
+            summit_codespaces = [
+                cs for cs in all_codespaces 
+                if 'Summit' in cs.get('display_name', '') or cs['name'] in active_codespaces
+            ]
+            
+            if not summit_codespaces:
+                response = "No active Summit development environments found."
+            else:
+                response = "Summit Development Environments Status:\n\n"
+                for cs in summit_codespaces:
+                    status_emoji = "🟢" if cs['state'] == 'Available' else "🟡" if cs['state'] == 'Starting' else "🔴"
+                    response += f"{status_emoji} {cs['name']}\n"
+                    response += f"   Status: {cs['state']}\n"
+                    response += f"   Created: {cs['created_at'][:19].replace('T', ' ')}\n"
+                    response += f"   URL: {cs['web_url']}\n\n"
+                
+                response += f"Total environments: {len(summit_codespaces)}"
+            
+            return [types.TextContent(type="text", text=response)]
+            
+        except Exception as e:
+            return [types.TextContent(type="text", text=f"Error checking codespace status: {e}")]
+    
+    elif name == "summit_deploy_changes":
+        codespace_name = arguments.get("codespace_name")
+        commit_message = arguments.get("commit_message")
+        
+        if not codespace_name or not commit_message:
+            raise ValueError("Codespace name and commit message are required")
+        
+        try:
+            # Get codespace status to verify it exists and is accessible
+            codespace_status = await get_codespace_status(codespace_name)
+            
+            # In a full implementation, this would:
+            # 1. Connect to the codespace
+            # 2. Run tests to validate changes
+            # 3. Commit and push changes
+            # 4. Potentially restart the Summit server with new capabilities
+            
+            # For now, provide instructions for manual deployment
+            instructions = f"""
+Deployment Instructions for Summit Learning Session:
+
+Codespace: {codespace_name}
+Status: {codespace_status['state']}
+URL: {codespace_status['web_url']}
+
+Manual Deployment Steps:
+1. Ensure all changes are tested and working in the codespace
+2. Commit your changes:
+   git add .
+   git commit -m "{commit_message}"
+3. Push to the repository:
+   git push origin main
+4. The changes will be available for the next Summit restart
+
+Automated deployment capabilities are coming in future versions!
+"""
+
+            # Record this deployment in the knowledge base
+            knowledge_base.add_shared_item(
+                f"Deployed changes from {codespace_name}: {commit_message}",
+                "capability_deployment",
+                f"Learning session completed and deployed"
+            )
+            
+            # Stop the codespace to save resources (optional)
+            await stop_codespace(codespace_name)
+            
+            response = f"""Deployment initiated for Summit learning session! 🎉
+
+{instructions}
+
+The development environment has been stopped to save resources.
+Use summit_cleanup_environment to remove it when no longer needed."""
+            
+            return [types.TextContent(type="text", text=response)]
+            
+        except Exception as e:
+            return [types.TextContent(type="text", text=f"Error deploying changes: {e}")]
+    
+    elif name == "summit_cleanup_environment":
+        codespace_name = arguments.get("codespace_name")
+        
+        if not codespace_name:
+            raise ValueError("Codespace name is required")
+        
+        try:
+            # Stop the codespace first (if running)
+            try:
+                await stop_codespace(codespace_name)
+            except:
+                pass  # Might already be stopped
+            
+            # Delete the codespace
+            await delete_codespace(codespace_name)
+            
+            # Record cleanup in knowledge base
+            knowledge_base.add_shared_item(
+                f"Cleaned up development environment: {codespace_name}",
+                "environment_management",
+                "Learning session complete, resources freed"
+            )
+            
+            response = f"""Development environment cleaned up successfully! ♻️
+
+Codespace '{codespace_name}' has been:
+- Stopped (if running)
+- Deleted to free resources
+- Removed from active tracking
+
+Your learning session data is preserved in Summit's knowledge base.
+Ready for the next capability development session!"""
+            
+            return [types.TextContent(type="text", text=response)]
+            
+        except Exception as e:
+            return [types.TextContent(type="text", text=f"Error cleaning up environment: {e}")]
+    
     else:
         raise ValueError(f"Summit doesn't know tool: {name}")
+
+async def create_codespace(owner: str, repo: str, machine_type: str = "standardLinux32gb", ref: str = "main") -> Dict:
+    """Create a new GitHub Codespace for development"""
+    headers = get_github_headers()
+    if not headers:
+        raise ValueError("GITHUB_TOKEN environment variable is required for Codespaces")
+    
+    url = f"https://api.github.com/repos/{owner}/{repo}/codespaces"
+    
+    payload = {
+        "ref": ref,
+        "machine": machine_type,
+        "display_name": f"Summit Learning Session - {time.strftime('%Y%m%d-%H%M%S')}",
+        "idle_timeout_minutes": 60,
+        "retention_period_minutes": 1440  # 24 hours
+    }
+    
+    try:
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        response.raise_for_status()
+        
+        codespace_data = response.json()
+        
+        # Store in active codespaces
+        active_codespaces[codespace_data['name']] = {
+            'id': codespace_data['id'],
+            'name': codespace_data['name'],
+            'state': codespace_data['state'],
+            'web_url': codespace_data['web_url'],
+            'created_at': codespace_data['created_at'],
+            'purpose': 'capability_learning'
+        }
+        
+        return codespace_data
+        
+    except requests.RequestException as e:
+        raise Exception(f"Failed to create codespace: {e}")
+
+async def start_codespace(codespace_name: str) -> Dict:
+    """Start an existing codespace"""
+    headers = get_github_headers()
+    if not headers:
+        raise ValueError("GITHUB_TOKEN environment variable is required")
+    
+    url = f"https://api.github.com/user/codespaces/{codespace_name}/start"
+    
+    try:
+        response = requests.post(url, headers=headers, timeout=30)
+        response.raise_for_status()
+        
+        codespace_data = response.json()
+        
+        # Update stored info
+        if codespace_name in active_codespaces:
+            active_codespaces[codespace_name]['state'] = codespace_data['state']
+        
+        return codespace_data
+        
+    except requests.RequestException as e:
+        raise Exception(f"Failed to start codespace: {e}")
+
+async def stop_codespace(codespace_name: str) -> Dict:
+    """Stop a running codespace"""
+    headers = get_github_headers()
+    if not headers:
+        raise ValueError("GITHUB_TOKEN environment variable is required")
+    
+    url = f"https://api.github.com/user/codespaces/{codespace_name}/stop"
+    
+    try:
+        response = requests.post(url, headers=headers, timeout=30)
+        response.raise_for_status()
+        
+        codespace_data = response.json()
+        
+        # Update stored info
+        if codespace_name in active_codespaces:
+            active_codespaces[codespace_name]['state'] = codespace_data['state']
+        
+        return codespace_data
+        
+    except requests.RequestException as e:
+        raise Exception(f"Failed to stop codespace: {e}")
+
+async def delete_codespace(codespace_name: str) -> bool:
+    """Delete a codespace"""
+    headers = get_github_headers()
+    if not headers:
+        raise ValueError("GITHUB_TOKEN environment variable is required")
+    
+    url = f"https://api.github.com/user/codespaces/{codespace_name}"
+    
+    try:
+        response = requests.delete(url, headers=headers, timeout=30)
+        response.raise_for_status()
+        
+        # Remove from active codespaces
+        if codespace_name in active_codespaces:
+            del active_codespaces[codespace_name]
+        
+        return True
+        
+    except requests.RequestException as e:
+        raise Exception(f"Failed to delete codespace: {e}")
+
+async def get_codespace_status(codespace_name: str) -> Dict:
+    """Get the current status of a codespace"""
+    headers = get_github_headers()
+    if not headers:
+        raise ValueError("GITHUB_TOKEN environment variable is required")
+    
+    url = f"https://api.github.com/user/codespaces/{codespace_name}"
+    
+    try:
+        response = requests.get(url, headers=headers, timeout=30)
+        response.raise_for_status()
+        
+        return response.json()
+        
+    except requests.RequestException as e:
+        raise Exception(f"Failed to get codespace status: {e}")
+
+async def list_user_codespaces() -> List[Dict]:
+    """List all user's codespaces"""
+    headers = get_github_headers()
+    if not headers:
+        raise ValueError("GITHUB_TOKEN environment variable is required")
+    
+    url = "https://api.github.com/user/codespaces"
+    
+    try:
+        response = requests.get(url, headers=headers, timeout=30)
+        response.raise_for_status()
+        
+        return response.json()['codespaces']
+        
+    except requests.RequestException as e:
+        raise Exception(f"Failed to list codespaces: {e}")
+
+async def plan_capability_implementation(capability_description: str, requirements: str = None) -> str:
+    """Use Claude to plan the implementation of a new capability"""
+    client = get_anthropic_client()
+    
+    if not client:
+        return "Summit needs an ANTHROPIC_API_KEY to plan capability implementations."
+    
+    # Get current codebase context
+    owner, repo = get_github_repo_info()
+    if not owner or not repo:
+        codebase_context = "Working with local Summit codebase"
+    else:
+        codebase_context = f"Working with Summit repository: {owner}/{repo}"
+    
+    planning_prompt = f"""You are Summit, an AI that can learn new capabilities by modifying its own code. You need to plan how to implement a new capability.
+
+Current Context:
+- {codebase_context}
+- Summit is a Python MCP server with tool handlers
+- Current capabilities include: advice, knowledge sharing, search, analytics
+- Uses GitHub Codespaces for isolated development environments
+
+New Capability Request:
+{capability_description}
+
+{f"Requirements: {requirements}" if requirements else ""}
+
+Please provide a detailed implementation plan including:
+1. Files that need to be modified
+2. New functions or tools to add
+3. Dependencies that might be needed
+4. Testing approach
+5. Step-by-step implementation strategy
+6. Potential risks or challenges
+
+Be specific about the code changes needed."""
+
+    try:
+        message = client.messages.create(
+            model=SUMMIT_CONFIG["chat_model"],
+            max_tokens=1500,
+            messages=[{"role": "user", "content": planning_prompt}]
+        )
+        
+        return message.content[0].text
+        
+    except Exception as e:
+        return f"Error planning implementation: {e}"
+
+async def implement_capability_in_codespace(codespace_url: str, implementation_plan: str, capability_description: str) -> str:
+    """
+    Implement the capability in the codespace environment
+    This is a simplified version - in practice, you'd use the Codespaces API
+    or VS Code extension API to execute commands and modify files.
+    """
+    
+    # For now, we'll provide detailed instructions for manual implementation
+    # In a full implementation, this would use the Codespaces API to:
+    # 1. Clone the repository
+    # 2. Create/modify files
+    # 3. Run tests
+    # 4. Validate changes
+    
+    instructions = f"""
+Summit Learning Session Instructions
+
+Codespace URL: {codespace_url}
+
+Capability to Implement:
+{capability_description}
+
+Implementation Plan:
+{implementation_plan}
+
+Manual Steps:
+1. Open the codespace in your browser: {codespace_url}
+2. Navigate to the Summit codebase
+3. Follow the implementation plan above
+4. Create/modify the necessary files
+5. Add appropriate tests
+6. Run tests to validate changes
+7. Commit changes with descriptive message
+8. Use summit_deploy_changes tool when complete
+
+The codespace provides:
+- Full Ubuntu development environment
+- Python 3.x with all dependencies
+- Git access for version control
+- VS Code web interface
+- Terminal access for commands
+
+Note: This is currently a semi-automated process. Future versions will provide
+full automated implementation capabilities.
+"""
+    
+    return instructions
 
 async def main():
     """Run Summit MCP server"""
