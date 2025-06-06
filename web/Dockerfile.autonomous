@@ -1,71 +1,99 @@
 FROM ubuntu:22.04
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
+# Set environment variables to avoid interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+ENV NODE_VERSION=18
+
+# Install system dependencies in optimized layers
+RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     wget \
     git \
     build-essential \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js 18 from NodeSource repository (more reliable than default packages)
+RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python 3 and pip
+RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
-    nodejs \
-    npm \
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install additional development tools
+RUN apt-get update && apt-get install -y --no-install-recommends \
     vim \
     nano \
     htop \
     tree \
     unzip \
+    ripgrep \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Claude Code (Anthropic's official CLI tool)
-RUN npm install -g @anthropic-ai/claude-code
+# Create workspace early to improve Docker layer caching
+WORKDIR /workspace
 
-# Install development tools
-RUN pip3 install \
+# Install Claude Code (the official Anthropic CLI tool)
+RUN npm install -g @anthropic-ai/claude-code --unsafe-perm=true --allow-root
+
+# Install web-based terminal for browser access
+RUN npm install -g ttyd --unsafe-perm=true --allow-root
+
+# Install core Python development tools (minimal set first)
+RUN pip3 install --no-cache-dir \
     anthropic \
     requests \
     fastapi \
     uvicorn \
-    pytest \
+    pytest
+
+# Install additional Python packages in separate layer for better caching
+RUN pip3 install --no-cache-dir \
     black \
     flake8 \
     mypy \
     jupyter \
     numpy \
-    pandas \
-    matplotlib \
-    seaborn \
-    scikit-learn \
+    pandas
+
+# Install web frameworks and databases
+RUN pip3 install --no-cache-dir \
     django \
     flask \
-    sqlalchemy
+    sqlalchemy \
+    matplotlib \
+    seaborn \
+    scikit-learn
 
-# Install additional development tools
-RUN npm install -g \
-    @angular/cli \
-    @vue/cli \
-    create-react-app \
+# Install additional Node.js development tools
+RUN npm install -g --unsafe-perm=true --allow-root \
     typescript \
     ts-node \
     eslint \
     prettier
 
-# Create workspace
-WORKDIR /workspace
+# Install major frontend frameworks (these are large, so install separately)
+RUN npm install -g --unsafe-perm=true --allow-root \
+    @angular/cli \
+    @vue/cli \
+    create-react-app
 
 # Setup git configuration
 RUN git config --global user.name "Summit AI" && \
-    git config --global user.email "summit@ai.dev"
+    git config --global user.email "summit@ai.dev" && \
+    git config --global init.defaultBranch main
 
 # Copy task startup script
 COPY claude_code_task.sh /workspace/claude_code_task.sh
 RUN chmod +x /workspace/claude_code_task.sh
 
-# Install web-based terminal for browser access
-RUN npm install -g ttyd
-
 # Expose ports for web terminal and potential services
-EXPOSE 7681 8080 3000
+EXPOSE 7681 8080 3000 8000
 
 # Set the entrypoint
 ENTRYPOINT ["/workspace/claude_code_task.sh"] 

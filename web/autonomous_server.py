@@ -490,163 +490,151 @@ async def run_autonomous_task(task_id: str, task_data: Dict):
         task_data["logs"].append("Creating isolated development environment")
         await broadcast_task_update(task_data)
         
-        # Build Docker image
-        build_dir = os.path.join(os.path.dirname(__file__))
-        build_cmd = [
-            "docker", "build", 
-            "-f", os.path.join(build_dir, "Dockerfile.autonomous"),
-            "-t", f"summit-task-{task_id}", 
-            build_dir
-        ]
+        # Build and run Claude Code container
+        print("[TASK] Starting Claude Code environment...")
         
-        task_data["logs"].append("Building container image...")
-        await broadcast_task_update(task_data)
-        
-        build_process = await asyncio.create_subprocess_exec(
-            *build_cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
-        )
-        
-        stdout, stderr = await build_process.communicate()
-        
-        if build_process.returncode != 0:
-            raise Exception(f"Docker build failed: {stderr.decode()}")
-        
-        task_data["logs"].append("Container built successfully")
-        task_data["progress"] = "Starting autonomous AI container..."
-        await broadcast_task_update(task_data)
-        
-        # Prepare environment variables
-        env_vars = [
-            "-e", f"TASK_DESCRIPTION={task_data['task_description']}",
-            "-e", f"SAVE_WORD={task_data['save_word']}",
-        ]
-        
-        # Add optional environment variables
-        if task_data.get('github_token'):
-            env_vars.extend(["-e", f"GITHUB_TOKEN={task_data['github_token']}"])
-        
-        if task_data.get('repository_url'):
-            env_vars.extend(["-e", f"REPOSITORY_URL={task_data['repository_url']}"])
-        
-        # Add Anthropic API key from environment
-        anthropic_key = os.getenv('ANTHROPIC_API_KEY')
-        if anthropic_key:
-            env_vars.extend(["-e", f"ANTHROPIC_API_KEY={anthropic_key}"])
-        else:
-            raise Exception("ANTHROPIC_API_KEY not set in server environment")
-        
-        # Run the container with port mapping for web terminal
-        run_cmd = [
-            "docker", "run", "--rm", 
-            "--name", f"summit-task-{task_id}",
-            "-p", f"{7681 + int(task_id[-4:], 16) % 1000}:7681",  # Dynamic port mapping for web terminal
-            *env_vars,
-            f"summit-task-{task_id}"
-        ]
-        
-        task_data["logs"].append("Starting AI container...")
-        await broadcast_task_update(task_data)
-        
-        container_process = await asyncio.create_subprocess_exec(
-            *run_cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.STDOUT
-        )
-        
-        # Calculate the web terminal port
-        terminal_port = 7681 + int(task_id[-4:], 16) % 1000
-        task_data["container_id"] = f"summit-task-{task_id}"
-        task_data["claude_code_url"] = f"http://localhost:{terminal_port}"
-        task_data["logs"].append(f"Web terminal with Claude Code access: http://localhost:{terminal_port}")
-        task_data["logs"].append("Claude Code CLI environment ready for interactive development")
-        await broadcast_task_update(task_data)
-        
-        # Monitor container output with timeout
-        timeout_seconds = task_data.get('timeout_minutes', 60) * 60
-        start_time = time.time()
-        
-        while True:
-            try:
-                # Check if process is still running
-                if container_process.returncode is not None:
-                    break
-                
-                # Check timeout
-                if time.time() - start_time > timeout_seconds:
-                    task_data["logs"].append("Task timed out")
-                    container_process.terminate()
-                    await asyncio.sleep(5)
-                    if container_process.returncode is None:
-                        container_process.kill()
-                    break
-                
-                # Read output line
-                try:
-                    line = await asyncio.wait_for(
-                        container_process.stdout.readline(), 
-                        timeout=5.0
-                    )
-                    
-                    if not line:
-                        break
-                        
-                    log_line = line.decode().strip()
-                    if log_line:
-                        task_data["logs"].append(log_line)
-                        
-                        # Check for completion signal
-                        if task_data["save_word"] in log_line:
-                            task_data["status"] = "completed"
-                            task_data["progress"] = "Task completed successfully!"
-                            task_data["logs"].append("Task completed! Safe word detected.")
-                            await broadcast_task_update(task_data)
-                            break
-                        
-                        await broadcast_task_update(task_data)
-                        
-                except asyncio.TimeoutError:
-                    # Continue if no output for 5 seconds
-                    continue
-                    
-            except Exception as e:
-                task_data["logs"].append(f"Monitoring error: {str(e)}")
-                break
-        
-        # Wait for container to finish
-        await container_process.wait()
-        
-        if task_data["status"] != "completed":
-            if container_process.returncode == 0:
-                task_data["status"] = "completed"
-                task_data["progress"] = "Task finished"
-                task_data["logs"].append("Container finished successfully")
-            else:
+        try:
+            # Use the proper Dockerfile with full Claude Code integration
+            dockerfile_path = "Dockerfile.autonomous"
+            if not os.path.exists(dockerfile_path):
+                print(f"[ERROR] {dockerfile_path} not found. Using basic container setup.")
+                dockerfile_path = "Dockerfile.simple"
+            
+            # Build the container with proper Claude Code support
+            build_cmd = f"docker build -f {dockerfile_path} -t claude-code-task ."
+            build_process = subprocess.run(
+                build_cmd, 
+                shell=True, 
+                capture_output=True, 
+                text=True, 
+                timeout=600  # 10 minute timeout for build
+            )
+            
+            if build_process.returncode != 0:
+                print(f"[ERROR] Docker build failed: {build_process.stderr}")
                 task_data["status"] = "failed"
-                task_data["progress"] = f"Container exited with code {container_process.returncode}"
-                task_data["logs"].append(f"Container failed with exit code {container_process.returncode}")
+                task_data["error"] = f"Container build failed: {build_process.stderr}"
+                return
+            
+            print("[TASK] Container built successfully, starting Claude Code...")
+            
+            # Run the container with proper Claude Code integration
+            run_cmd = [
+                "docker", "run", "-d",
+                "--name", f"claude-task-{task_id}",
+                "-p", "7681:7681",
+                "-e", f"TASK_DESCRIPTION={task_data['task_description']}",
+                "-e", f"SAVE_WORD={task_data['save_word']}",
+                "-e", f"ANTHROPIC_API_KEY={os.getenv('ANTHROPIC_API_KEY')}",
+                "-e", f"GITHUB_TOKEN={task_data.get('github_token', '')}",
+                "-e", f"REPOSITORY_URL={task_data.get('repository_url', '')}",
+                "claude-code-task"
+            ]
+            
+            task_data["logs"].append("Starting Claude Code container...")
+            await broadcast_task_update(task_data)
+            
+            container_process = await asyncio.create_subprocess_exec(
+                *run_cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT
+            )
+            
+            # Calculate the web terminal port
+            terminal_port = 7681
+            task_data["container_id"] = f"claude-task-{task_id}"
+            task_data["claude_code_url"] = f"http://localhost:{terminal_port}"
+            task_data["logs"].append(f"Web terminal with Claude Code access: http://localhost:{terminal_port}")
+            task_data["logs"].append("Claude Code CLI environment ready for interactive development")
+            await broadcast_task_update(task_data)
+            
+            # Monitor container output with timeout
+            timeout_seconds = task_data.get('timeout_minutes', 60) * 60
+            start_time = time.time()
+            
+            while True:
+                try:
+                    # Check if process is still running
+                    if container_process.returncode is not None:
+                        break
+                    
+                    # Check timeout
+                    if time.time() - start_time > timeout_seconds:
+                        task_data["logs"].append("Task timed out")
+                        container_process.terminate()
+                        await asyncio.sleep(5)
+                        if container_process.returncode is None:
+                            container_process.kill()
+                        break
+                    
+                    # Read output line
+                    try:
+                        line = await asyncio.wait_for(
+                            container_process.stdout.readline(), 
+                            timeout=5.0
+                        )
+                        
+                        if not line:
+                            break
+                            
+                        log_line = line.decode().strip()
+                        if log_line:
+                            task_data["logs"].append(log_line)
+                            
+                            # Check for completion signal
+                            if task_data["save_word"] in log_line:
+                                task_data["status"] = "completed"
+                                task_data["progress"] = "Task completed successfully!"
+                                task_data["logs"].append("Task completed! Safe word detected.")
+                                await broadcast_task_update(task_data)
+                                break
+                            
+                            await broadcast_task_update(task_data)
+                            
+                    except asyncio.TimeoutError:
+                        # Continue if no output for 5 seconds
+                        continue
+                    
+                except Exception as e:
+                    task_data["logs"].append(f"Monitoring error: {str(e)}")
+                    break
+            
+            # Wait for container to finish
+            await container_process.wait()
+            
+            if task_data["status"] != "completed":
+                if container_process.returncode == 0:
+                    task_data["status"] = "completed"
+                    task_data["progress"] = "Task finished"
+                    task_data["logs"].append("Container finished successfully")
+                else:
+                    task_data["status"] = "failed"
+                    task_data["progress"] = f"Container exited with code {container_process.returncode}"
+                    task_data["logs"].append(f"Container failed with exit code {container_process.returncode}")
+            
+        except Exception as e:
+            task_data["status"] = "failed"
+            task_data["progress"] = f"Error: {str(e)}"
+            task_data["logs"].append(f"Error: {str(e)}")
         
     except Exception as e:
         task_data["status"] = "failed"
         task_data["progress"] = f"Error: {str(e)}"
         task_data["logs"].append(f"Error: {str(e)}")
-        
-        # Try to stop container if it was started
-        if container_id:
-            try:
-                subprocess.run(['docker', 'stop', container_id], 
-                             capture_output=True, timeout=10)
-            except:
-                pass
     
     finally:
         await broadcast_task_update(task_data)
         
-        # Clean up Docker image
+        # Ensure container cleanup
+        if task_id in active_tasks:
+            del active_tasks[task_id]
+        
+        # Clean up Docker container
         try:
-            subprocess.run(['docker', 'rmi', f"summit-task-{task_id}"], 
-                         capture_output=True)
+            subprocess.run(['docker', 'stop', f"claude-task-{task_id}"], 
+                          capture_output=True, timeout=10)
+            subprocess.run(['docker', 'rm', f"claude-task-{task_id}"], 
+                          capture_output=True)
         except:
             pass
 
