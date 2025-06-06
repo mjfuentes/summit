@@ -2,8 +2,10 @@
 
 import os
 import asyncio
+import pytest
 from anthropic import Anthropic
 
+@pytest.mark.asyncio
 async def test_summit_ai():
     """Test Summit's AI capabilities directly"""
     

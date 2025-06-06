@@ -2,8 +2,10 @@
 
 import asyncio
 import os
+import pytest
 from summit import handle_call_tool, knowledge_base
 
+@pytest.mark.asyncio
 async def test_knowledge_integration():
     """Test Summit's knowledge integration in responses"""
     

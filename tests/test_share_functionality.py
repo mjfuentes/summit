@@ -2,8 +2,10 @@
 
 import asyncio
 import os
+import pytest
 from summit import handle_call_tool, knowledge_base
 
+@pytest.mark.asyncio
 async def test_summit_share():
     """Test Summit's share functionality"""
     

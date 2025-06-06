@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'config'))
 
 from config import setup_environment, SUMMIT_CONFIG
 from cost_tracker import CostTracker
-from vector_knowledge_base import EnhancedKnowledgeBase
+from knowledge_base import KnowledgeBase
 
 # Set up environment variables from config
 setup_environment()
@@ -36,7 +36,7 @@ cost_tracker = CostTracker(
 )
 
 # Initialize knowledge base for shared experiences
-knowledge_base = EnhancedKnowledgeBase()
+knowledge_base = KnowledgeBase()
 
 # Initialize Anthropic client
 def get_anthropic_client():
@@ -557,7 +557,7 @@ I appreciate your contribution to my growing understanding. Each shared experien
                     focus_context = f"\n\nKnowledge gaps identified: {', '.join(insights['knowledge_gaps'])}"
         
         # Build the enhanced response
-        search_mode = "semantic + keyword" if knowledge_base.embeddings_enabled else "enhanced keyword"
+        search_mode = "enhanced keyword"
         response = f"""Summit's Knowledge Search Results (using {search_mode} search):
 
 {chr(10).join(relevant_information)}
@@ -582,8 +582,6 @@ Found {len(search_results)} relevant items from {knowledge_base.get_knowledge_su
 
 Search Statistics:
 • Total searches performed: {analytics['total_searches']}
-• Semantic searches: {analytics['semantic_searches']} ({analytics['semantic_percentage']:.1f}%)
-• Keyword searches: {analytics['keyword_searches']} ({analytics['keyword_percentage']:.1f}%)
 • Empty results rate: {analytics['empty_rate']:.1f}%
 
 Query Patterns:
@@ -597,7 +595,6 @@ Knowledge Base Status:
 • Search mode: {summary['search_mode']}
 • Total content items: {summary['total_shares']}
 • Synthesized insights: {summary['synthesized_insights']}
-• Vector embeddings: {summary['total_embeddings']}
 
 Popular Categories (from search results):
 {chr(10).join(f"• {cat}: {count} searches" for cat, count in analytics['popular_categories'].items()) if analytics['popular_categories'] else "• No search data yet"}"""
@@ -608,8 +605,7 @@ Popular Categories (from search results):
 
 Performance Insights:
 • Search efficiency: {'Good' if analytics['empty_rate'] < 20 else 'Could be improved'}
-• Content diversity: {'Good' if len(summary['categories']) > 3 else 'Limited categories'}
-• Vector search: {'Active' if summary['search_mode'].startswith('semantic') else 'Consider enabling OPENAI_API_KEY for semantic search'}"""
+• Content diversity: {'Good' if len(summary['categories']) > 3 else 'Limited categories'}"""
         
         return [
             types.TextContent(
@@ -987,13 +983,15 @@ async def plan_capability_implementation(capability_description: str, requiremen
     else:
         codebase_context = f"Working with Summit repository: {owner}/{repo}"
     
-    planning_prompt = f"""You are Summit, an AI that can learn new capabilities by modifying its own code. You need to plan how to implement a new capability.
+    planning_prompt = f"""You are Summit, an AI that can learn new capabilities by modifying its own code. You need to plan how to implement a new capability following the MANDATORY DEVELOPMENT PROCESS.
 
-IMPORTANT: Follow Summit's coding standards (available in CODING_STANDARDS.md):
-- NEVER add obvious/redundant comments like "# Test passed", "# Success", "# End of function"
-- Comments should explain WHY, not WHAT the code does
-- Use proper assertions in tests, not return statements
-- Keep code clean and readable
+CRITICAL: You MUST follow the complete development workflow from CODING_STANDARDS.md:
+
+1. ANALYSIS PHASE - Understand requirement, examine codebase, identify integration points
+2. IMPLEMENTATION PHASE - Write clean code, add comprehensive tests
+3. QUALITY ASSURANCE PHASE - Run coverage, linting, formatting
+4. GIT OPERATIONS PHASE - Add, commit, push with proper messages
+5. VERIFICATION PHASE - Confirm tests pass, coverage >70%, clean quality
 
 Current Context:
 - {codebase_context}
@@ -1006,15 +1004,34 @@ New Capability Request:
 
 {f"Requirements: {requirements}" if requirements else ""}
 
-Please provide a detailed implementation plan including:
-1. Files that need to be modified
-2. New functions or tools to add
-3. Dependencies that might be needed
-4. Testing approach
-5. Step-by-step implementation strategy
-6. Potential risks or challenges
+Provide a COMPLETE implementation plan that follows the mandatory 5-phase process:
 
-Be specific about the code changes needed. Remember to follow the coding standards and avoid obvious comments."""
+## Phase 1: Analysis
+- Codebase examination commands to run
+- Integration points identified
+- Dependencies analysis
+
+## Phase 2: Implementation  
+- Specific files to create/modify
+- New functions/tools to add
+- Test files to create
+- Code structure following existing patterns
+
+## Phase 3: Quality Assurance
+- Testing commands to execute
+- Coverage verification steps
+- Linting/formatting commands
+
+## Phase 4: Git Operations
+- Exact git commands to run
+- Commit message format
+- Push verification
+
+## Phase 5: Verification
+- Final validation steps
+- Success criteria
+
+Be extremely specific about commands to run and code to write. The agent must follow this workflow exactly or the changes will be REJECTED."""
 
     try:
         message = client.messages.create(
@@ -1047,7 +1064,7 @@ Summit Learning Session Instructions
 
 Codespace URL: {codespace_url}
 
-IMPORTANT: Read CODING_STANDARDS.md first for Summit's coding guidelines.
+🚨 CRITICAL: You MUST follow the MANDATORY DEVELOPMENT PROCESS from CODING_STANDARDS.md
 
 Capability to Implement:
 {capability_description}
@@ -1055,26 +1072,62 @@ Capability to Implement:
 Implementation Plan:
 {implementation_plan}
 
-Manual Steps:
-1. Open the codespace in your browser: {codespace_url}
-2. Navigate to the Summit codebase
-3. Read CODING_STANDARDS.md to understand code quality expectations
-4. Follow the implementation plan above
-5. Create/modify the necessary files (following coding standards)
-6. Add appropriate tests (use assert, not return statements)
-7. Run tests to validate changes
-8. Commit changes with descriptive message
-9. Use summit_deploy_changes tool when complete
+REQUIRED WORKFLOW - Execute these phases in order:
 
-The codespace provides:
-- Full Ubuntu development environment
-- Python 3.x with all dependencies
-- Git access for version control
-- VS Code web interface
-- Terminal access for commands
+## Phase 1: Analysis (MANDATORY)
+```bash
+# Open codespace: {codespace_url}
+# Navigate to Summit codebase
+cat CODING_STANDARDS.md          # Read the complete workflow
+find . -name "*.py" | head -20    # Understand codebase structure
+grep -r "def " src/               # Find existing functions
+```
 
-Note: This is currently a semi-automated process. Future versions will provide
-full automated implementation capabilities.
+## Phase 2: Implementation (MANDATORY)
+- Follow the implementation plan above
+- Create/modify files following existing patterns  
+- Add comprehensive tests for ALL new functionality
+- Use meaningful names, no obvious comments
+
+## Phase 3: Quality Assurance (MANDATORY)
+```bash
+# REQUIRED: Execute these commands before any commit
+python run_coverage.py           # Check test coverage
+pytest --cov=src --cov-report=term-missing  # Detailed coverage report
+python -m pylint src/ || echo "Linting check attempted"   # Code quality
+python -m black src/ tests/ || echo "Formatting attempted" # Code formatting
+```
+
+## Phase 4: Git Operations (MANDATORY)
+🚨 **CRITICAL: NEVER COMMIT WITH FAILING TESTS**
+```bash
+# REQUIRED: Complete Git workflow - ONLY if ALL tests pass
+git add .                        # Stage all changes
+git status                       # Verify what's being committed
+git commit -m "Add [feature]: [description] - [coverage%] coverage" 
+git push origin main            # Push to repository
+```
+
+## Phase 5: Verification (MANDATORY)
+```bash
+# REQUIRED: Final validation - MUST BE GREEN BEFORE COMMIT
+python run_coverage.py          # Confirm ALL tests pass
+echo "Coverage target: >70%"    # Verify coverage maintained
+echo "All tests must be GREEN"  # Confirm no failures
+```
+
+🚨 **CRITICAL: NO COMMITS WITH FAILING TESTS**
+⚠️  FAILURE TO FOLLOW THIS COMPLETE WORKFLOW = REJECTION
+
+The implementation will be rejected if you skip any phase. You must demonstrate:
+✅ Proper analysis and understanding
+✅ Comprehensive testing with ALL tests passing (100% green)
+✅ Coverage >70% verified before commit
+✅ Quality assurance execution
+✅ Complete Git workflow ONLY after tests pass
+✅ Final verification with zero failures
+
+Environment provides: Ubuntu, Python 3.x, Git, VS Code, all dependencies
 """
     
     return instructions

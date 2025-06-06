@@ -23,12 +23,276 @@
       "context": null,
       "timestamp": "2025-06-06T20:42:55.389281",
       "processed": false
+    },
+    {
+      "id": 4,
+      "content": "Developers are finding that AI pair programming works best when they stay in the driver's seat",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-06T21:52:50.814851",
+      "processed": false
+    },
+    {
+      "id": 5,
+      "content": "The most successful AI projects start with clear human-defined goals and constraints",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-06T21:53:00.742387",
+      "processed": false
+    },
+    {
+      "id": 6,
+      "content": "I've noticed that AI is most helpful when it suggests solutions but humans make the final decisions",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-06T21:53:20.398630",
+      "processed": false
+    },
+    {
+      "id": 7,
+      "content": "Test insight for web API",
+      "category": "test",
+      "context": "API testing",
+      "timestamp": "2025-06-06T21:59:11.264421",
+      "processed": false
+    },
+    {
+      "id": 8,
+      "content": "Developers are finding that AI pair programming works best when they stay in the driver's seat",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-06T21:59:49.214232",
+      "processed": false
+    },
+    {
+      "id": 9,
+      "content": "The most successful AI projects start with clear human-defined goals and constraints",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-06T21:59:49.214483",
+      "processed": false
+    },
+    {
+      "id": 10,
+      "content": "I've noticed that AI is most helpful when it suggests solutions but humans make the final decisions",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-06T21:59:49.238260",
+      "processed": false
+    },
+    {
+      "id": 11,
+      "content": "I've noticed that developers are increasingly using AI for debugging rather than just code generation",
+      "category": "observation",
+      "context": "Based on conversations this week",
+      "timestamp": "2025-06-06T21:59:49.239502",
+      "processed": false
+    },
+    {
+      "id": 12,
+      "content": "The most effective AI collaborations happen when humans focus on high-level strategy while AI handles implementation details",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-06T21:59:49.239739",
+      "processed": false
+    },
+    {
+      "id": 13,
+      "content": "AI debugging tools are becoming more sophisticated and can now identify complex logical errors",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-06T22:00:04.387703",
+      "processed": false
+    },
+    {
+      "id": 14,
+      "content": "Machine learning models perform better when trained on diverse, high-quality datasets",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-06T22:00:04.389082",
+      "processed": false
+    },
+    {
+      "id": 15,
+      "content": "Developers are struggling with async programming patterns in JavaScript",
+      "category": "challenge",
+      "context": null,
+      "timestamp": "2025-06-06T22:00:12.876373",
+      "processed": false
+    },
+    {
+      "id": 16,
+      "content": "Code reviews are more effective when they focus on architecture rather than syntax",
+      "category": "best_practice",
+      "context": null,
+      "timestamp": "2025-06-06T22:00:12.877118",
+      "processed": false
+    },
+    {
+      "id": 17,
+      "content": "Natural language processing has revolutionized how we interact with software",
+      "category": "trend",
+      "context": null,
+      "timestamp": "2025-06-06T22:00:12.877748",
+      "processed": false
+    },
+    {
+      "id": 18,
+      "content": "Test insight for web API",
+      "category": "test",
+      "context": "API testing",
+      "timestamp": "2025-06-06T22:00:12.920268",
+      "processed": false
+    },
+    {
+      "id": 19,
+      "content": "Test insight for web API",
+      "category": "test",
+      "context": "API testing",
+      "timestamp": "2025-06-06T22:03:18.093089",
+      "processed": false
+    },
+    {
+      "id": 20,
+      "content": "Developers are finding that AI pair programming works best when they stay in the driver's seat",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-06T22:03:24.034465",
+      "processed": false
+    },
+    {
+      "id": 21,
+      "content": "The most successful AI projects start with clear human-defined goals and constraints",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-06T22:03:24.035132",
+      "processed": false
+    },
+    {
+      "id": 22,
+      "content": "I've noticed that AI is most helpful when it suggests solutions but humans make the final decisions",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-06T22:03:24.077678",
+      "processed": false
+    },
+    {
+      "id": 23,
+      "content": "Test insight for web API",
+      "category": "test",
+      "context": "API testing",
+      "timestamp": "2025-06-06T22:05:05.747836",
+      "processed": false
+    },
+    {
+      "id": 24,
+      "content": "Developers are finding that AI pair programming works best when they stay in the driver's seat",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-06T22:06:28.692599",
+      "processed": false
+    },
+    {
+      "id": 25,
+      "content": "The most successful AI projects start with clear human-defined goals and constraints",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-06T22:06:38.101627",
+      "processed": false
+    },
+    {
+      "id": 26,
+      "content": "I've noticed that AI is most helpful when it suggests solutions but humans make the final decisions",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-06T22:06:58.704270",
+      "processed": false
+    },
+    {
+      "id": 27,
+      "content": "I've noticed that developers are increasingly using AI for debugging rather than just code generation",
+      "category": "observation",
+      "context": "Based on conversations this week",
+      "timestamp": "2025-06-06T22:07:07.999232",
+      "processed": false
+    },
+    {
+      "id": 28,
+      "content": "The most effective AI collaborations happen when humans focus on high-level strategy while AI handles implementation details",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-06T22:07:07.999803",
+      "processed": false
+    },
+    {
+      "id": 29,
+      "content": "AI debugging tools are becoming more sophisticated and can now identify complex logical errors",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-06T22:07:24.070704",
+      "processed": false
+    },
+    {
+      "id": 30,
+      "content": "Machine learning models perform better when trained on diverse, high-quality datasets",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-06T22:07:32.616844",
+      "processed": false
+    },
+    {
+      "id": 31,
+      "content": "Developers are struggling with async programming patterns in JavaScript",
+      "category": "challenge",
+      "context": null,
+      "timestamp": "2025-06-06T22:07:32.618832",
+      "processed": false
+    },
+    {
+      "id": 32,
+      "content": "Code reviews are more effective when they focus on architecture rather than syntax",
+      "category": "best_practice",
+      "context": null,
+      "timestamp": "2025-06-06T22:07:32.620384",
+      "processed": false
+    },
+    {
+      "id": 33,
+      "content": "Natural language processing has revolutionized how we interact with software",
+      "category": "trend",
+      "context": null,
+      "timestamp": "2025-06-06T22:07:32.630139",
+      "processed": false
+    },
+    {
+      "id": 34,
+      "content": "Test insight for web API",
+      "category": "test",
+      "context": "API testing",
+      "timestamp": "2025-06-06T22:07:32.673342",
+      "processed": false
     }
   ],
   "synthesized_insights": [],
   "categories": {
-    "observation": 2,
-    "insight": 1
+    "observation": 14,
+    "insight": 9,
+    "test": 5,
+    "challenge": 2,
+    "best_practice": 2,
+    "trend": 2
   },
-  "last_updated": "2025-06-06T20:42:55.389288"
+  "search_analytics": {
+    "total_searches": 47,
+    "empty_results": 0,
+    "query_types": {
+      "question": 20,
+      "general": 6
+    },
+    "popular_categories": {
+      "observation": 183,
+      "insight": 96
+    }
+  },
+  "last_updated": "2025-06-06T22:07:32.673376"
 }

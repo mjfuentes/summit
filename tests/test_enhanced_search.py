@@ -4,7 +4,7 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from vector_knowledge_base import EnhancedKnowledgeBase
+from knowledge_base import KnowledgeBase
 import tempfile
 import json
 
@@ -18,7 +18,7 @@ def test_enhanced_semantic_search():
     with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as data_file:
         with tempfile.NamedTemporaryFile(mode='w', suffix='.index', delete=False) as index_file:
             # Initialize knowledge base
-            kb = EnhancedKnowledgeBase(data_file.name)
+            kb = KnowledgeBase(data_file.name)
             
             print("Step 1: Adding diverse test content")
             
@@ -40,24 +40,7 @@ def test_enhanced_semantic_search():
                 kb.add_shared_item(content, category)
                 print(f"  Added: {category}")
             
-            print(f"\nStep 2: Testing enhanced query preprocessing")
-            
-            test_queries = [
-                "How can AI help with debugging?",  # question
-                "Find examples of best practices",   # search
-                "Show me similar machine learning insights",  # similarity
-                "What's the best approach for testing?",  # recommendation
-                "JavaScript async challenges"  # general
-            ]
-            
-            for query in test_queries:
-                query_info = kb.preprocess_query(query)
-                print(f"\nQuery: '{query}'")
-                print(f"  Type: {query_info['query_type']}")
-                print(f"  Key terms: {query_info['key_terms']}")
-                print(f"  Suggested categories: {query_info['suggested_categories']}")
-            
-            print(f"\nStep 3: Testing enhanced search functionality")
+            print(f"\nStep 2: Testing search functionality")
             
             search_queries = [
                 "debugging code issues",
@@ -83,7 +66,7 @@ def test_enhanced_semantic_search():
                     if 'match_details' in result:
                         print(f"       Matches: {result['match_details']}")
             
-            print(f"\nStep 4: Testing analytics and insights")
+            print(f"\nStep 3: Testing analytics and insights")
             
             # Get search analytics
             analytics = kb.get_search_analytics()
@@ -100,7 +83,7 @@ def test_enhanced_semantic_search():
             print(f"  Content themes: {insights['content_themes']}")
             print(f"  Knowledge gaps: {insights['knowledge_gaps']}")
             
-            print(f"\nStep 5: Testing query suggestions")
+            print(f"\nStep 4: Testing query suggestions")
             
             for query in ["debugging", "best practices"]:
                 suggestions = kb.suggest_related_queries(query)
@@ -108,7 +91,7 @@ def test_enhanced_semantic_search():
                 for suggestion in suggestions:
                     print(f"  - {suggestion}")
             
-            print(f"\nStep 6: Testing knowledge summary")
+            print(f"\nStep 5: Testing knowledge summary")
             
             summary = kb.get_knowledge_summary()
             print(f"\nKnowledge Base Summary:")
@@ -117,7 +100,7 @@ def test_enhanced_semantic_search():
             print(f"  Categories: {summary['categories']}")
             
             # Test similarity search
-            print(f"\nStep 7: Testing similar experiences")
+            print(f"\nStep 6: Testing similar experiences")
             
             similar = kb.find_similar_experiences("finding bugs in software")
             print(f"\nSimilar experiences to 'finding bugs in software':")

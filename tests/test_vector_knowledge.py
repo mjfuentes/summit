@@ -2,8 +2,10 @@
 
 import asyncio
 import os
+import pytest
 from summit import handle_call_tool, knowledge_base
 
+@pytest.mark.asyncio
 async def test_vector_knowledge():
     """Test Summit's vector knowledge base and semantic search"""
     

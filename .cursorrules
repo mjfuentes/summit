@@ -13,3 +13,9 @@
 - Comments should explain WHY, not WHAT the code does
 - Avoid stating the obvious - let the code speak for itself
 - Only comment when adding genuine value or explaining complex logic
+
+## Development Workflow
+- Follow the MANDATORY DEVELOPMENT PROCESS from CODING_STANDARDS.md
+- Always run tests and coverage before committing
+- Use proper Git workflow: analyze → implement → test → lint → commit → push
+- Maintain >70% test coverage on all changes
