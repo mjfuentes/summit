@@ -34,6 +34,12 @@ git commit -m "descriptive message"  # Commit with clear message
 git push origin main           # Push to repository
 ```
 
+**CRITICAL GIT RULE: NEVER USE --no-verify**
+- NEVER bypass pre-commit hooks with `git commit --no-verify`
+- Pre-commit hooks enforce quality standards (tests, linting, emoji removal)
+- If hooks fail, fix the underlying issue instead of bypassing checks
+- ALL commits must pass through complete pre-commit validation
+
 **CRITICAL RULE: NEVER COMMIT WITH FAILING TESTS**
 - ALL tests must pass before any commit
 - Coverage must be >70% before any commit
@@ -54,6 +60,29 @@ git push origin main           # Push to repository
 - Comments should explain WHY, not WHAT the code does
 - Avoid stating the obvious - let the code speak for itself
 - Only comment when adding genuine value or explaining complex logic
+
+
+### Emoji Linting (Automated)
+- **Automatic emoji removal** - Pre-commit hook automatically removes all emoji characters
+- **Zero tolerance enforcement** - No emojis can be committed to the repository
+- **Manual linting available** - Run `python tools/emoji_linter.py --fix` to clean files manually
+- **Comprehensive detection** - Covers all Unicode emoji ranges and symbol categories
+- **Professional codebase** - Maintains enterprise-grade documentation standards
+
+#### Emoji Linter Commands:
+```bash
+# Check for emojis without fixing
+python tools/emoji_linter.py
+
+# Automatically remove emojis
+python tools/emoji_linter.py --fix
+
+# Check only staged files (used by pre-commit hook)
+python tools/emoji_linter.py --staged --fix
+
+# Verbose output showing detection details
+python tools/emoji_linter.py --verbose
+```
 
 ### Documentation  
 - **ABSOLUTELY NO EMOJIS** - ZERO tolerance policy for emojis in any code, documentation, logs, or user interface
@@ -101,6 +130,7 @@ The agent must demonstrate:
 **ABSOLUTE REQUIREMENTS:**
 - **NEVER COMMIT WITH FAILING TESTS** - Zero tolerance policy
 - **NEVER COMMIT WITH <70% COVERAGE** - Quality gate enforced  
+- **NEVER USE --no-verify** - All commits must pass pre-commit hooks
 - **ALWAYS VERIFY BEFORE COMMIT** - No shortcuts allowed
 - **NEVER USE EMOJIS** - Professional code and documentation only
 
