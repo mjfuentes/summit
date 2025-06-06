@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+
+import asyncio
+import os
+from summit import handle_call_tool, knowledge_base
+
+async def test_summit_share():
+    """Test Summit's share functionality"""
+    
+    print("Testing Summit Share Functionality")
+    print("=" * 40)
+    
+    # Set API key for AI responses
+    os.environ["ANTHROPIC_API_KEY"] = "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"
+    
+    try:
+        # Test 1: Share an observation
+        print("Test 1: Sharing an observation")
+        
+        result1 = await handle_call_tool("summit_share", {
+            "content": "I've noticed that developers are increasingly using AI for debugging rather than just code generation",
+            "category": "observation", 
+            "context": "Based on conversations this week"
+        })
+        
+        response1 = result1[0].text
+        print("Response received (first 200 chars):")
+        print(response1[:200] + "..." if len(response1) > 200 else response1)
+        
+        # Test 2: Share an insight
+        print("\nTest 2: Sharing an insight")
+        
+        result2 = await handle_call_tool("summit_share", {
+            "content": "The most effective AI collaborations happen when humans focus on high-level strategy while AI handles implementation details",
+            "category": "insight"
+        })
+        
+        response2 = result2[0].text
+        print("Response received (first 200 chars):")
+        print(response2[:200] + "..." if len(response2) > 200 else response2)
+        
+        # Test 3: Check knowledge base state
+        print("\nTest 3: Checking knowledge base")
+        summary = knowledge_base.get_knowledge_summary()
+        print(f"Total shares: {summary['total_shares']}")
+        print(f"Categories: {summary['categories']}")
+        
+        print("\nSummit Share functionality test COMPLETED")
+        
+    except Exception as e:
+        print(f"ERROR: Summit Share test failed: {e}")
+
+if __name__ == "__main__":
+    asyncio.run(test_summit_share()) 

@@ -1,0 +1,27 @@
+{
+  "shared_items": [
+    {
+      "id": 1,
+      "content": "AI debugging tools are becoming more sophisticated and can now identify complex logical errors",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-06T20:48:43.889568",
+      "processed": false
+    },
+    {
+      "id": 2,
+      "content": "Machine learning models perform better when trained on diverse, high-quality datasets",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-06T20:48:51.587609",
+      "processed": false
+    }
+  ],
+  "synthesized_insights": [],
+  "categories": {
+    "observation": 1,
+    "insight": 1
+  },
+  "embeddings_metadata": [],
+  "last_updated": "2025-06-06T20:48:51.587631"
+}
