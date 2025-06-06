@@ -4,7 +4,7 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from vector_knowledge_base import VectorKnowledgeBase
+from vector_knowledge_base import EnhancedKnowledgeBase
 import tempfile
 import json
 
@@ -18,7 +18,7 @@ def test_enhanced_semantic_search():
     with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as data_file:
         with tempfile.NamedTemporaryFile(mode='w', suffix='.index', delete=False) as index_file:
             # Initialize knowledge base
-            kb = VectorKnowledgeBase(data_file.name, index_file.name)
+            kb = EnhancedKnowledgeBase(data_file.name)
             
             print("Step 1: Adding diverse test content")
             
@@ -89,7 +89,7 @@ def test_enhanced_semantic_search():
             analytics = kb.get_search_analytics()
             print(f"\nSearch Analytics:")
             print(f"  Total searches: {analytics['total_searches']}")
-            print(f"  Keyword searches: {analytics['keyword_searches']}")
+            print(f"  Empty results: {analytics['empty_results']}")
             print(f"  Query types: {analytics['query_types']}")
             
             # Get content insights
@@ -114,7 +114,7 @@ def test_enhanced_semantic_search():
             print(f"\nKnowledge Base Summary:")
             print(f"  Total shares: {summary['total_shares']}")
             print(f"  Search mode: {summary['search_mode']}")
-            print(f"  Embedding model: {summary['embedding_model']}")
+            print(f"  Categories: {summary['categories']}")
             
             # Test similarity search
             print(f"\nStep 7: Testing similar experiences")
@@ -127,11 +127,8 @@ def test_enhanced_semantic_search():
                 print(f"    Score: {result['similarity_score']:.3f}")
             
             print("\n" + "=" * 50)
-            print("Enhanced semantic search test COMPLETED!")
-            
-            if not kb.embeddings_enabled:
-                print("\nNOTE: Running in enhanced keyword mode.")
-                print("Set OPENAI_API_KEY for full semantic capabilities.")
+            print("Enhanced keyword search test COMPLETED!")
+            print("\nRunning in enhanced keyword mode with intelligent ranking.")
             
             # Cleanup
             os.unlink(data_file.name)
