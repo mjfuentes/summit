@@ -327,6 +327,21 @@ Examples:
                 ` + logsHtml;
             }
             
+            // Add log file download button if log file exists
+            if (task.log_file) {
+                logsHtml = `
+                    <div style="background: #007bff; color: white; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+                        <strong>Full Logs Available:</strong>
+                        <button onclick="downloadLogs('${task.task_id}')" style="background: white; color: #007bff; border: none; padding: 5px 10px; border-radius: 3px; margin-left: 10px; cursor: pointer;">
+                            Download Full Logs
+                        </button>
+                        <button onclick="viewLogs('${task.task_id}')" style="background: white; color: #007bff; border: none; padding: 5px 10px; border-radius: 3px; margin-left: 5px; cursor: pointer;">
+                            View Logs
+                        </button>
+                    </div>
+                ` + logsHtml;
+            }
+            
             document.getElementById('task-logs').innerHTML = logsHtml;
             
             const progress = task.status === 'completed' ? 100 : task.status === 'running' ? 50 : 0;
@@ -396,6 +411,51 @@ Examples:
             const result = await response.json();
             if (result.success) {
                 updateTaskDetails(result.task);
+            }
+        }
+        
+        async function downloadLogs(taskId) {
+            try {
+                const response = await fetch(`/api/tasks/${taskId}/logs`);
+                const result = await response.json();
+                if (result.success) {
+                    const blob = new Blob([result.logs], { type: 'text/plain' });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `task_${taskId}_logs.txt`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                } else {
+                    alert('Failed to download logs: ' + result.message);
+                }
+            } catch (error) {
+                alert('Error downloading logs: ' + error.message);
+            }
+        }
+        
+        async function viewLogs(taskId) {
+            try {
+                const response = await fetch(`/api/tasks/${taskId}/logs`);
+                const result = await response.json();
+                if (result.success) {
+                    const logWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes');
+                    logWindow.document.write(`
+                        <html>
+                        <head><title>Task ${taskId} - Full Logs</title></head>
+                        <body style="font-family: monospace; white-space: pre-wrap; padding: 20px;">
+                        ${result.logs.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+                        </body>
+                        </html>
+                    `);
+                    logWindow.document.close();
+                } else {
+                    alert('Failed to view logs: ' + result.message);
+                }
+            } catch (error) {
+                alert('Error viewing logs: ' + error.message);
             }
         }
         
@@ -556,7 +616,26 @@ async def run_autonomous_task(task_id: str, task_data: Dict):
             timeout_seconds = task_data.get('timeout_minutes', 60) * 60
             start_time = time.time()
             
+            # Create log file for this task instance
+            log_dir = "task_logs"
+            os.makedirs(log_dir, exist_ok=True)
+            log_file_path = os.path.join(log_dir, f"task_{task_id}.log")
+            
+            # Initialize log file with task information
+            try:
+                with open(log_file_path, 'w', encoding='utf-8') as f:
+                    f.write(f"[SYSTEM] Task started at {datetime.now().isoformat()}\n")
+                    f.write(f"[SYSTEM] Task ID: {task_id}\n")
+                    f.write(f"[SYSTEM] Task Description: {task_data['task_description']}\n")
+                    f.write(f"[SYSTEM] Completion Signal: {task_data['save_word']}\n")
+                    f.write(f"[SYSTEM] Container ID: {container_id}\n")
+                    f.write(f"[SYSTEM] Log monitoring started\n")
+                    f.write("=" * 60 + "\n")
+            except Exception as e:
+                print(f"[ERROR] Failed to initialize log file: {e}")
+            
             task_data["logs"].append("Container started successfully, monitoring Claude Code environment...")
+            task_data["log_file"] = log_file_path
             await broadcast_task_update(task_data)
             
             while True:
@@ -594,8 +673,17 @@ async def run_autonomous_task(task_id: str, task_data: Dict):
                         # Split into lines and process new ones
                         log_lines = all_logs.split('\n') if all_logs else []
                         
+                        new_logs_added = False
+                        
                         for line in log_lines:
                             if line.strip():
+                                # Save raw log line to file with timestamp
+                                try:
+                                    with open(log_file_path, 'a', encoding='utf-8') as f:
+                                        f.write(f"{line}\n")
+                                except Exception as e:
+                                    print(f"[ERROR] Failed to write to log file: {e}")
+                                
                                 # Remove timestamp prefix for cleaner display
                                 clean_line = line
                                 if 'T' in line and 'Z' in line:  # Has timestamp
@@ -608,17 +696,27 @@ async def run_autonomous_task(task_id: str, task_data: Dict):
                                 # Only add if not already in logs
                                 if formatted_log not in task_data["logs"]:
                                     task_data["logs"].append(formatted_log)
+                                    new_logs_added = True
                                     
                                     # Check for completion signal
                                     if task_data["save_word"] in clean_line:
                                         task_data["status"] = "completed"
                                         task_data["progress"] = "Task completed successfully!"
-                                        task_data["logs"].append(" Task completed! Completion signal detected.")
+                                        task_data["logs"].append("Task completed! Completion signal detected.")
+                                        
+                                        # Save completion status to log file
+                                        try:
+                                            with open(log_file_path, 'a', encoding='utf-8') as f:
+                                                f.write(f"[SYSTEM] Task completed at {datetime.now().isoformat()}\n")
+                                                f.write(f"[SYSTEM] Completion signal '{task_data['save_word']}' detected\n")
+                                        except Exception as e:
+                                            print(f"[ERROR] Failed to write completion to log file: {e}")
+                                        
                                         await broadcast_task_update(task_data)
                                         return
                         
                         # Update if we added new logs
-                        if len([log for log in task_data["logs"] if log.startswith("Claude:")]) > len(current_logs):
+                        if new_logs_added:
                             await broadcast_task_update(task_data)
                     
                     # Wait before next check
@@ -650,6 +748,17 @@ async def run_autonomous_task(task_id: str, task_data: Dict):
         task_data["logs"].append(f"Error: {str(e)}")
     
     finally:
+        # Save final log entry
+        if 'log_file_path' in locals():
+            try:
+                with open(log_file_path, 'a', encoding='utf-8') as f:
+                    f.write("=" * 60 + "\n")
+                    f.write(f"[SYSTEM] Task ended at {datetime.now().isoformat()}\n")
+                    f.write(f"[SYSTEM] Final status: {task_data.get('status', 'unknown')}\n")
+                    f.write(f"[SYSTEM] Log file saved to: {log_file_path}\n")
+            except Exception as e:
+                print(f"[ERROR] Failed to write final log entry: {e}")
+        
         await broadcast_task_update(task_data)
         
         # Ensure container cleanup
@@ -701,6 +810,21 @@ async def stop_task(task_id: str):
     await broadcast_task_update(task_data)
     
     return {"success": True, "message": "Task stopped"}
+
+@app.get("/api/tasks/{task_id}/logs")
+async def get_task_logs(task_id: str):
+    """Get the full log file for a specific task"""
+    log_file_path = os.path.join("task_logs", f"task_{task_id}.log")
+    
+    if not os.path.exists(log_file_path):
+        return {"success": False, "message": "Log file not found"}
+    
+    try:
+        with open(log_file_path, 'r', encoding='utf-8') as f:
+            logs = f.read()
+        return {"success": True, "logs": logs, "file_path": log_file_path}
+    except Exception as e:
+        return {"success": False, "message": f"Error reading log file: {str(e)}"}
 
 @app.get("/health")
 async def health_check():
