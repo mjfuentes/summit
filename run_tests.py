@@ -76,6 +76,30 @@ def run_single_test(test_name):
         print(f"\nSingle test failed after {end_time - start_time:.2f} seconds")
         return e.returncode
 
+def run_autonomous_tests():
+    """Run autonomous integration tests (requires Docker)"""
+    start_time = time.time()
+    
+    cmd = [
+        "python", "-m", "pytest", "tests/test_autonomous_integration.py", 
+        "-v", "-s", "-m", "autonomous", "--tb=long"
+    ]
+    
+    print("Running autonomous integration tests...")
+    print("  WARNING: This requires Docker and will build containers")
+    print(f"Command: {' '.join(cmd)}")
+    print("-" * 60)
+    
+    try:
+        result = subprocess.run(cmd, check=True)
+        end_time = time.time()
+        print(f"\nAutonomous tests completed in {end_time - start_time:.2f} seconds")
+        return result.returncode
+    except subprocess.CalledProcessError as e:
+        end_time = time.time()
+        print(f"\nAutonomous tests failed after {end_time - start_time:.2f} seconds")
+        return e.returncode
+
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         if sys.argv[1] == "--coverage":
@@ -87,12 +111,15 @@ if __name__ == "__main__":
                 print("Error: --single requires a test name")
                 print("Usage: python run_tests.py --single test_summit.py")
                 sys.exit(1)
+        elif sys.argv[1] == "--autonomous":
+            sys.exit(run_autonomous_tests())
         elif sys.argv[1] == "--help":
             print("Summit Test Runner")
             print("Usage:")
             print("  python run_tests.py                    # Run all tests in parallel")
             print("  python run_tests.py --coverage         # Run tests with coverage")
             print("  python run_tests.py --single <test>    # Run single test")
+            print("  python run_tests.py --autonomous       # Run autonomous integration tests (requires Docker)")
             print("  python run_tests.py --help             # Show this help")
             sys.exit(0)
         else:

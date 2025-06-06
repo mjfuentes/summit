@@ -55,6 +55,9 @@ active_tasks: Dict[str, Dict] = {}
 task_history: List[Dict] = []
 connected_clients: List[WebSocket] = []
 
+# Log directory for task logs
+log_dir = "task_logs"
+
 class TaskRequest(BaseModel):
     task_description: str
     repository_url: Optional[str] = None
@@ -554,11 +557,43 @@ async def run_autonomous_task(task_id: str, task_data: Dict):
         print("[TASK] Starting Claude Code environment...")
         
         try:
-            # Use the proper Dockerfile with full Claude Code integration
-            dockerfile_path = "Dockerfile.autonomous"
+            # Early validation of critical components
+            dockerfile_path = "Dockerfile.autonomous" 
+            task_script_path = "claude_code_task.sh"
+            
+            # Check for required files
+            missing_files = []
             if not os.path.exists(dockerfile_path):
-                print(f"[ERROR] {dockerfile_path} not found. Using basic container setup.")
-                dockerfile_path = "Dockerfile.simple"
+                missing_files.append(dockerfile_path)
+            if not os.path.exists(task_script_path):
+                missing_files.append(task_script_path)
+                
+            if missing_files:
+                error_msg = f"Critical error: Missing required files: {', '.join(missing_files)}. Cannot proceed without proper Docker configuration."
+                print(f"[ERROR] {error_msg}")
+                task_data["status"] = "failed"
+                task_data["error"] = error_msg
+                task_data["logs"].append(f"Error: {error_msg}")
+                return
+            
+            # Check Docker availability
+            try:
+                docker_check = subprocess.run(['docker', '--version'], 
+                                            capture_output=True, text=True, timeout=5)
+                if docker_check.returncode != 0:
+                    error_msg = "Critical error: Docker is not available or not running."
+                    print(f"[ERROR] {error_msg}")
+                    task_data["status"] = "failed"
+                    task_data["error"] = error_msg
+                    task_data["logs"].append(f"Error: {error_msg}")
+                    return
+            except (subprocess.TimeoutExpired, FileNotFoundError):
+                error_msg = "Critical error: Docker command not found or timeout."
+                print(f"[ERROR] {error_msg}")
+                task_data["status"] = "failed"
+                task_data["error"] = error_msg
+                task_data["logs"].append(f"Error: {error_msg}")
+                return
             
             # Build the container with proper Claude Code support
             build_cmd = f"docker build -f {dockerfile_path} -t claude-code-task ."
@@ -616,7 +651,6 @@ async def run_autonomous_task(task_id: str, task_data: Dict):
             start_time = time.time()
             
             # Create log file for this task instance
-            log_dir = "task_logs"
             os.makedirs(log_dir, exist_ok=True)
             log_file_path = os.path.join(log_dir, f"task_{task_id}.log")
             

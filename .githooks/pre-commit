@@ -42,15 +42,20 @@ if command -v python &> /dev/null && [ -d "tests" ]; then
         echo "  -> Starting parallel test execution..."
         start_time=$(date +%s)
         
+        # Try to use parallel execution
         if python -c "import pytest_xdist" 2>/dev/null; then
-            # Use parallel execution if available
             echo "  -> Using pytest-xdist for parallel execution"
             if ! python -m pytest tests/ -n auto --tb=short -q; then
                 echo "Tests failed. Commit aborted."
                 exit 1
             fi
+        elif which pytest-xdist 2>/dev/null || pip show pytest-xdist >/dev/null 2>&1; then
+            echo "  -> Found pytest-xdist, using parallel execution"
+            if ! python -m pytest tests/ -n auto --tb=short -q; then
+                echo "Tests failed. Commit aborted."
+                exit 1
+            fi
         else
-            # Fall back to regular pytest
             echo "  -> pytest-xdist not available, running sequentially"
             if ! python -m pytest tests/ --tb=short -q; then
                 echo "Tests failed. Commit aborted."
@@ -91,8 +96,8 @@ STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM)
 staged_count=$(echo "$STAGED_FILES" | wc -l | tr -d ' ')
 echo "  -> Scanning $staged_count staged files"
 for file in $STAGED_FILES; do
-    if [ -f "$file" ]; then
-        # Check for debugging statements
+    if [ -f "$file" ] && [[ "$file" != *"pre-commit"* ]]; then
+        # Check for debugging statements (skip pre-commit hooks)
         if grep -n "import pdb\|pdb.set_trace()\|breakpoint()\|console.log\|debugger;" "$file" > /dev/null; then
             echo "  -> Warning: Debugging statements found in $file"
             grep -n "import pdb\|pdb.set_trace()\|breakpoint()\|console.log\|debugger;" "$file"
@@ -114,7 +119,7 @@ echo "Checking commit message..."
 COMMIT_MSG_FILE=".git/COMMIT_EDITMSG"
 if [ -f "$COMMIT_MSG_FILE" ]; then
     echo "  -> Scanning commit message for emojis..."
-    if python tools/emoji_linter.py "$COMMIT_MSG_FILE" > /dev/null 2>&1; then
+    if ! python tools/emoji_linter.py "$COMMIT_MSG_FILE" > /dev/null 2>&1; then
         echo "  -> Commit message contains emojis. Please use professional language only."
         exit 1
     fi

@@ -8,25 +8,25 @@ Summit is now a complete "Learning AI System" that can learn to do anything you 
 
 ```
 summit/
-├── src/                    # Core source code
-│   ├── summit.py          # Main MCP server
-│   ├── cost_tracker.py    # Budget management & safety
-│   ├── vector_knowledge_base.py  # AI knowledge storage
-│   └── knowledge_base.py  # Legacy knowledge storage
-├── config/                # Configuration files
-│   ├── config.py         # API keys & settings
-│   └── requirements.txt  # Python dependencies
-├── tests/                 # Comprehensive test suite
-│   ├── test_*.py         # Various test files
-├── docs/                  # Documentation
-│   └── README.md         # Complete system documentation
-├── data/                  # Knowledge & cost data
-│   ├── summit_vector_knowledge.json  # Shared experiences
-│   ├── summit_costs.json # Cost tracking data
-│   └── summit_knowledge.json  # Legacy knowledge
-├── .github/workflows/     # CI/CD automation
-│   └── summit-autodeploy.yml
-└── run_summit.py         # Main entry point
+ src/                    # Core source code
+    summit.py          # Main MCP server
+    cost_tracker.py    # Budget management & safety
+    vector_knowledge_base.py  # AI knowledge storage
+    knowledge_base.py  # Legacy knowledge storage
+ config/                # Configuration files
+    config.py         # API keys & settings
+    requirements.txt  # Python dependencies
+ tests/                 # Comprehensive test suite
+    test_*.py         # Various test files
+ docs/                  # Documentation
+    README.md         # Complete system documentation
+ data/                  # Knowledge & cost data
+    summit_vector_knowledge.json  # Shared experiences
+    summit_costs.json # Cost tracking data
+    summit_knowledge.json  # Legacy knowledge
+ .github/workflows/     # CI/CD automation
+    summit-autodeploy.yml
+ run_summit.py         # Main entry point
 ```
 
 ## Core Learning Capabilities
