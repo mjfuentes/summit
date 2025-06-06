@@ -14,7 +14,7 @@ from pydantic import BaseModel
 import uvicorn
 
 # Add the current directory to the path for imports
-sys.path.insert(0, os.path.dirname(__file__))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from summit import handle_call_tool
 from config import setup_environment
