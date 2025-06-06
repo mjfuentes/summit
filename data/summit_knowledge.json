@@ -1,0 +1,34 @@
+{
+  "shared_items": [
+    {
+      "id": 1,
+      "content": "Developers are finding that AI pair programming works best when they stay in the driver's seat",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-06T20:42:29.823492",
+      "processed": false
+    },
+    {
+      "id": 2,
+      "content": "The most successful AI projects start with clear human-defined goals and constraints",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-06T20:42:37.389327",
+      "processed": false
+    },
+    {
+      "id": 3,
+      "content": "I've noticed that AI is most helpful when it suggests solutions but humans make the final decisions",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-06T20:42:55.389281",
+      "processed": false
+    }
+  ],
+  "synthesized_insights": [],
+  "categories": {
+    "observation": 2,
+    "insight": 1
+  },
+  "last_updated": "2025-06-06T20:42:55.389288"
+}
