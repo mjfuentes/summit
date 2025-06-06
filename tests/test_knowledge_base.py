@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 
-from knowledge_base import KnowledgeBase
 import os
+import sys
+
+# Add src to path for imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+
+from knowledge_base import KnowledgeBase
 
 def test_knowledge_base():
     """Test the knowledge base functionality"""

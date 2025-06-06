@@ -2,7 +2,12 @@
 
 import asyncio
 import os
+import sys
 import pytest
+
+# Add src to path for imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+
 from summit import handle_call_tool, knowledge_base
 
 @pytest.mark.asyncio

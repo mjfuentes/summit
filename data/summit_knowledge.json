@@ -271,28 +271,68 @@
       "context": "API testing",
       "timestamp": "2025-06-06T22:07:32.673342",
       "processed": false
+    },
+    {
+      "id": 35,
+      "content": "Developers are finding that AI pair programming works best when they stay in the driver's seat",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-06T22:23:10.544614",
+      "processed": false
+    },
+    {
+      "id": 36,
+      "content": "The most successful AI projects start with clear human-defined goals and constraints",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-06T22:23:19.427040",
+      "processed": false
+    },
+    {
+      "id": 37,
+      "content": "I've noticed that AI is most helpful when it suggests solutions but humans make the final decisions",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-06T22:23:37.854751",
+      "processed": false
+    },
+    {
+      "id": 38,
+      "content": "Developers are finding that AI pair programming works best when they stay in the driver's seat",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-06T22:23:50.398001",
+      "processed": false
+    },
+    {
+      "id": 39,
+      "content": "The most successful AI projects start with clear human-defined goals and constraints",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-06T22:23:59.201111",
+      "processed": false
     }
   ],
   "synthesized_insights": [],
   "categories": {
-    "observation": 14,
-    "insight": 9,
+    "observation": 17,
+    "insight": 11,
     "test": 5,
     "challenge": 2,
     "best_practice": 2,
     "trend": 2
   },
   "search_analytics": {
-    "total_searches": 47,
+    "total_searches": 54,
     "empty_results": 0,
     "query_types": {
       "question": 20,
       "general": 6
     },
     "popular_categories": {
-      "observation": 183,
-      "insight": 96
+      "observation": 236,
+      "insight": 113
     }
   },
-  "last_updated": "2025-06-06T22:07:32.673376"
+  "last_updated": "2025-06-06T22:23:59.201192"
 }
