@@ -1,0 +1,71 @@
+FROM ubuntu:22.04
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    wget \
+    git \
+    build-essential \
+    python3 \
+    python3-pip \
+    nodejs \
+    npm \
+    vim \
+    nano \
+    htop \
+    tree \
+    unzip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Claude Code (Anthropic's official CLI tool)
+RUN npm install -g @anthropic-ai/claude-code
+
+# Install development tools
+RUN pip3 install \
+    anthropic \
+    requests \
+    fastapi \
+    uvicorn \
+    pytest \
+    black \
+    flake8 \
+    mypy \
+    jupyter \
+    numpy \
+    pandas \
+    matplotlib \
+    seaborn \
+    scikit-learn \
+    django \
+    flask \
+    sqlalchemy
+
+# Install additional development tools
+RUN npm install -g \
+    @angular/cli \
+    @vue/cli \
+    create-react-app \
+    typescript \
+    ts-node \
+    eslint \
+    prettier
+
+# Create workspace
+WORKDIR /workspace
+
+# Setup git configuration
+RUN git config --global user.name "Summit AI" && \
+    git config --global user.email "summit@ai.dev"
+
+# Copy task startup script
+COPY claude_code_task.sh /workspace/claude_code_task.sh
+RUN chmod +x /workspace/claude_code_task.sh
+
+# Install web-based terminal for browser access
+RUN npm install -g ttyd
+
+# Expose ports for web terminal and potential services
+EXPOSE 7681 8080 3000
+
+# Set the entrypoint
+ENTRYPOINT ["/workspace/claude_code_task.sh"] 

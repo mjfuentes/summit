@@ -55,8 +55,10 @@ git push origin main           # Push to repository
 - Avoid stating the obvious - let the code speak for itself
 - Only comment when adding genuine value or explaining complex logic
 
-### Documentation
-- NO EMOJIS in documentation files - use clear, professional text only
+### Documentation  
+- **ABSOLUTELY NO EMOJIS** - ZERO tolerance policy for emojis in any code, documentation, logs, or user interface
+- Any emoji found in code will result in immediate rejection and rewrite requirement
+- Use clear, professional text only - emojis are unprofessional and clutter the codebase
 - Keep documentation concise and focused on core capabilities
 - Update relevant documentation when changing functionality
 
@@ -89,16 +91,17 @@ git push origin main           # Push to repository
 
 Any code changes that do not follow this complete workflow will be rejected. 
 The agent must demonstrate:
-- ✅ Proper analysis and understanding
-- ✅ Comprehensive testing with ALL tests passing
-- ✅ Coverage verification >70%
-- ✅ Code quality checks
-- ✅ Complete Git workflow
-- ✅ Final verification
+- Proper analysis and understanding
+- Comprehensive testing with ALL tests passing
+- Coverage verification >70%
+- Code quality checks
+- Complete Git workflow
+- Final verification
 
-🚨 **ABSOLUTE REQUIREMENTS:**
+**ABSOLUTE REQUIREMENTS:**
 - **NEVER COMMIT WITH FAILING TESTS** - Zero tolerance policy
-- **NEVER COMMIT WITH <70% COVERAGE** - Quality gate enforced
+- **NEVER COMMIT WITH <70% COVERAGE** - Quality gate enforced  
 - **ALWAYS VERIFY BEFORE COMMIT** - No shortcuts allowed
+- **NEVER USE EMOJIS** - Professional code and documentation only
 
 This ensures Summit maintains high code quality and reliability across all development sessions. 

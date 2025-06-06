@@ -311,13 +311,21 @@
       "context": null,
       "timestamp": "2025-06-06T22:23:59.201111",
       "processed": false
+    },
+    {
+      "id": 40,
+      "content": "Test insight for web API",
+      "category": "test",
+      "context": "API testing",
+      "timestamp": "2025-06-06T22:46:53.438369",
+      "processed": false
     }
   ],
   "synthesized_insights": [],
   "categories": {
     "observation": 17,
     "insight": 11,
-    "test": 5,
+    "test": 6,
     "challenge": 2,
     "best_practice": 2,
     "trend": 2
@@ -334,5 +342,5 @@
       "insight": 113
     }
   },
-  "last_updated": "2025-06-06T22:23:59.201192"
+  "last_updated": "2025-06-06T22:46:53.438415"
 }
