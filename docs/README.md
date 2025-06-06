@@ -71,6 +71,23 @@ Learning is permanent and cumulative:
 
 ## Practical Examples
 
+### Autonomous Coding Tasks
+
+**Voice Command**: "Build a REST API for user authentication"
+- Speak the task using SuperWhisper integration
+- Summit creates isolated Docker environment
+- Claude Code CLI analyzes requirements and implements solution
+- Automatically tests the API endpoints
+- Commits and pushes working code
+- Outputs completion signal when done
+
+**Repository Enhancement**: "Add error handling to the payment module"
+- Summit clones the repository into container
+- Claude Code analyzes existing payment code
+- Implements comprehensive error handling
+- Runs existing tests to ensure compatibility
+- Creates pull request with improvements
+
 ### Teaching Summit New Skills
 
 **Simple Request**: "Learn to analyze log files"
@@ -119,6 +136,14 @@ Once Summit learns basic capabilities, it reuses them for complex tasks:
 **Version Control**: All changes tracked for rollback capability
 **Testing**: Comprehensive validation of new capabilities
 
+### Autonomous Development Environment
+
+**Claude Code Integration**: Full access to Anthropic's Claude Code CLI tool within isolated containers
+**Web Terminal Access**: Browser-based terminal interface for interactive development
+**Container Isolation**: Each task runs in a secure Docker environment with complete development tools
+**Real-time Monitoring**: Live progress tracking and log streaming
+**Voice Interface**: Speech-to-text input for natural task description
+
 ### Search and Knowledge
 
 **Semantic Search**: Finds relevant information even with different wording
@@ -128,8 +153,27 @@ Once Summit learns basic capabilities, it reuses them for complex tasks:
 
 ## Getting Started
 
-### Basic Interaction
+### Web Interface (Recommended)
+Start Summit's autonomous web interface for the best experience:
+
+```bash
+python start_web.py
 ```
+
+**Voice Input Support**: Use SuperWhisper or any speech recognition to speak your tasks directly into the interface.
+
+**Autonomous Task Management**: Create coding tasks that run in isolated Docker containers with Claude Code CLI access.
+
+Visit `http://localhost:8000` to access:
+- Voice-enabled task creation
+- Real-time task monitoring
+- Interactive Claude Code terminals
+- Repository integration
+
+### Command Line Interface
+For direct CLI interaction:
+
+```bash
 # Ask Summit to learn something new
 summit_learn "How to process CSV files with Python"
 
@@ -171,6 +215,14 @@ Summit approaches every request with the assumption it can learn to do it:
 - Every challenge is a learning opportunity
 - Capabilities compound over time
 
+### Professional Development Standards
+Summit maintains enterprise-grade development practices:
+- **Clean Code**: Professional, readable code without visual clutter
+- **No Emojis Policy**: Strictly professional documentation and interfaces
+- **Test-Driven Development**: Comprehensive testing before any commits
+- **Version Control**: Proper Git workflow with descriptive commit messages
+- **Code Quality**: Automated linting, formatting, and quality checks
+
 ### Iterative Improvement
 Learning happens in cycles:
 - First attempt might be basic
@@ -186,6 +238,15 @@ Every learned capability enhances future learning:
 - All knowledge interconnects
 
 ## Advanced Capabilities
+
+### Autonomous Coding Mode
+Summit can work completely autonomously on coding tasks:
+- **Voice Task Assignment**: Speak your requirements using SuperWhisper or speech recognition
+- **Claude Code Collaboration**: Full access to Anthropic's Claude Code CLI for professional development
+- **Isolated Execution**: Each task runs in a secure Docker container with complete development environment
+- **Interactive Terminal**: Browser-based terminal access for real-time interaction
+- **Repository Integration**: Clone, modify, test, and push changes to GitHub repositories
+- **Completion Tracking**: Automatic detection of task completion with configurable safe words
 
 ### Self-Monitoring
 Summit can learn to monitor its own operations:
@@ -209,9 +270,19 @@ Summit can learn to integrate with any system:
 - Network communications
 - External service integration
 
-## Future Vision
+## Current Capabilities & Future Vision
 
-Summit represents a new paradigm in AI systems:
+Summit represents a new paradigm in AI systems, now featuring:
+
+### Production-Ready Features
+- **Voice-Driven Development**: Natural language task assignment through speech recognition
+- **Autonomous Code Generation**: Claude Code CLI integration for professional development
+- **Container Isolation**: Secure, isolated execution environments for all tasks
+- **Real-time Monitoring**: Live progress tracking and interactive terminal access
+- **Professional Standards**: Enterprise-grade code quality with strict no-emoji policy
+- **Repository Integration**: Full Git workflow automation with GitHub integration
+
+### Core Capabilities
 - **Self-Evolving**: Continuously improves its own capabilities
 - **Unlimited Learning**: No predefined boundaries on what it can do
 - **Cumulative Intelligence**: Each interaction makes it more capable
@@ -219,6 +290,13 @@ Summit represents a new paradigm in AI systems:
 - **Autonomous**: Requires minimal maintenance or intervention
 
 The goal is an AI system that truly grows with your needs, learning to handle any task you throw at it, building a comprehensive capability set over time, and becoming more valuable with each interaction.
+
+### Getting Started Today
+1. **Install**: `python start_web.py`
+2. **Speak**: Use voice input to describe your coding task
+3. **Watch**: Monitor progress in real-time web interface
+4. **Access**: Open browser terminal to interact with Claude Code
+5. **Complete**: Automatic task completion detection and repository updates
 
 ---
 
