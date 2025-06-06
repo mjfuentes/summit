@@ -12,7 +12,7 @@ SUMMIT_CONFIG = {
     "hourly_budget": 2.0,
     "max_recursion_depth": 3,
     "embedding_model": "text-embedding-3-small",
-    "chat_model": "claude-3-5-sonnet-20241022"
+    "chat_model": "claude-sonnet-4-20250514"
 }
 
 def setup_environment():
