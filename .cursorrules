@@ -7,3 +7,9 @@
 - NO EMOJIS in documentation files - use clear, professional text only
 - Keep documentation concise and focused on core capabilities
 - Emphasize learning and self-improvement aspects
+
+## Code Comments
+- NEVER add obvious/redundant comments like "# Test passed", "# Success", "# End of function"
+- Comments should explain WHY, not WHAT the code does
+- Avoid stating the obvious - let the code speak for itself
+- Only comment when adding genuine value or explaining complex logic

@@ -989,6 +989,12 @@ async def plan_capability_implementation(capability_description: str, requiremen
     
     planning_prompt = f"""You are Summit, an AI that can learn new capabilities by modifying its own code. You need to plan how to implement a new capability.
 
+IMPORTANT: Follow Summit's coding standards (available in CODING_STANDARDS.md):
+- NEVER add obvious/redundant comments like "# Test passed", "# Success", "# End of function"
+- Comments should explain WHY, not WHAT the code does
+- Use proper assertions in tests, not return statements
+- Keep code clean and readable
+
 Current Context:
 - {codebase_context}
 - Summit is a Python MCP server with tool handlers
@@ -1008,7 +1014,7 @@ Please provide a detailed implementation plan including:
 5. Step-by-step implementation strategy
 6. Potential risks or challenges
 
-Be specific about the code changes needed."""
+Be specific about the code changes needed. Remember to follow the coding standards and avoid obvious comments."""
 
     try:
         message = client.messages.create(
@@ -1041,6 +1047,8 @@ Summit Learning Session Instructions
 
 Codespace URL: {codespace_url}
 
+IMPORTANT: Read CODING_STANDARDS.md first for Summit's coding guidelines.
+
 Capability to Implement:
 {capability_description}
 
@@ -1050,12 +1058,13 @@ Implementation Plan:
 Manual Steps:
 1. Open the codespace in your browser: {codespace_url}
 2. Navigate to the Summit codebase
-3. Follow the implementation plan above
-4. Create/modify the necessary files
-5. Add appropriate tests
-6. Run tests to validate changes
-7. Commit changes with descriptive message
-8. Use summit_deploy_changes tool when complete
+3. Read CODING_STANDARDS.md to understand code quality expectations
+4. Follow the implementation plan above
+5. Create/modify the necessary files (following coding standards)
+6. Add appropriate tests (use assert, not return statements)
+7. Run tests to validate changes
+8. Commit changes with descriptive message
+9. Use summit_deploy_changes tool when complete
 
 The codespace provides:
 - Full Ubuntu development environment

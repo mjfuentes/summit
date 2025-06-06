@@ -20,7 +20,7 @@ def test_summit_basic():
     try:
         # Start Summit process
         process = subprocess.Popen([
-            sys.executable, "summit.py"
+            sys.executable, "src/summit.py"
         ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, 
           text=True, env=env)
         
@@ -36,7 +36,7 @@ def test_summit_basic():
             stderr_output = process.stderr.read()
             if stderr_output:
                 print(f"Error output: {stderr_output}")
-            return False
+            assert False, f"Summit process failed to start, exit code: {poll_result}"
         
         print("Test 2: Checking process responsiveness")
         
@@ -49,7 +49,7 @@ def test_summit_basic():
             print("SUCCESS: Summit is stable and responsive")
         else:
             print(f"ERROR: Summit process crashed with code {poll_result}")
-            return False
+            assert False, f"Summit process crashed, exit code: {poll_result}"
         
         print("Test 3: Terminating process")
         process.terminate()
@@ -63,12 +63,10 @@ def test_summit_basic():
             process.kill()
         
         print("\nBasic functionality test PASSED")
-        return True
         
     except Exception as e:
         print(f"ERROR: Test failed with exception: {e}")
-        return False
+        assert False, f"Test failed with exception: {e}"
 
 if __name__ == "__main__":
-    success = test_summit_basic()
-    sys.exit(0 if success else 1) 
+    test_summit_basic() 
