@@ -548,59 +548,86 @@ async def run_autonomous_task(task_id: str, task_data: Dict):
             task_data["logs"].append("Claude Code CLI environment ready for interactive development")
             await broadcast_task_update(task_data)
             
-            # Monitor container output with timeout
+            # Wait for container to start
+            await container_process.wait()
+            container_id = f"claude-task-{task_id}"
+            
+            # Monitor container logs and status
             timeout_seconds = task_data.get('timeout_minutes', 60) * 60
             start_time = time.time()
             
+            task_data["logs"].append("Container started successfully, monitoring Claude Code environment...")
+            await broadcast_task_update(task_data)
+            
             while True:
                 try:
-                    # Check if process is still running
-                    if container_process.returncode is not None:
-                        break
-                    
                     # Check timeout
                     if time.time() - start_time > timeout_seconds:
-                        task_data["logs"].append("Task timed out")
-                        container_process.terminate()
-                        await asyncio.sleep(5)
-                        if container_process.returncode is None:
-                            container_process.kill()
+                        task_data["logs"].append("Task timed out after 1 hour")
+                        task_data["status"] = "timeout"
                         break
                     
-                    # Read output line
-                    try:
-                        line = await asyncio.wait_for(
-                            container_process.stdout.readline(), 
-                            timeout=5.0
-                        )
+                    # Check if container is still running
+                    status_check = subprocess.run(
+                        ["docker", "ps", "-q", "-f", f"name={container_id}"],
+                        capture_output=True, text=True, timeout=5
+                    )
+                    
+                    if not status_check.stdout.strip():
+                        # Container stopped
+                        task_data["logs"].append("Container stopped")
+                        task_data["status"] = "failed"
+                        task_data["error"] = "Container stopped unexpectedly"
+                        break
+                    
+                    # Get container logs with timestamps
+                    logs_result = subprocess.run(
+                        ["docker", "logs", "--timestamps", "--since", f"{int(start_time)}", container_id],
+                        capture_output=True, text=True, timeout=10
+                    )
+                    
+                    if logs_result.returncode == 0 and logs_result.stdout:
+                        # Get all logs and filter new ones
+                        all_logs = logs_result.stdout.strip()
+                        current_logs = [log for log in task_data["logs"] if log.startswith("Claude:")]
                         
-                        if not line:
-                            break
-                            
-                        log_line = line.decode().strip()
-                        if log_line:
-                            task_data["logs"].append(log_line)
-                            
-                            # Check for completion signal
-                            if task_data["save_word"] in log_line:
-                                task_data["status"] = "completed"
-                                task_data["progress"] = "Task completed successfully!"
-                                task_data["logs"].append("Task completed! Safe word detected.")
-                                await broadcast_task_update(task_data)
-                                break
-                            
+                        # Split into lines and process new ones
+                        log_lines = all_logs.split('\n') if all_logs else []
+                        
+                        for line in log_lines:
+                            if line.strip():
+                                # Remove timestamp prefix for cleaner display
+                                clean_line = line
+                                if 'T' in line and 'Z' in line:  # Has timestamp
+                                    parts = line.split(' ', 1)
+                                    if len(parts) > 1:
+                                        clean_line = parts[1]
+                                
+                                formatted_log = f"Claude: {clean_line.strip()}"
+                                
+                                # Only add if not already in logs
+                                if formatted_log not in task_data["logs"]:
+                                    task_data["logs"].append(formatted_log)
+                                    
+                                    # Check for completion signal
+                                    if task_data["save_word"] in clean_line:
+                                        task_data["status"] = "completed"
+                                        task_data["progress"] = "Task completed successfully!"
+                                        task_data["logs"].append(" Task completed! Completion signal detected.")
+                                        await broadcast_task_update(task_data)
+                                        return
+                        
+                        # Update if we added new logs
+                        if len([log for log in task_data["logs"] if log.startswith("Claude:")]) > len(current_logs):
                             await broadcast_task_update(task_data)
-                            
-                    except asyncio.TimeoutError:
-                        # Continue if no output for 5 seconds
-                        continue
+                    
+                    # Wait before next check
+                    await asyncio.sleep(3)
                     
                 except Exception as e:
                     task_data["logs"].append(f"Monitoring error: {str(e)}")
-                    break
-            
-            # Wait for container to finish
-            await container_process.wait()
+                    await broadcast_task_update(task_data)
+                    await asyncio.sleep(5)
             
             if task_data["status"] != "completed":
                 if container_process.returncode == 0:
