@@ -1,0 +1,126 @@
+#!/bin/bash
+
+# Summit AI Pre-Commit Hook
+# Automatically enforces code quality standards including emoji removal
+
+set -e
+
+echo "Running Summit AI pre-commit checks..."
+
+# Change to repository root
+cd "$(git rev-parse --show-toplevel)"
+
+# Check if Python is available
+if ! command -v python &> /dev/null; then
+    echo "Error: python not found. Please ensure Python is in your PATH."
+    exit 1
+fi
+
+# Make sure emoji linter is executable
+chmod +x tools/emoji_linter.py
+
+# 1. Run emoji linter on staged files
+echo "Checking for emoji violations..."
+echo "  -> Scanning staged files for emojis..."
+if python tools/emoji_linter.py --staged --fix; then
+    echo "  -> Emoji check passed"
+else
+    echo "  -> Emoji violations found and fixed. Please review changes and re-add files to Git."
+    echo ""
+    echo "Modified files need to be staged again:"
+    git diff --name-only
+    echo ""
+    echo "Run: git add <files> && git commit"
+    exit 1
+fi
+
+# 2. Run tests (if pytest is available and we have tests)
+if command -v python &> /dev/null && [ -d "tests" ]; then
+    echo "Running tests in parallel..."
+    if python -c "import pytest" 2>/dev/null; then
+        echo "  -> Detected $(python -c "import os; print(os.cpu_count())") CPU cores"
+        echo "  -> Starting parallel test execution..."
+        start_time=$(date +%s)
+        
+        if python -c "import pytest_xdist" 2>/dev/null; then
+            # Use parallel execution if available
+            echo "  -> Using pytest-xdist for parallel execution"
+            if ! python -m pytest tests/ -n auto --tb=short -q; then
+                echo "Tests failed. Commit aborted."
+                exit 1
+            fi
+        else
+            # Fall back to regular pytest
+            echo "  -> pytest-xdist not available, running sequentially"
+            if ! python -m pytest tests/ --tb=short -q; then
+                echo "Tests failed. Commit aborted."
+                exit 1
+            fi
+        fi
+        
+        end_time=$(date +%s)
+        duration=$((end_time - start_time))
+        echo "  -> Tests completed in ${duration}s"
+        echo "Tests passed"
+    else
+        echo "pytest not available, skipping tests"
+    fi
+fi
+
+# 3. Check Python syntax (if we have Python files)
+PYTHON_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.py$' || true)
+if [ ! -z "$PYTHON_FILES" ]; then
+    echo "Checking Python syntax..."
+    file_count=$(echo "$PYTHON_FILES" | wc -l | tr -d ' ')
+    echo "  -> Found $file_count Python files to check"
+    for file in $PYTHON_FILES; do
+        if [ -f "$file" ]; then
+            echo "  -> Checking $file"
+            if ! python -m py_compile "$file"; then
+                echo "  -> Python syntax error in $file"
+                exit 1
+            fi
+        fi
+    done
+    echo "  -> Python syntax check passed"
+fi
+
+# 4. Check for debugging statements and common issues
+echo "Checking for debugging statements..."
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM)
+staged_count=$(echo "$STAGED_FILES" | wc -l | tr -d ' ')
+echo "  -> Scanning $staged_count staged files"
+for file in $STAGED_FILES; do
+    if [ -f "$file" ]; then
+        # Check for debugging statements
+        if grep -n "import pdb\|pdb.set_trace()\|breakpoint()\|console.log\|debugger;" "$file" > /dev/null; then
+            echo "  -> Warning: Debugging statements found in $file"
+            grep -n "import pdb\|pdb.set_trace()\|breakpoint()\|console.log\|debugger;" "$file"
+            echo "  -> Remove debugging statements before committing."
+            exit 1
+        fi
+        
+        # Check for TODO/FIXME without issue numbers
+        if grep -n "TODO\|FIXME" "$file" | grep -v "#[0-9]" > /dev/null; then
+            echo "  -> Warning: TODO/FIXME found without issue number in $file"
+            echo "  -> Please link TODOs to GitHub issues: # TODO #123: description"
+        fi
+    fi
+done
+echo "  -> Debugging statement check passed"
+
+# 5. Ensure no emojis in commit message
+echo "Checking commit message..."
+COMMIT_MSG_FILE=".git/COMMIT_EDITMSG"
+if [ -f "$COMMIT_MSG_FILE" ]; then
+    echo "  -> Scanning commit message for emojis..."
+    if python tools/emoji_linter.py "$COMMIT_MSG_FILE" > /dev/null 2>&1; then
+        echo "  -> Commit message contains emojis. Please use professional language only."
+        exit 1
+    fi
+    echo "  -> Commit message check passed"
+fi
+
+echo ""
+echo " All pre-commit checks passed!"
+echo "" 
