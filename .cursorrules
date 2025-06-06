@@ -2,6 +2,7 @@
 
 ## Git Operations
 - FOR THIS PROJECT ONLY: You are allowed to commit and push changes to the summit repository
+- NEVER use git commit --no-verify - all commits must pass pre-commit hooks
 
 ## Documentation Standards
 - NO EMOJIS in documentation files - use clear, professional text only
