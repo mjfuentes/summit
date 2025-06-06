@@ -34,6 +34,12 @@ git commit -m "descriptive message"  # Commit with clear message
 git push origin main           # Push to repository
 ```
 
+**COMMIT MESSAGE REQUIREMENTS:**
+- **SINGLE LINE ONLY** - Commit messages must be one line maximum
+- **NO MULTI-LINE COMMITS** - Do not use line breaks or multiple paragraphs
+- **DESCRIPTIVE BUT CONCISE** - Include essential information in one clear line
+- **PROFESSIONAL TONE** - Use clear, technical language without emojis
+
 **CRITICAL GIT RULE: NEVER USE --no-verify**
 - NEVER bypass pre-commit hooks with `git commit --no-verify`
 - Pre-commit hooks enforce quality standards (tests, linting, emoji removal)
