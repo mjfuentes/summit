@@ -21,3 +21,8 @@
 - Always run tests and coverage before committing
 - Use proper Git workflow: analyze → implement → test → lint → commit → push
 - Maintain >70% test coverage on all changes
+
+## Testing Rules
+- NO AD-HOC TESTING - Never use sleep and curl commands for testing
+- FORMAL TEST SUITE ONLY - All testing must be done through pytest or proper test files
+- AUTOMATED VALIDATION - Create proper test cases instead of manual command validation

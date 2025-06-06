@@ -13,7 +13,7 @@ REPOSITORY_URL="${REPOSITORY_URL:-}"
 ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}"
 
 echo "[$(date '+%H:%M:%S')] Task: $TASK_DESCRIPTION"
-echo "[$(date '+%H:%M:%S')] Completion signal: $SAVE_WORD"
+echo "[$(date '+%H:%M:%S')] Completion signal: [REDACTED_FOR_MONITORING]"
 
 # Setup Git authentication
 echo "[$(date '+%H:%M:%S')] Configuring Git authentication..."
@@ -182,7 +182,7 @@ You are Summit AI working autonomously to complete this coding task. You have:
 When you have fully completed the task, add this exact text to a file or output:
 **COMPLETION_WORD_HERE**
 
-(Replace COMPLETION_WORD_HERE with: $SAVE_WORD)
+(The completion signal has been configured for you)
 
 ## Available Tools
 - All programming languages (Python, JavaScript, TypeScript, etc.)
@@ -209,9 +209,9 @@ cat >> task_context.md << EOF
 Open this file in Claude Code and start working on the task. Use the terminal for any commands you need to run.
 
 When completely finished, create a completion file:
-echo "COMPLETION_WORD_HERE" > completion.txt
+echo "$SAVE_WORD" > completion.txt
 
-(Replace COMPLETION_WORD_HERE with the actual completion signal)
+This will signal that your task is complete.
 EOF
 
 echo "[$(date '+%H:%M:%S')] Task context created in task_context.md"
@@ -228,7 +228,7 @@ echo "  Summit AI - Claude Code Development Environment"
 echo "======================================================"
 echo ""
 echo "Task: $TASK_DESCRIPTION"
-echo "Completion Signal: $SAVE_WORD"
+echo "Completion Signal: [CONFIGURED]"
 echo ""
 echo "Available Commands:"
 echo "  claude          - Start Claude Code interactive session"

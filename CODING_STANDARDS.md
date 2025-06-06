@@ -46,6 +46,11 @@ git push origin main           # Push to repository
 - If hooks fail, fix the underlying issue instead of bypassing checks
 - ALL commits must pass through complete pre-commit validation
 
+**TESTING REQUIREMENTS:**
+- **NO AD-HOC TESTING** - Never use `sleep` and `curl` commands for testing
+- **FORMAL TEST SUITE ONLY** - All testing must be done through pytest or proper test files
+- **AUTOMATED VALIDATION** - Create proper test cases instead of manual command validation
+
 **CRITICAL RULE: NEVER COMMIT WITH FAILING TESTS**
 - ALL tests must pass before any commit
 - Coverage must be >70% before any commit
@@ -139,5 +144,6 @@ The agent must demonstrate:
 - **NEVER USE --no-verify** - All commits must pass pre-commit hooks
 - **ALWAYS VERIFY BEFORE COMMIT** - No shortcuts allowed
 - **NEVER USE EMOJIS** - Professional code and documentation only
+- **NO AD-HOC TESTING** - Never use sleep and curl commands for testing, use formal test suite only
 
 This ensures Summit maintains high code quality and reliability across all development sessions. 
