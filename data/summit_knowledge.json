@@ -319,28 +319,764 @@
       "context": "API testing",
       "timestamp": "2025-06-06T22:46:53.438369",
       "processed": false
+    },
+    {
+      "id": 41,
+      "content": "Developers are finding that AI pair programming works best when they stay in the driver's seat",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-06T22:56:34.147275",
+      "processed": false
+    },
+    {
+      "id": 42,
+      "content": "The most successful AI projects start with clear human-defined goals and constraints",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-06T22:56:43.298226",
+      "processed": false
+    },
+    {
+      "id": 43,
+      "content": "Developers are finding that AI pair programming works best when they stay in the driver's seat",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-06T23:00:04.715563",
+      "processed": false
+    },
+    {
+      "id": 44,
+      "content": "The most successful AI projects start with clear human-defined goals and constraints",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-06T23:00:14.717875",
+      "processed": false
+    },
+    {
+      "id": 45,
+      "content": "I've noticed that AI is most helpful when it suggests solutions but humans make the final decisions",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-06T23:00:34.409195",
+      "processed": false
+    },
+    {
+      "id": 46,
+      "content": "AI pair programming works best when developers maintain control and AI provides suggestions",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-06T23:02:43.230452",
+      "processed": false
+    },
+    {
+      "id": 47,
+      "content": "Test insight for web API",
+      "category": "test",
+      "context": "API testing",
+      "timestamp": "2025-06-06T23:04:14.216783",
+      "processed": false
+    },
+    {
+      "id": 48,
+      "content": "AI debugging tools are becoming more sophisticated and can now identify complex logical errors",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-06T23:04:40.546630",
+      "processed": false
+    },
+    {
+      "id": 49,
+      "content": "Machine learning models perform better when trained on diverse, high-quality datasets",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-06T23:04:49.081579",
+      "processed": false
+    },
+    {
+      "id": 50,
+      "content": "Developers are struggling with async programming patterns in JavaScript",
+      "category": "challenge",
+      "context": null,
+      "timestamp": "2025-06-06T23:04:49.083271",
+      "processed": false
+    },
+    {
+      "id": 51,
+      "content": "Code reviews are more effective when they focus on architecture rather than syntax",
+      "category": "best_practice",
+      "context": null,
+      "timestamp": "2025-06-06T23:04:49.084786",
+      "processed": false
+    },
+    {
+      "id": 52,
+      "content": "Natural language processing has revolutionized how we interact with software",
+      "category": "trend",
+      "context": null,
+      "timestamp": "2025-06-06T23:04:49.086128",
+      "processed": false
+    },
+    {
+      "id": 53,
+      "content": "AI debugging tools are becoming more sophisticated and can now identify complex logical errors",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-06T23:05:59.287982",
+      "processed": false
+    },
+    {
+      "id": 54,
+      "content": "Machine learning models perform better when trained on diverse, high-quality datasets",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-06T23:06:07.586245",
+      "processed": false
+    },
+    {
+      "id": 55,
+      "content": "Developers are struggling with async programming patterns in JavaScript",
+      "category": "challenge",
+      "context": null,
+      "timestamp": "2025-06-06T23:06:07.587522",
+      "processed": false
+    },
+    {
+      "id": 56,
+      "content": "Code reviews are more effective when they focus on architecture rather than syntax",
+      "category": "best_practice",
+      "context": null,
+      "timestamp": "2025-06-06T23:06:07.588557",
+      "processed": false
+    },
+    {
+      "id": 57,
+      "content": "Natural language processing has revolutionized how we interact with software",
+      "category": "trend",
+      "context": null,
+      "timestamp": "2025-06-06T23:06:07.589569",
+      "processed": false
+    },
+    {
+      "id": 58,
+      "content": "AI pair programming works best when developers maintain control and AI provides suggestions",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-06T23:06:26.541294",
+      "processed": false
+    },
+    {
+      "id": 59,
+      "content": "AI pair programming works best when developers maintain control and AI provides suggestions",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-06T23:09:30.605386",
+      "processed": false
+    },
+    {
+      "id": 60,
+      "content": "I've noticed that developers are increasingly using AI for debugging rather than just code generation",
+      "category": "observation",
+      "context": "Based on conversations this week",
+      "timestamp": "2025-06-06T23:09:48.536634",
+      "processed": false
+    },
+    {
+      "id": 61,
+      "content": "The most effective AI collaborations happen when humans focus on high-level strategy while AI handles implementation details",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-06T23:09:48.538280",
+      "processed": false
+    },
+    {
+      "id": 62,
+      "content": "Test insight for web API",
+      "category": "test",
+      "context": "API testing",
+      "timestamp": "2025-06-06T23:13:29.841496",
+      "processed": false
+    },
+    {
+      "id": 63,
+      "content": "I've noticed that developers are increasingly using AI for debugging rather than just code generation",
+      "category": "observation",
+      "context": "Based on conversations this week",
+      "timestamp": "2025-06-06T23:14:20.031138",
+      "processed": false
+    },
+    {
+      "id": 64,
+      "content": "The most effective AI collaborations happen when humans focus on high-level strategy while AI handles implementation details",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-06T23:14:29.891471",
+      "processed": false
+    },
+    {
+      "id": 65,
+      "content": "I've noticed that developers are increasingly using AI for debugging rather than just code generation",
+      "category": "observation",
+      "context": "Based on conversations this week",
+      "timestamp": "2025-06-06T23:14:54.878937",
+      "processed": false
+    },
+    {
+      "id": 66,
+      "content": "The most effective AI collaborations happen when humans focus on high-level strategy while AI handles implementation details",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-06T23:15:04.701487",
+      "processed": false
+    },
+    {
+      "id": 67,
+      "content": "AI debugging tools are becoming more sophisticated and can now identify complex logical errors",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-06T23:15:28.305455",
+      "processed": false
+    },
+    {
+      "id": 68,
+      "content": "Machine learning models perform better when trained on diverse, high-quality datasets",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-06T23:15:37.097112",
+      "processed": false
+    },
+    {
+      "id": 69,
+      "content": "Developers are struggling with async programming patterns in JavaScript",
+      "category": "challenge",
+      "context": null,
+      "timestamp": "2025-06-06T23:15:37.098018",
+      "processed": false
+    },
+    {
+      "id": 70,
+      "content": "Code reviews are more effective when they focus on architecture rather than syntax",
+      "category": "best_practice",
+      "context": null,
+      "timestamp": "2025-06-06T23:15:37.098827",
+      "processed": false
+    },
+    {
+      "id": 71,
+      "content": "Natural language processing has revolutionized how we interact with software",
+      "category": "trend",
+      "context": null,
+      "timestamp": "2025-06-06T23:15:37.099641",
+      "processed": false
+    },
+    {
+      "id": 72,
+      "content": "AI debugging tools are becoming more sophisticated and can now identify complex logical errors",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-06T23:18:02.555666",
+      "processed": false
+    },
+    {
+      "id": 73,
+      "content": "Machine learning models perform better when trained on diverse, high-quality datasets",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-06T23:18:12.345618",
+      "processed": false
+    },
+    {
+      "id": 74,
+      "content": "Developers are struggling with async programming patterns in JavaScript",
+      "category": "challenge",
+      "context": null,
+      "timestamp": "2025-06-06T23:18:21.469862",
+      "processed": false
+    },
+    {
+      "id": 75,
+      "content": "Code reviews are more effective when they focus on architecture rather than syntax",
+      "category": "best_practice",
+      "context": null,
+      "timestamp": "2025-06-06T23:18:21.472587",
+      "processed": false
+    },
+    {
+      "id": 76,
+      "content": "Natural language processing has revolutionized how we interact with software",
+      "category": "trend",
+      "context": null,
+      "timestamp": "2025-06-06T23:18:21.475181",
+      "processed": false
+    },
+    {
+      "id": 77,
+      "content": "AI debugging tools are becoming more sophisticated and can now identify complex logical errors",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-06T23:18:36.954505",
+      "processed": false
+    },
+    {
+      "id": 78,
+      "content": "Machine learning models perform better when trained on diverse, high-quality datasets",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-06T23:18:45.319767",
+      "processed": false
+    },
+    {
+      "id": 79,
+      "content": "Developers are struggling with async programming patterns in JavaScript",
+      "category": "challenge",
+      "context": null,
+      "timestamp": "2025-06-06T23:18:54.481658",
+      "processed": false
+    },
+    {
+      "id": 80,
+      "content": "Code reviews are more effective when they focus on architecture rather than syntax",
+      "category": "best_practice",
+      "context": null,
+      "timestamp": "2025-06-06T23:18:54.484864",
+      "processed": false
+    },
+    {
+      "id": 81,
+      "content": "Natural language processing has revolutionized how we interact with software",
+      "category": "trend",
+      "context": null,
+      "timestamp": "2025-06-06T23:18:54.486990",
+      "processed": false
+    },
+    {
+      "id": 82,
+      "content": "AI debugging tools are becoming more sophisticated and can now identify complex logical errors",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-06T23:19:59.358225",
+      "processed": false
+    },
+    {
+      "id": 83,
+      "content": "Machine learning models perform better when trained on diverse, high-quality datasets",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-06T23:20:10.255862",
+      "processed": false
+    },
+    {
+      "id": 84,
+      "content": "Developers are struggling with async programming patterns in JavaScript",
+      "category": "challenge",
+      "context": null,
+      "timestamp": "2025-06-06T23:20:19.270482",
+      "processed": false
+    },
+    {
+      "id": 85,
+      "content": "Code reviews are more effective when they focus on architecture rather than syntax",
+      "category": "best_practice",
+      "context": null,
+      "timestamp": "2025-06-06T23:20:19.272124",
+      "processed": false
+    },
+    {
+      "id": 86,
+      "content": "Natural language processing has revolutionized how we interact with software",
+      "category": "trend",
+      "context": null,
+      "timestamp": "2025-06-06T23:20:19.273546",
+      "processed": false
+    },
+    {
+      "id": 87,
+      "content": "AI debugging tools are becoming more sophisticated and can now identify complex logical errors",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-06T23:30:59.115161",
+      "processed": false
+    },
+    {
+      "id": 88,
+      "content": "Machine learning models perform better when trained on diverse, high-quality datasets",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-06T23:31:08.634683",
+      "processed": false
+    },
+    {
+      "id": 89,
+      "content": "Developers are struggling with async programming patterns in JavaScript",
+      "category": "challenge",
+      "context": null,
+      "timestamp": "2025-06-06T23:31:17.050910",
+      "processed": false
+    },
+    {
+      "id": 90,
+      "content": "Code reviews are more effective when they focus on architecture rather than syntax",
+      "category": "best_practice",
+      "context": null,
+      "timestamp": "2025-06-06T23:31:17.051848",
+      "processed": false
+    },
+    {
+      "id": 91,
+      "content": "Natural language processing has revolutionized how we interact with software",
+      "category": "trend",
+      "context": null,
+      "timestamp": "2025-06-06T23:31:17.052939",
+      "processed": false
+    },
+    {
+      "id": 92,
+      "content": "AI debugging tools are becoming more sophisticated and can now identify complex logical errors",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-06T23:35:16.326185",
+      "processed": false
+    },
+    {
+      "id": 93,
+      "content": "Machine learning models perform better when trained on diverse, high-quality datasets",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-06T23:35:25.248076",
+      "processed": false
+    },
+    {
+      "id": 94,
+      "content": "Developers are struggling with async programming patterns in JavaScript",
+      "category": "challenge",
+      "context": null,
+      "timestamp": "2025-06-06T23:35:33.844423",
+      "processed": false
+    },
+    {
+      "id": 95,
+      "content": "Code reviews are more effective when they focus on architecture rather than syntax",
+      "category": "best_practice",
+      "context": null,
+      "timestamp": "2025-06-06T23:35:33.847017",
+      "processed": false
+    },
+    {
+      "id": 96,
+      "content": "Natural language processing has revolutionized how we interact with software",
+      "category": "trend",
+      "context": null,
+      "timestamp": "2025-06-06T23:35:33.849670",
+      "processed": false
+    },
+    {
+      "id": 97,
+      "content": "AI debugging tools are becoming more sophisticated and can now identify complex logical errors",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-06T23:39:20.258550",
+      "processed": false
+    },
+    {
+      "id": 98,
+      "content": "Machine learning models perform better when trained on diverse, high-quality datasets",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-06T23:39:29.070861",
+      "processed": false
+    },
+    {
+      "id": 99,
+      "content": "Developers are struggling with async programming patterns in JavaScript",
+      "category": "challenge",
+      "context": null,
+      "timestamp": "2025-06-06T23:39:38.251599",
+      "processed": false
+    },
+    {
+      "id": 100,
+      "content": "Code reviews are more effective when they focus on architecture rather than syntax",
+      "category": "best_practice",
+      "context": null,
+      "timestamp": "2025-06-06T23:39:38.254730",
+      "processed": false
+    },
+    {
+      "id": 101,
+      "content": "Natural language processing has revolutionized how we interact with software",
+      "category": "trend",
+      "context": null,
+      "timestamp": "2025-06-06T23:39:38.257647",
+      "processed": false
+    },
+    {
+      "id": 102,
+      "content": "AI debugging tools are becoming more sophisticated and can now identify complex logical errors",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-06T23:40:38.685165",
+      "processed": false
+    },
+    {
+      "id": 103,
+      "content": "Machine learning models perform better when trained on diverse, high-quality datasets",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-06T23:40:48.109260",
+      "processed": false
+    },
+    {
+      "id": 104,
+      "content": "Developers are struggling with async programming patterns in JavaScript",
+      "category": "challenge",
+      "context": null,
+      "timestamp": "2025-06-06T23:40:57.457751",
+      "processed": false
+    },
+    {
+      "id": 105,
+      "content": "Code reviews are more effective when they focus on architecture rather than syntax",
+      "category": "best_practice",
+      "context": null,
+      "timestamp": "2025-06-06T23:40:57.458342",
+      "processed": false
+    },
+    {
+      "id": 106,
+      "content": "Natural language processing has revolutionized how we interact with software",
+      "category": "trend",
+      "context": null,
+      "timestamp": "2025-06-06T23:40:57.458871",
+      "processed": false
+    },
+    {
+      "id": 107,
+      "content": "AI debugging tools are becoming more sophisticated and can now identify complex logical errors",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-06T23:44:46.713965",
+      "processed": false
+    },
+    {
+      "id": 108,
+      "content": "Machine learning models perform better when trained on diverse, high-quality datasets",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-06T23:44:55.212601",
+      "processed": false
+    },
+    {
+      "id": 109,
+      "content": "Developers are struggling with async programming patterns in JavaScript",
+      "category": "challenge",
+      "context": null,
+      "timestamp": "2025-06-06T23:45:04.524633",
+      "processed": false
+    },
+    {
+      "id": 110,
+      "content": "Code reviews are more effective when they focus on architecture rather than syntax",
+      "category": "best_practice",
+      "context": null,
+      "timestamp": "2025-06-06T23:45:04.526351",
+      "processed": false
+    },
+    {
+      "id": 111,
+      "content": "Natural language processing has revolutionized how we interact with software",
+      "category": "trend",
+      "context": null,
+      "timestamp": "2025-06-06T23:45:04.528064",
+      "processed": false
+    },
+    {
+      "id": 112,
+      "content": "AI debugging tools are becoming more sophisticated and can now identify complex logical errors",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-06T23:48:11.888252",
+      "processed": false
+    },
+    {
+      "id": 113,
+      "content": "Machine learning models perform better when trained on diverse, high-quality datasets",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-06T23:48:26.605843",
+      "processed": false
+    },
+    {
+      "id": 114,
+      "content": "Developers are struggling with async programming patterns in JavaScript",
+      "category": "challenge",
+      "context": null,
+      "timestamp": "2025-06-06T23:48:40.593412",
+      "processed": false
+    },
+    {
+      "id": 115,
+      "content": "Code reviews are more effective when they focus on architecture rather than syntax",
+      "category": "best_practice",
+      "context": null,
+      "timestamp": "2025-06-06T23:48:40.595738",
+      "processed": false
+    },
+    {
+      "id": 116,
+      "content": "Natural language processing has revolutionized how we interact with software",
+      "category": "trend",
+      "context": null,
+      "timestamp": "2025-06-06T23:48:40.598244",
+      "processed": false
+    },
+    {
+      "id": 117,
+      "content": "AI debugging tools are becoming more sophisticated and can now identify complex logical errors",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-06T23:51:08.051792",
+      "processed": false
+    },
+    {
+      "id": 118,
+      "content": "Machine learning models perform better when trained on diverse, high-quality datasets",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-06T23:51:22.474837",
+      "processed": false
+    },
+    {
+      "id": 119,
+      "content": "Developers are struggling with async programming patterns in JavaScript",
+      "category": "challenge",
+      "context": null,
+      "timestamp": "2025-06-06T23:51:36.245678",
+      "processed": false
+    },
+    {
+      "id": 120,
+      "content": "Code reviews are more effective when they focus on architecture rather than syntax",
+      "category": "best_practice",
+      "context": null,
+      "timestamp": "2025-06-06T23:51:36.247524",
+      "processed": false
+    },
+    {
+      "id": 121,
+      "content": "Natural language processing has revolutionized how we interact with software",
+      "category": "trend",
+      "context": null,
+      "timestamp": "2025-06-06T23:51:36.249070",
+      "processed": false
+    },
+    {
+      "id": 122,
+      "content": "AI debugging tools are becoming more sophisticated and can now identify complex logical errors",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-06T23:57:11.029384",
+      "processed": false
+    },
+    {
+      "id": 123,
+      "content": "Machine learning models perform better when trained on diverse, high-quality datasets",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-06T23:57:24.605844",
+      "processed": false
+    },
+    {
+      "id": 124,
+      "content": "Developers are struggling with async programming patterns in JavaScript",
+      "category": "challenge",
+      "context": null,
+      "timestamp": "2025-06-06T23:57:39.825972",
+      "processed": false
+    },
+    {
+      "id": 125,
+      "content": "Code reviews are more effective when they focus on architecture rather than syntax",
+      "category": "best_practice",
+      "context": null,
+      "timestamp": "2025-06-06T23:57:39.828767",
+      "processed": false
+    },
+    {
+      "id": 126,
+      "content": "Natural language processing has revolutionized how we interact with software",
+      "category": "trend",
+      "context": null,
+      "timestamp": "2025-06-06T23:57:39.831282",
+      "processed": false
+    },
+    {
+      "id": 127,
+      "content": "AI pair programming works best when developers maintain control and AI provides suggestions",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-07T00:17:09.839576",
+      "processed": false
+    },
+    {
+      "id": 128,
+      "content": "I've noticed that developers are increasingly using AI for debugging rather than just code generation",
+      "category": "observation",
+      "context": "Based on conversations this week",
+      "timestamp": "2025-06-07T00:17:37.425715",
+      "processed": false
+    },
+    {
+      "id": 129,
+      "content": "The most effective AI collaborations happen when humans focus on high-level strategy while AI handles implementation details",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-07T00:17:51.632780",
+      "processed": false
+    },
+    {
+      "id": 130,
+      "content": "AI pair programming works best when developers maintain control and AI provides suggestions",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-07T00:20:27.789353",
+      "processed": false
+    },
+    {
+      "id": 131,
+      "content": "I've noticed that developers are increasingly using AI for debugging rather than just code generation",
+      "category": "observation",
+      "context": "Based on conversations this week",
+      "timestamp": "2025-06-07T00:20:56.934033",
+      "processed": false
+    },
+    {
+      "id": 132,
+      "content": "The most effective AI collaborations happen when humans focus on high-level strategy while AI handles implementation details",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-07T00:21:11.582350",
+      "processed": false
     }
   ],
   "synthesized_insights": [],
   "categories": {
-    "observation": 17,
-    "insight": 11,
-    "test": 6,
-    "challenge": 2,
-    "best_practice": 2,
-    "trend": 2
+    "observation": 44,
+    "insight": 32,
+    "test": 8,
+    "challenge": 16,
+    "best_practice": 16,
+    "trend": 16
   },
   "search_analytics": {
-    "total_searches": 54,
+    "total_searches": 170,
     "empty_results": 0,
     "query_types": {
       "question": 20,
       "general": 6
     },
     "popular_categories": {
-      "observation": 236,
-      "insight": 113
+      "observation": 767,
+      "insight": 390
     }
   },
-  "last_updated": "2025-06-06T22:46:53.438415"
+  "last_updated": "2025-06-07T00:21:11.582420"
 }

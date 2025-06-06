@@ -1,0 +1,35 @@
+FROM ubuntu:22.04
+
+# Install basic tools only
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    python3 \
+    python3-pip \
+    nodejs \
+    npm \
+    vim \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install minimal Python packages
+RUN pip3 install anthropic requests fastapi uvicorn
+
+# Create workspace
+WORKDIR /workspace
+
+# Setup git configuration
+RUN git config --global user.name "Summit AI" && \
+    git config --global user.email "summit@ai.dev"
+
+# Copy task startup script
+COPY claude_code_task.sh /workspace/claude_code_task.sh
+RUN chmod +x /workspace/claude_code_task.sh
+
+# Install web terminal
+RUN npm install -g ttyd
+
+# Expose port for web terminal
+EXPOSE 7681
+
+# Set the entrypoint
+ENTRYPOINT ["/workspace/claude_code_task.sh"] 

@@ -534,14 +534,14 @@ I appreciate your contribution to my growing understanding. Each shared experien
                 timestamp = item['timestamp'][:10]  # Just the date
                 info_line = f"{i}. {item['content']} (Category: {item['category']}, Date: {timestamp})"
                 if score > 1.0:
-                    info_line += f" ★ High relevance ({score:.1f})"
+                    info_line += f"  High relevance ({score:.1f})"
                 relevant_information.append(info_line)
             elif result['type'] == 'synthesized_insight':
                 insight = result['data']
                 timestamp = insight['timestamp'][:10]
-                info_line = f"{i}. 💡 Insight: {insight['insight']} (Date: {timestamp})"
+                info_line = f"{i}.  Insight: {insight['insight']} (Date: {timestamp})"
                 if score > 1.0:
-                    info_line += f" ★ High relevance ({score:.1f})"
+                    info_line += f"  High relevance ({score:.1f})"
                 relevant_information.append(info_line)
         
         # Get additional context if focus is specified
@@ -687,7 +687,7 @@ Growth Opportunities:
                 f"Created codespace {codespace_data['name']} for implementation"
             )
             
-            response = f"""Summit is learning a new capability! 🚀
+            response = f"""Summit is learning a new capability! 
 
 Capability: {capability_description}
 Development Environment: {codespace_data['name']}
@@ -718,7 +718,7 @@ I'll track this learning session and help you deploy the changes when ready."""
             else:
                 response = "Summit Development Environments Status:\n\n"
                 for cs in summit_codespaces:
-                    status_emoji = "🟢" if cs['state'] == 'Available' else "🟡" if cs['state'] == 'Starting' else "🔴"
+                    status_emoji = "" if cs['state'] == 'Available' else "" if cs['state'] == 'Starting' else ""
                     response += f"{status_emoji} {cs['name']}\n"
                     response += f"   Status: {cs['state']}\n"
                     response += f"   Created: {cs['created_at'][:19].replace('T', ' ')}\n"
@@ -778,7 +778,7 @@ Automated deployment capabilities are coming in future versions!
             # Stop the codespace to save resources (optional)
             await stop_codespace(codespace_name)
             
-            response = f"""Deployment initiated for Summit learning session! 🎉
+            response = f"""Deployment initiated for Summit learning session! 
 
 {instructions}
 
@@ -813,7 +813,7 @@ Use summit_cleanup_environment to remove it when no longer needed."""
                 "Learning session complete, resources freed"
             )
             
-            response = f"""Development environment cleaned up successfully! ♻️
+            response = f"""Development environment cleaned up successfully! 
 
 Codespace '{codespace_name}' has been:
 - Stopped (if running)
@@ -1064,7 +1064,7 @@ Summit Learning Session Instructions
 
 Codespace URL: {codespace_url}
 
-🚨 CRITICAL: You MUST follow the MANDATORY DEVELOPMENT PROCESS from CODING_STANDARDS.md
+ CRITICAL: You MUST follow the MANDATORY DEVELOPMENT PROCESS from CODING_STANDARDS.md
 
 Capability to Implement:
 {capability_description}
@@ -1099,7 +1099,7 @@ python -m black src/ tests/ || echo "Formatting attempted" # Code formatting
 ```
 
 ## Phase 4: Git Operations (MANDATORY)
-🚨 **CRITICAL: NEVER COMMIT WITH FAILING TESTS**
+ **CRITICAL: NEVER COMMIT WITH FAILING TESTS**
 ```bash
 # REQUIRED: Complete Git workflow - ONLY if ALL tests pass
 git add .                        # Stage all changes
@@ -1116,16 +1116,16 @@ echo "Coverage target: >70%"    # Verify coverage maintained
 echo "All tests must be GREEN"  # Confirm no failures
 ```
 
-🚨 **CRITICAL: NO COMMITS WITH FAILING TESTS**
-⚠️  FAILURE TO FOLLOW THIS COMPLETE WORKFLOW = REJECTION
+ **CRITICAL: NO COMMITS WITH FAILING TESTS**
+  FAILURE TO FOLLOW THIS COMPLETE WORKFLOW = REJECTION
 
 The implementation will be rejected if you skip any phase. You must demonstrate:
-✅ Proper analysis and understanding
-✅ Comprehensive testing with ALL tests passing (100% green)
-✅ Coverage >70% verified before commit
-✅ Quality assurance execution
-✅ Complete Git workflow ONLY after tests pass
-✅ Final verification with zero failures
+ Proper analysis and understanding
+ Comprehensive testing with ALL tests passing (100% green)
+ Coverage >70% verified before commit
+ Quality assurance execution
+ Complete Git workflow ONLY after tests pass
+ Final verification with zero failures
 
 Environment provides: Ubuntu, Python 3.x, Git, VS Code, all dependencies
 """

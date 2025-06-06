@@ -41,19 +41,19 @@ Once started, access Summit through:
 
 ## Web Interface Features
 
-### 💡 Ask for Advice
+###  Ask for Advice
 Get AI-powered advice on any topic with optional context
 
-### 🧠 Share Knowledge  
+###  Share Knowledge  
 Share experiences, insights, and observations with categorization
 
-### 📊 System Status
+###  System Status
 Real-time status dashboard showing:
 - Server uptime
 - Knowledge base items  
 - Daily budget usage
 
-### 📈 Analytics & Insights
+###  Analytics & Insights
 - Search analytics and performance metrics
 - Content insights and knowledge gaps analysis
 - Query suggestions

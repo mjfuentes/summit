@@ -41,8 +41,9 @@ WORKDIR /workspace
 # Install Claude Code (the official Anthropic CLI tool)
 RUN npm install -g @anthropic-ai/claude-code --unsafe-perm=true --allow-root
 
-# Install web-based terminal for browser access
-RUN npm install -g ttyd --unsafe-perm=true --allow-root
+# Install web-based terminal for browser access (from official source)
+RUN wget -O /usr/local/bin/ttyd https://github.com/tsl0922/ttyd/releases/download/1.7.3/ttyd.x86_64 \
+    && chmod +x /usr/local/bin/ttyd
 
 # Install core Python development tools (minimal set first)
 RUN pip3 install --no-cache-dir \
