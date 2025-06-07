@@ -421,8 +421,8 @@ class AgentGitWrapper:
             print(" Cannot create PR from main branch")
             return False
 
-        # Push firs
-        if not self.push(wait_for_ci=False):
+        # Push first
+        if not self.push():
             return False
 
         owner, repo = self._get_repo_info()
