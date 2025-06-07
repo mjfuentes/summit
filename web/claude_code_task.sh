@@ -47,7 +47,45 @@ if [ -f setup_env.sh ]; then
     source setup_env.sh
 fi
 
-# Configure git
+# Setup real git repository if specified
+if [ ! -z "$REPOSITORY_URL" ]; then
+    echo "[$(date '+%H:%M:%S')] Setting up git repository..."
+    
+    # Clone the repository to a temporary directory
+    REPO_DIR="/workspace/repo"
+    if [ -d "$REPO_DIR" ]; then
+        rm -rf "$REPO_DIR"
+    fi
+    
+    git clone "$REPOSITORY_URL" "$REPO_DIR"
+    cd "$REPO_DIR"
+    
+    # Get the test branch name from environment or use default
+    TEST_BRANCH="${TEST_BRANCH:-test/autonomous-claude-tracking}"
+    
+    # Check if test branch exists on remote, if not create it
+    if git ls-remote --heads origin "$TEST_BRANCH" | grep -q "$TEST_BRANCH"; then
+        echo "[$(date '+%H:%M:%S')] Checking out existing test branch: $TEST_BRANCH"
+        git checkout "$TEST_BRANCH"
+        git pull origin "$TEST_BRANCH"
+    else
+        echo "[$(date '+%H:%M:%S')] Creating new test branch: $TEST_BRANCH"
+        git checkout -b "$TEST_BRANCH"
+        git push -u origin "$TEST_BRANCH"
+    fi
+    
+    echo "[$(date '+%H:%M:%S')] Working in git repository: $(pwd)"
+    echo "[$(date '+%H:%M:%S')] Current branch: $(git branch --show-current)"
+    echo "[$(date '+%H:%M:%S')] Remote URL: $(git remote get-url origin)"
+else
+    echo "[$(date '+%H:%M:%S')] Working in clean workspace (no repository specified)"
+    # Initialize a basic git repo for testing
+    git init
+    git config user.name "Claude AI Assistant"
+    git config user.email "claude.ai@anthropic.com"
+fi
+
+# Configure git for Claude
 git config user.name "Claude AI Assistant" 2>/dev/null || true
 git config user.email "claude.ai@anthropic.com" 2>/dev/null || true
 
@@ -151,13 +189,27 @@ def main():
     coding_prompt = f"""
 You are an AI coding assistant working on a development task in a Git repository.
 
+**CRITICAL: EVERY TASK MUST END WITH GIT COMMIT AND PUSH**
+NO TASK IS COMPLETE WITHOUT PUSHING TO GIT - THIS IS MANDATORY FOR ALL TASKS
+
 **TASK:** {task_description}
 
-**CODING RULES & STANDARDS:**
-- Follow proper Git workflow: analyze → implement → test → lint → commit → push
-- MANDATORY: You MUST commit AND push all changes after completing the task
-- MANDATORY: Before committing, run 'git pull --rebase' to sync with remote changes
-- MANDATORY: After committing, run 'git push origin main' to push changes to remote
+**MANDATORY GIT WORKFLOW - ALWAYS REQUIRED:**
+REGARDLESS of what the task asks for, you MUST ALWAYS finish by committing and pushing:
+1. Complete the requested task (create files, modify code, etc.)
+2. git add . (stage ALL changes)
+3. git pull --rebase (sync with remote, resolve conflicts if any)
+4. git commit -m "Your single-line commit message"
+5. git push origin {os.environ.get('TARGET_BRANCH', 'main')} (push to specified branch)
+
+**ABSOLUTE REQUIREMENTS:**
+- NEVER consider a task complete without git commit + push
+- ALWAYS push to git even for simple file creation tasks
+- ALWAYS push to git even for documentation tasks
+- ALWAYS push to git even for configuration tasks
+- Git workflow is MANDATORY for EVERY task, no exceptions
+
+**CODING STANDARDS:**
 - Commit messages must be single line only (no multi-line commits)
 - Never use git commit --no-verify - all commits must pass pre-commit hooks
 - Maintain >70% test coverage on changes when applicable
@@ -167,20 +219,14 @@ You are an AI coding assistant working on a development task in a Git repository
 - No emojis in documentation - use clear, professional text
 - Keep documentation concise and focused
 
-**GIT WORKFLOW (MANDATORY):**
-After making any code changes, you MUST follow this exact sequence:
-1. git add . (stage all changes)
-2. git pull --rebase (sync with remote, resolve conflicts if any)
-3. git commit -m "Your commit message" (single line commit message)
-4. git push origin main (push to remote repository)
-
-**COMPLETION:**
-When you have successfully completed the task, create a file called 'completion.txt' containing exactly: {save_word}
+**COMPLETION SIGNAL:**
+Only after successfully pushing to git, create a file called 'completion.txt' containing exactly: {save_word}
 
 **WORKSPACE:**
 You are working in: {os.getcwd()}
 
-Please analyze the current repository state and complete the requested task following all coding standards.
+**REMEMBER: NO TASK IS COMPLETE WITHOUT GIT COMMIT AND PUSH**
+Analyze the repository, complete the task, then ALWAYS commit and push your changes.
 """
     
     # Create a temporary file for the prompt
