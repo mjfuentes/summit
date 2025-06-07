@@ -76,53 +76,248 @@ async def root():
 <head>
     <title>Summit Autonomous AI</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
-        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-        .header { text-align: center; color: white; margin-bottom: 30px; }
-        .header h1 { font-size: 2.5em; margin: 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
-        .header p { font-size: 1.2em; opacity: 0.9; margin: 10px 0; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         
-        .voice-input { position: relative; margin: 10px 0; }
-        .voice-btn { background: #28a745; border: none; border-radius: 50%; width: 50px; height: 50px; color: white; font-size: 12px; cursor: pointer; transition: all 0.3s; }
-        .voice-btn.recording { background: #dc3545; animation: pulse 1s infinite; }
-        .voice-status { margin-left: 10px; font-size: 14px; color: #666; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; 
+            margin: 0; 
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%); 
+            min-height: 100vh; 
+            color: #1f2937;
+        }
+        
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        
+        .header { 
+            text-align: center; 
+            color: white; 
+            margin-bottom: 40px; 
+            padding: 30px 0;
+        }
+        .header h1 { 
+            font-size: 3.5rem; 
+            margin: 0; 
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3); 
+            font-weight: 700;
+            background: linear-gradient(45deg, #ffffff, #f1f5f9);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .header p { 
+            font-size: 1.3rem; 
+            opacity: 0.95; 
+            margin: 15px 0; 
+            font-weight: 300;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .voice-input { 
+            position: relative; 
+            margin: 15px 0; 
+            display: flex; 
+            align-items: center; 
+            gap: 12px;
+        }
+        .voice-btn { 
+            background: linear-gradient(135deg, #10b981, #059669); 
+            border: none; 
+            border-radius: 50%; 
+            width: 56px; 
+            height: 56px; 
+            color: white; 
+            font-size: 11px; 
+            font-weight: 600;
+            cursor: pointer; 
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+        .voice-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4); }
+        .voice-btn.recording { 
+            background: linear-gradient(135deg, #ef4444, #dc2626); 
+            animation: pulse 1s infinite; 
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+        }
+        .voice-status { font-size: 14px; color: #6b7280; font-weight: 500; }
         
         @keyframes pulse {
             0% { transform: scale(1); }
-            50% { transform: scale(1.1); }
+            50% { transform: scale(1.05); }
             100% { transform: scale(1); }
         }
         
-        .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
-        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.1); }
-        .card h2 { color: #333; margin-top: 0; font-size: 1.5em; }
+        .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px; }
+        @media (max-width: 768px) { .main-grid { grid-template-columns: 1fr; gap: 20px; } }
         
-        .task-form textarea { width: 100%; min-height: 120px; padding: 15px; border: 2px solid #e1e5e9; border-radius: 8px; font-size: 14px; resize: vertical; }
-        .task-form input { width: 100%; padding: 12px; margin: 10px 0; border: 2px solid #e1e5e9; border-radius: 8px; font-size: 14px; }
+        .card { 
+            background: rgba(255, 255, 255, 0.95); 
+            padding: 30px; 
+            border-radius: 20px; 
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1); 
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover { 
+            transform: translateY(-5px); 
+            box-shadow: 0 25px 50px rgba(0,0,0,0.15); 
+        }
+        .card h2 { 
+            color: #1f2937; 
+            margin-top: 0; 
+            font-size: 1.75rem; 
+            font-weight: 600; 
+            margin-bottom: 20px;
+        }
         
-        .btn { background: linear-gradient(45deg, #667eea, #764ba2); color: white; padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: 600; transition: all 0.3s; }
-        .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.2); }
-        .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .task-form textarea { 
+            width: 100%; 
+            min-height: 140px; 
+            padding: 18px; 
+            border: 2px solid #e5e7eb; 
+            border-radius: 12px; 
+            font-size: 15px; 
+            resize: vertical; 
+            font-family: inherit;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+            line-height: 1.6;
+        }
+        .task-form textarea:focus { 
+            outline: none; 
+            border-color: #6366f1; 
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1); 
+        }
         
-        .task-item { background: #f8f9fa; padding: 15px; margin: 10px 0; border-radius: 8px; border-left: 4px solid #667eea; cursor: pointer; }
-        .task-status { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
-        .status-running { background: #fff3cd; color: #856404; }
-        .status-completed { background: #d4edda; color: #155724; }
-        .status-failed { background: #f8d7da; color: #721c24; }
+        .btn { 
+            background: linear-gradient(135deg, #6366f1, #8b5cf6); 
+            color: white; 
+            padding: 16px 32px; 
+            border: none; 
+            border-radius: 12px; 
+            cursor: pointer; 
+            font-size: 16px; 
+            font-weight: 600; 
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+            width: 100%;
+        }
+        .btn:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4); 
+        }
+        .btn:disabled { 
+            opacity: 0.6; 
+            cursor: not-allowed; 
+            transform: none; 
+            box-shadow: none;
+        }
         
-        .logs { background: #1e1e1e; color: #00ff00; padding: 15px; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 12px; max-height: 300px; overflow-y: auto; margin: 10px 0; }
-        .progress-bar { background: #e9ecef; height: 8px; border-radius: 4px; overflow: hidden; margin: 10px 0; }
-        .progress-fill { background: linear-gradient(45deg, #667eea, #764ba2); height: 100%; transition: width 0.3s; }
+        .task-item { 
+            background: linear-gradient(135deg, #f8fafc, #f1f5f9); 
+            padding: 20px; 
+            margin: 15px 0; 
+            border-radius: 12px; 
+            border-left: 4px solid #6366f1; 
+            cursor: pointer; 
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .task-item:hover { 
+            transform: translateX(5px); 
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1); 
+            background: linear-gradient(135deg, #ffffff, #f8fafc);
+        }
         
-        .connection-status { position: fixed; top: 20px; right: 20px; padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: 600; }
-        .connected { background: #d4edda; color: #155724; }
-        .disconnected { background: #f8d7da; color: #721c24; }
+        .task-status { 
+            display: inline-block; 
+            padding: 6px 14px; 
+            border-radius: 20px; 
+            font-size: 12px; 
+            font-weight: 600; 
+            text-transform: uppercase; 
+            letter-spacing: 0.5px;
+        }
+        .status-running { background: linear-gradient(135deg, #fbbf24, #f59e0b); color: white; }
+        .status-completed { background: linear-gradient(135deg, #10b981, #059669); color: white; }
+        .status-failed { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
         
-        .advanced-options { margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px; }
-        .advanced-options summary { cursor: pointer; font-weight: 600; color: #667eea; }
+        .logs { 
+            background: #0f172a; 
+            color: #10b981; 
+            padding: 20px; 
+            border-radius: 12px; 
+            font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace; 
+            font-size: 13px; 
+            max-height: 350px; 
+            overflow-y: auto; 
+            margin: 15px 0; 
+            border: 1px solid #1e293b;
+            line-height: 1.5;
+        }
         
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+        .progress-bar { 
+            background: #e5e7eb; 
+            height: 6px; 
+            border-radius: 3px; 
+            overflow: hidden; 
+            margin: 15px 0; 
+        }
+        .progress-fill { 
+            background: linear-gradient(90deg, #6366f1, #8b5cf6); 
+            height: 100%; 
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); 
+        }
+        
+        .connection-status { 
+            position: fixed; 
+            top: 20px; 
+            right: 20px; 
+            padding: 10px 18px; 
+            border-radius: 25px; 
+            font-size: 12px; 
+            font-weight: 600; 
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+        }
+        .connected { background: rgba(16, 185, 129, 0.9); color: white; }
+        .disconnected { background: rgba(239, 68, 68, 0.9); color: white; }
+        
+        .task-monitor { 
+            opacity: 0; 
+            transform: translateY(20px); 
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); 
+            pointer-events: none;
+        }
+        .task-monitor.visible { 
+            opacity: 1; 
+            transform: translateY(0); 
+            pointer-events: auto;
+        }
+        
+        .empty-state { 
+            text-align: center; 
+            color: #6b7280; 
+            padding: 40px 20px; 
+            font-style: italic;
+        }
+        .empty-state i { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+        
+        @keyframes fadeIn { 
+            from { opacity: 0; transform: translateY(10px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
         .loading { animation: pulse 1.5s infinite; }
+        
+        /* Smooth scrolling */
+        html { scroll-behavior: smooth; }
+        
+        /* Custom scrollbar */
+        .logs::-webkit-scrollbar { width: 6px; }
+        .logs::-webkit-scrollbar-track { background: #1e293b; }
+        .logs::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+        .logs::-webkit-scrollbar-thumb:hover { background: #64748b; }
     </style>
 </head>
 <body>
@@ -160,21 +355,25 @@ Examples:
             <div class="card">
                 <h2>Active Tasks</h2>
                 <div id="active-tasks">
-                    <p style="color: #666; text-align: center; padding: 20px;">No active tasks</p>
+                    <div class="empty-state">
+                        <div style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;">⏱️</div>
+                        <p>No active tasks</p>
+                        <p style="font-size: 14px; margin-top: 8px;">Create a task to get started</p>
+                    </div>
                 </div>
             </div>
         </div>
         
-        <div style="margin-top: 30px;">
+        <div class="task-monitor" id="task-monitor">
             <div class="card">
                 <h2>Task Monitor</h2>
-                <div id="selected-task-details" style="display: none;">
+                <div id="selected-task-details">
                     <h3 id="task-title">Task Details</h3>
                     <div class="progress-bar">
                         <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
                     </div>
                     <div id="task-logs" class="logs"></div>
-                    <button class="btn" onclick="stopTask()" id="stop-btn" style="background: #dc3545;">Stop Task</button>
+                    <button class="btn" onclick="stopTask()" id="stop-btn" style="background: linear-gradient(135deg, #ef4444, #dc2626); margin-top: 15px;">Stop Task</button>
                 </div>
             </div>
         </div>
@@ -266,15 +465,24 @@ Examples:
         function updateActiveTasksList(tasks) {
             const container = document.getElementById('active-tasks');
             if (tasks.length === 0) {
-                container.innerHTML = '<p style="color: #666; text-align: center; padding: 20px;">No active tasks</p>';
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;">⏱️</div>
+                        <p>No active tasks</p>
+                        <p style="font-size: 14px; margin-top: 8px;">Create a task to get started</p>
+                    </div>
+                `;
+                hideTaskMonitor();
                 return;
             }
             
             container.innerHTML = tasks.map(task => `
                 <div class="task-item" onclick="selectTask('${task.task_id}')">
-                    <strong>${task.task_description.substring(0, 60)}...</strong>
-                    <span class="task-status status-${task.status}">${task.status}</span>
-                    <div style="font-size: 12px; color: #666; margin-top: 5px;">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                        <strong style="flex: 1; margin-right: 12px;">${task.task_description.substring(0, 60)}${task.task_description.length > 60 ? '...' : ''}</strong>
+                        <span class="task-status status-${task.status}">${task.status}</span>
+                    </div>
+                    <div style="font-size: 13px; color: #6b7280;">
                         Created: ${new Date(task.created_at).toLocaleString()}
                     </div>
                 </div>
@@ -322,9 +530,21 @@ Examples:
             document.getElementById('progress-fill').style.width = progress + '%';
         }
         
+        function showTaskMonitor() {
+            const monitor = document.getElementById('task-monitor');
+            monitor.classList.add('visible');
+            monitor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        
+        function hideTaskMonitor() {
+            const monitor = document.getElementById('task-monitor');
+            monitor.classList.remove('visible');
+            selectedTaskId = null;
+        }
+        
         function selectTask(taskId) {
             selectedTaskId = taskId;
-            document.getElementById('selected-task-details').style.display = 'block';
+            showTaskMonitor();
             fetchTaskDetails(taskId);
         }
         
@@ -353,7 +573,19 @@ Examples:
                 if (result.success) {
                     document.getElementById('task-description').value = '';
                     selectTask(result.task_id);
-                    alert('Task created successfully! Watch the progress below.');
+                    
+                    // Show success notification
+                    const notification = document.createElement('div');
+                    notification.innerHTML = '✅ Task created successfully! Monitor below.';
+                    notification.style.cssText = `
+                        position: fixed; top: 80px; right: 20px; z-index: 1001;
+                        background: linear-gradient(135deg, #10b981, #059669); color: white;
+                        padding: 12px 20px; border-radius: 8px; font-weight: 500;
+                        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+                        animation: fadeIn 0.3s ease;
+                    `;
+                    document.body.appendChild(notification);
+                    setTimeout(() => notification.remove(), 4000);
                 } else {
                     alert('Failed to create task: ' + result.message);
                 }
