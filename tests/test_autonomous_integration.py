@@ -215,19 +215,9 @@ if __name__ == "__main__":
     def test_container_build_process(self, mock_env_vars):
         """Test building the autonomous container"""
         
-        # Create dummy claude_code_task.sh for Docker build
-        test_script_path = "web/claude_code_task.sh"
-        test_script_content = """#!/bin/bash
-echo "Test task script"
-exit 0
-"""
-        
         # Copy requirements.txt to web directory for build context
         requirements_src = "requirements.txt"
         requirements_dest = "web/requirements.txt"
-        
-        with open(test_script_path, 'w') as f:
-            f.write(test_script_content)
         
         # Copy requirements.txt to web directory
         shutil.copy2(requirements_src, requirements_dest)
@@ -236,6 +226,9 @@ exit 0
             # Change to web directory for build context
             original_dir = os.getcwd()
             os.chdir("web")
+            
+            # Verify claude_code_task.sh exists (should be restored now)
+            assert os.path.exists("claude_code_task.sh"), "claude_code_task.sh should exist for Docker build"
             
             # Test the container build process
             cmd = [
@@ -253,8 +246,6 @@ exit 0
         finally:
             # Restore directory and cleanup
             os.chdir(original_dir)
-            if os.path.exists(test_script_path):
-                os.remove(test_script_path)
             if os.path.exists(requirements_dest):
                 os.remove(requirements_dest)
             
@@ -319,8 +310,6 @@ exit 0
             # Restore original directory
             os.chdir(original_dir)
             # Clean up test artifacts
-            if os.path.exists(os.path.join(web_dir, 'claude_code_task.sh')):
-                os.remove(os.path.join(web_dir, 'claude_code_task.sh'))
             if os.path.exists(os.path.join(repo_root, 'test_output.txt')):
                 os.remove(os.path.join(repo_root, 'test_output.txt'))
 
