@@ -7,6 +7,9 @@ serverless infrastructure. It provides a standardized interface for AI
 operations while leveraging GPU acceleration.
 """
 
+from summit import Summit
+from database import DatabaseManager
+from cost_tracker import CostTracker
 import asyncio
 import json
 import logging
@@ -23,9 +26,6 @@ from fastapi.middleware.cors import CORSMiddleware
 # Add src to path
 sys.path.insert(0, "/workspace/src")
 
-from cost_tracker import CostTracker
-from database import DatabaseManager
-from summit import Summit
 
 # Configure logging
 logging.basicConfig(
@@ -166,7 +166,7 @@ async def summit_handler(job: Dict[str, Any]) -> Dict[str, Any]:
             2. Potential bugs or issues
             3. Performance improvements
             4. Best practices recommendations
-            
+
             Code:
             ```{language}
             {code}

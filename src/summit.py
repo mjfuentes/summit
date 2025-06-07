@@ -99,7 +99,7 @@ def get_github_repo_info():
                     # HTTPS format: https://github.com/owner/repo.git
                     parts = remote_url.split("/")
                     return parts[-2], parts[-1].replace(".git", "")
-    except:
+    except BaseException:
         pass
 
     return None, None
@@ -382,7 +382,7 @@ Recent Calls:"""
                 capability_description,
             )
 
-            response = f"""Summit is learning a new capability! 
+            response = f"""Summit is learning a new capability!
 
 Capability: {capability_description}
 Development Environment: {codespace_data['name']}
@@ -480,7 +480,7 @@ Automated deployment capabilities are coming in future versions!
             # Stop the codespace to save resources (optional)
             await stop_codespace(codespace_name)
 
-            response = f"""Deployment initiated for Summit learning session! 
+            response = f"""Deployment initiated for Summit learning session!
 
 {instructions}
 
@@ -512,7 +512,7 @@ Use summit_cleanup_environment to remove it when no longer needed."""
             # Delete the codespace
             await delete_codespace(codespace_name)
 
-            response = f"""Development environment cleaned up successfully! 
+            response = f"""Development environment cleaned up successfully!
 
 Codespace '{codespace_name}' has been:
 - Stopped (if running)
@@ -734,7 +734,8 @@ async def create_pull_request(
                     "merge_method": "squash"  # or "merge" or "rebase"
                 }
 
-                # Use GraphQL API for auto-merge (REST API doesn't support it yet)
+                # Use GraphQL API for auto-merge (REST API doesn't support it
+                # yet)
                 graphql_url = "https://api.github.com/graphql"
                 graphql_query = """
                 mutation($pullRequestId: ID!) {
@@ -846,7 +847,7 @@ Provide a COMPLETE implementation plan that follows the mandatory 5-phase proces
 - Integration points identified
 - Dependencies analysis
 
-## Phase 2: Implementation  
+## Phase 2: Implementation
 - Specific files to create/modify
 - New functions/tools to add
 - Test files to create
@@ -923,7 +924,7 @@ find . -name "*.py" | head -20    # Understand codebase structure
 
 ## Phase 2: Implementation (MANDATORY)
 - Follow the implementation plan above
-- Create/modify files following existing patterns  
+- Create/modify files following existing patterns
 - Add comprehensive tests for ALL new functionality
 - Use meaningful names, no obvious comments
 
@@ -942,7 +943,7 @@ python -m black src/ tests/ || echo "Formatting attempted" # Code formatting
 # REQUIRED: Complete Git workflow - ONLY if ALL tests pass
 git add .                        # Stage all changes
 git status                       # Verify what's being committed
-git commit -m "Add [feature]: [description] - [coverage%] coverage" 
+git commit -m "Add [feature]: [description] - [coverage%] coverage"
 git push origin main            # Push to repository
 ```
 
