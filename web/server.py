@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Testing autonomous Claude Code
+# Summit Web API Server
 """
 Summit Web API - FastAPI server that exposes Summit's capabilities via REST endpoints
 """
