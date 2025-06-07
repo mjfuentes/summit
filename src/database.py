@@ -252,6 +252,16 @@ class DatabaseManager:
             )
             return result.rowcount > 0
 
+    async def get_failed_tasks(self) -> List[Task]:
+        """Get all failed tasks"""
+        async with self.get_session() as session:
+            result = await session.execute(
+                select(Task)
+                .where(Task.status == "failed")
+                .order_by(Task.created_at.desc())
+            )
+            return result.scalars().all()
+
     async def get_task_statistics(self) -> Dict[str, Any]:
         """Get task statistics"""
         async with self.get_session() as session:

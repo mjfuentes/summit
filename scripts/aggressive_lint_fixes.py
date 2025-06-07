@@ -304,7 +304,7 @@ def break_function_call(line: str, indent: int) -> str:
 
     if paren_pos > 0 and paren_pos < 40:  # Only if function name is reasonable
         func_part = stripped[: paren_pos + 1]
-        params_part = stripped[paren_pos + 1:]
+        params_part = stripped[paren_pos + 1 :]
 
         # Split parameters
         params = []
@@ -368,7 +368,7 @@ def break_f_string(line: str, indent: int) -> str:
             break_point = content.rfind(" ", 0, mid + 20)
             if break_point > 10:  # Don't break too early
                 part1 = content[:break_point]
-                part2 = content[break_point + 1:]
+                part2 = content[break_point + 1 :]
                 return [
                     " " * indent + f'f"{part1} "\n',
                     " " * indent + f'f"{part2}"\n',

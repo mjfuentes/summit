@@ -233,7 +233,7 @@ def break_long_lines_aggressively():
                         paren_pos = line.find("(")
                         if paren_pos > 0:
                             before_paren = line[: paren_pos + 1]
-                            after_paren = line[paren_pos + 1:]
+                            after_paren = line[paren_pos + 1 :]
 
                             if (
                                 len(before_paren) < 60

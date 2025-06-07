@@ -3,74 +3,740 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEXUS AI 💎 Y2K AUTONOMOUS INTELLIGENCE 💎</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <title> NEXUS AI  Y2K AUTONOMOUS INTELLIGENCE </title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body { 
+            font-family: 'Courier New', 'Arial Black', monospace; 
+            margin: 0; 
+            background: linear-gradient(45deg, #ff00ff, #00ffff, #ffff00, #ff00ff);
+            background-size: 400% 400%;
+            animation: gradientShift 3s ease infinite;
+            min-height: 100vh; 
+            color: #000;
+            overflow-x: hidden;
+        }
+        
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            position: relative;
+            z-index: 10;
+        }
+        
+        .header { 
+            text-align: center; 
+            color: #000; 
+            margin-bottom: 40px; 
+            padding: 30px 0;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 20px;
+            box-shadow: 0 0 30px #ff00ff, inset 0 0 30px rgba(0, 255, 255, 0.2);
+            border: 3px solid #ffff00;
+            animation: pulse 2s ease-in-out infinite alternate;
+        }
+        
+        @keyframes pulse {
+            from { box-shadow: 0 0 30px #ff00ff, inset 0 0 30px rgba(0, 255, 255, 0.2); }
+            to { box-shadow: 0 0 50px #00ffff, inset 0 0 50px rgba(255, 0, 255, 0.3); }
+        }
+        
+        .header h1 { 
+            font-size: 3.5rem; 
+            margin: 0; 
+            text-shadow: 3px 3px 0px #ff00ff, 6px 6px 0px #00ffff, 9px 9px 0px #ffff00; 
+            font-weight: 900;
+            background: linear-gradient(45deg, #ff00ff, #00ffff, #ffff00);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: textGlow 2s ease-in-out infinite alternate;
+        }
+        
+        @keyframes textGlow {
+            from { filter: drop-shadow(0 0 10px #ff00ff); }
+            to { filter: drop-shadow(0 0 20px #00ffff); }
+        }
+        
+        .header p { 
+            font-size: 1.3rem; 
+            margin: 15px 0; 
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #000;
+            text-shadow: 2px 2px 0px #ffff00;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .card { 
+            background: rgba(255, 255, 255, 0.9); 
+            padding: 30px; 
+            border-radius: 20px; 
+            box-shadow: 0 0 30px #ff00ff, inset 0 0 30px rgba(0, 255, 255, 0.2); 
+            backdrop-filter: blur(10px);
+            border: 3px solid #ffff00;
+            transition: all 0.3s ease;
+            margin-bottom: 30px;
+            animation: cardFloat 3s ease-in-out infinite alternate;
+        }
+        
+        @keyframes cardFloat {
+            from { transform: translateY(0px); }
+            to { transform: translateY(-10px); }
+        }
+        
+        .card:hover { 
+            transform: translateY(-15px) scale(1.02); 
+            box-shadow: 0 0 50px #00ffff, inset 0 0 50px rgba(255, 0, 255, 0.3); 
+        }
+        
+        .card h2 { 
+            color: #000; 
+            margin-top: 0; 
+            font-size: 1.75rem; 
+            font-weight: 900; 
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            text-shadow: 2px 2px 0px #ff00ff;
+            background: linear-gradient(45deg, #ff00ff, #00ffff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .btn { 
+            background: linear-gradient(45deg, #ff00ff, #00ffff, #ffff00, #ff00ff); 
+            background-size: 300% 300%;
+            animation: gradientShift 2s ease infinite;
+            color: #000; 
+            padding: 16px 32px; 
+            border: 3px solid #000; 
+            border-radius: 12px; 
+            cursor: pointer; 
+            font-size: 16px; 
+            font-weight: 900; 
+            transition: all 0.3s ease; 
+            box-shadow: 0 0 20px #ff00ff;
+            width: 100%;
+            text-transform: uppercase;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .btn:hover { 
+            transform: translateY(-3px) scale(1.05); 
+            box-shadow: 0 0 30px #00ffff; 
+            text-shadow: 2px 2px 0px #ffff00;
+        }
+        
+        .btn:disabled { 
+            opacity: 0.6; 
+            cursor: not-allowed; 
+            transform: none; 
+            box-shadow: none;
+        }
+        
+        textarea, input { 
+            width: 100%; 
+            padding: 15px; 
+            border: 3px solid #ff00ff; 
+            border-radius: 12px; 
+            font-size: 16px; 
+            font-family: 'Courier New', monospace;
+            background: rgba(255, 255, 255, 0.9);
+            color: #000;
+            font-weight: bold;
+        }
+        
+        textarea { 
+            min-height: 120px; 
+            resize: vertical; 
+            margin-bottom: 20px;
+        }
+        
+        .task-form { 
+            margin-bottom: 30px; 
+        }
+        
+        .voice-input { 
+            display: flex; 
+            align-items: center; 
+            gap: 15px; 
+            margin-bottom: 20px; 
+        }
+        
+        .voice-btn { 
+            background: linear-gradient(45deg, #ff00ff, #00ffff); 
+            color: #000; 
+            border: 3px solid #000; 
+            padding: 12px 20px; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-weight: 900;
+            font-family: 'Courier New', monospace;
+            text-transform: uppercase;
+        }
+        
+        .voice-status { 
+            font-weight: bold; 
+            color: #000;
+            text-shadow: 1px 1px 0px #ffff00;
+            text-transform: uppercase;
+        }
+        
+        .task-item { 
+            background: rgba(255, 255, 255, 0.8); 
+            padding: 20px; 
+            border-radius: 12px; 
+            margin-bottom: 15px; 
+            border: 2px solid #ff00ff;
+            box-shadow: 0 0 15px rgba(255, 0, 255, 0.3);
+        }
+        
+        .error-message {
+            background: rgba(255, 0, 0, 0.1);
+            border: 1px solid #ff0000;
+            border-radius: 8px;
+            padding: 10px;
+            margin: 10px 0;
+            max-height: 150px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            word-break: break-word;
+            color: #cc0000;
+            font-weight: bold;
+        }
+        
+        .task-status { 
+            font-weight: bold; 
+            padding: 8px 16px; 
+            border-radius: 20px; 
+            font-size: 14px; 
+            text-transform: uppercase;
+            border: 2px solid #000;
+        }
+        
+        .status-running { 
+            background: linear-gradient(45deg, #ffff00, #ff00ff); 
+            color: #000; 
+        }
+        
+        .status-completed { 
+            background: linear-gradient(45deg, #00ffff, #ffff00); 
+            color: #000; 
+        }
+        
+        .status-failed { 
+            background: linear-gradient(45deg, #ff00ff, #ffff00); 
+            color: #000; 
+        }
+        
+        .empty-state { 
+            text-align: center; 
+            color: #000; 
+            padding: 40px;
+            font-weight: bold;
+            text-transform: uppercase;
+            text-shadow: 1px 1px 0px #ffff00;
+        }
+        
+        .retrigger-btn { 
+            background: linear-gradient(45deg, #ff00ff, #ffff00); 
+            color: #000; 
+            border: 2px solid #000; 
+            padding: 8px 16px; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-size: 14px; 
+            font-weight: 900;
+            text-transform: uppercase;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .retrigger-btn:hover { 
+            transform: scale(1.1); 
+            box-shadow: 0 0 15px #ff00ff;
+        }
+        
+        .grid { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 30px; 
+        }
+        
+        .chat-container {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 2px solid #ff00ff;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+            background: rgba(0, 0, 0, 0.1);
+        }
+        
+        .chat-message {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .chat-message.user {
+            background: linear-gradient(45deg, #ff00ff, #00ffff);
+            color: #000;
+            text-align: right;
+            font-weight: bold;
+        }
+        
+        .chat-message.claude {
+            background: rgba(255, 255, 255, 0.9);
+            color: #000;
+            border: 1px solid #ffff00;
+        }
+        
+        .chat-input-container {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+        
+        .chat-input {
+            flex: 1;
+            min-height: 60px;
+            resize: vertical;
+        }
+        
+        .chat-send-btn {
+            background: linear-gradient(45deg, #00ffff, #ffff00);
+            color: #000;
+            border: 3px solid #000;
+            padding: 15px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 900;
+            font-family: 'Courier New', monospace;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+        
+        .chat-send-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px #00ffff;
+        }
+        
+        .chat-send-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        @media (max-width: 768px) { 
+            .grid { 
+                grid-template-columns: 1fr; 
+            }
+            .header h1 { 
+                font-size: 2.5rem; 
+            }
+        }
+    </style>
 </head>
 <body>
-    <header>
-        <h1>NEXUS AI 💎</h1>
-        <nav>
-            <ul>
-                <li><a href="/">Home</a></li>
-                <li><a href="/about">About</a></li>
-                <li><a href="/contact">Contact</a></li>
-                <li>
-                    <div class="effects-toggle">
-                        <label for="effects-switch">Effects</label>
-                        <input type="checkbox" id="effects-switch" 
-                               checked class="toggle-switch">
+    <div class="container">
+        <div class="header">
+            <h1> NEXUS AI </h1>
+            <p>YO! NEXUS AI is the DOPEST autonomous intelligence that learns NEW SKILLS and codes itself UP to handle WHATEVER you throw at it! This ain't your basic chatbot - we're talking NEXT LEVEL AI! </p>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h2> CREATE LEARNING TASK </h2>
+                <div class="task-form">
+                    <div class="voice-input">
+                        <button class="voice-btn" id="voice-btn" onclick="toggleVoiceInput()">MIC</button>
+                        <span class="voice-status" id="voice-status">CLICK TO SPEAK</span>
                     </div>
-                </li>
-            </ul>
-        </nav>
-    </header>
-    
-    <main>
-        <section class="hero">
-            <h2>AUTONOMOUS AI THAT'S OFF THE CHAIN</h2>
-            <p>YO! NEXUS AI is the DOPEST autonomous intelligence that learns NEW SKILLS and codes itself UP to handle WHATEVER you throw at it! This ain't your basic chatbot - we're talking NEXT LEVEL AI that builds its own tools and keeps getting STRONGER! 🔥</p>
-            <button class="cta-button">💎 LET'S GET IT STARTED 💎</button>
-        </section>
-        
-        <section class="welcome-note">
-            <div class="note-container">
-                <h3>WELCOME TO THE ILLEST AI ON THE BLOCK</h3>
-                <p>YO! Thanks for checking out NEXUS AI! We're bout to take you on a WILD RIDE through the future of autonomous intelligence. This platform is straight FIRE - we got AI that doesn't just talk the talk, it WALKS THE WALK and builds itself up!</p>
-                <p>Whether you're coding, researching, or just keeping it 💯, you're witnessing history in the making. Every time you interact with NEXUS, it gets SMARTER, STRONGER, and more LEGENDARY!</p>
-                <div class="note-highlight">
-                    <strong>READY TO EXPERIENCE THE REALEST AI? LET'S MAKE HISTORY TOGETHER! 🚀💎</strong>
+                    <textarea id="task-description" placeholder="DESCRIBE THE CODING TASK YOU WANT ME TO LEARN AND COMPLETE...
+
+EXAMPLES:
+- BUILD A REST API FOR A TODO APPLICATION USING FASTAPI
+- CREATE A REACT COMPONENT FOR USER AUTHENTICATION  
+- WRITE A PYTHON SCRIPT TO ANALYZE CSV DATA AND GENERATE CHARTS
+- FIX BUGS IN THE PAYMENT PROCESSING MODULE
+- IMPLEMENT A CACHING LAYER USING REDIS"></textarea>
+                    
+                    <button class="btn" onclick="createTask()"> CREATE LEGENDARY TASK </button>
                 </div>
             </div>
-        </section>
+
+            <div class="card">
+                <h2> ACTIVE TASKS </h2>
+                <div id="active-tasks">
+                    <div class="empty-state">
+                        <div style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></div>
+                        <p>NO ACTIVE TASKS</p>
+                        <p style="font-size: 14px; margin-top: 8px;">CREATE A TASK TO GET THIS PARTY STARTED! </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2> CHAT WITH CLAUDIA </h2>
+            <div class="chat-container" id="chat-container">
+                <div class="chat-message claude">
+                    <strong>CLAUDIA:</strong> YO! I'M CLAUDIA, YOUR SUMMIT AI ASSISTANT! I KNOW EVERYTHING ABOUT THIS PLATFORM - FROM CREATING AUTONOMOUS TASKS TO DEBUGGING FAILED ONES. ASK ME ANYTHING! 
+                </div>
+            </div>
+            <div class="chat-input-container">
+                <textarea id="chat-input" class="chat-input" placeholder="ASK CLAUDIA ANYTHING...
+
+EXAMPLES:
+- HOW DO I CREATE AN AUTONOMOUS TASK?
+- WHY DID MY TASK FAIL?
+- WHAT CAN I BUILD WITH SUMMIT AI?
+- HOW DO I USE THE VOICE INPUT?
+- EXPLAIN HOW THE PLATFORM WORKS"></textarea>
+                <button class="chat-send-btn" onclick="sendChatMessage()" id="chat-send-btn">SEND</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2> FAILED TASKS </h2>
+            <div id="failed-tasks">
+                <div class="empty-state">
+                    <div style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></div>
+                    <p>NO FAILED TASKS</p>
+                    <p style="font-size: 14px; margin-top: 8px;">ALL SYSTEMS RUNNING SMOOTH! </p>
+                </div>
+            </div>
+            <button class="btn" onclick="retriggerAllFailed()" style="margin-top: 20px;"> RETRIGGER ALL FAILED TASKS </button>
+        </div>
+    </div>
+
+    <script>
+        let recognition;
+        let isListening = false;
+
+        // Voice input functionality
+        function toggleVoiceInput() {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                alert('SPEECH RECOGNITION NOT SUPPORTED IN THIS BROWSER!');
+                return;
+            }
+
+            if (isListening) {
+                stopListening();
+            } else {
+                startListening();
+            }
+        }
+
+        function startListening() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+
+            recognition.onstart = function() {
+                isListening = true;
+                document.getElementById('voice-btn').textContent = 'STOP';
+                document.getElementById('voice-status').textContent = 'LISTENING... SPEAK NOW!';
+            };
+
+            recognition.onresult = function(event) {
+                let transcript = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    transcript += event.results[i][0].transcript;
+                }
+                document.getElementById('task-description').value = transcript;
+            };
+
+            recognition.onerror = function(event) {
+                console.error('SPEECH RECOGNITION ERROR:', event.error);
+                stopListening();
+            };
+
+            recognition.onend = function() {
+                stopListening();
+            };
+
+            recognition.start();
+        }
+
+        function stopListening() {
+            if (recognition) {
+                recognition.stop();
+            }
+            isListening = false;
+            document.getElementById('voice-btn').textContent = 'MIC';
+            document.getElementById('voice-status').textContent = 'CLICK TO SPEAK';
+        }
+
+        // Task management functions
+        async function createTask() {
+            const description = document.getElementById('task-description').value.trim();
+            if (!description) {
+                alert('PLEASE ENTER A TASK DESCRIPTION!');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/tasks', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        description: description,
+                        backend: 'claude_code',
+                        model: 'claude-3-5-sonnet-20241022'
+                    }),
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    document.getElementById('task-description').value = '';
+                    loadTasks();
+                    alert('TASK CREATED SUCCESSFULLY! ');
+                } else {
+                    throw new Error('FAILED TO CREATE TASK');
+                }
+            } catch (error) {
+                console.error('ERROR CREATING TASK:', error);
+                alert('ERROR CREATING TASK. PLEASE TRY AGAIN!');
+            }
+        }
+
+        async function loadTasks() {
+            try {
+                const response = await fetch('/api/tasks');
+                const tasks = await response.json();
+                
+                // Filter for active tasks (running, initializing, or pending)
+                const activeTasks = tasks.filter(task => 
+                    task.status === 'running' || 
+                    task.status === 'initializing' || 
+                    task.status === 'pending'
+                );
+                displayActiveTasks(activeTasks);
+                
+                loadFailedTasks();
+            } catch (error) {
+                console.error('ERROR LOADING TASKS:', error);
+            }
+        }
+
+        async function loadFailedTasks() {
+            try {
+                const response = await fetch('/api/tasks/failed');
+                if (response.ok) {
+                    const failedTasks = await response.json();
+                    displayFailedTasks(failedTasks);
+                } else {
+                    // If endpoint doesn't exist, filter failed tasks from all tasks
+                    const allTasksResponse = await fetch('/api/tasks');
+                    const allTasks = await allTasksResponse.json();
+                    const failedTasks = allTasks.filter(task => task.status === 'failed');
+                    displayFailedTasks(failedTasks);
+                }
+            } catch (error) {
+                console.error('ERROR LOADING FAILED TASKS:', error);
+                // Fallback: show empty state
+                displayFailedTasks([]);
+            }
+        }
+
+        function displayActiveTasks(tasks) {
+            const container = document.getElementById('active-tasks');
+            
+            if (tasks.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></div>
+                        <p>NO ACTIVE TASKS</p>
+                        <p style="font-size: 14px; margin-top: 8px;">CREATE A TASK TO GET THIS PARTY STARTED! </p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = tasks.map(task => `
+                <div class="task-item">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span class="task-status status-${task.status}">${task.status.toUpperCase()}</span>
+                        <small style="color: #666; font-weight: bold;">${new Date(task.created_at).toLocaleString()}</small>
+                    </div>
+                    <p style="margin: 10px 0; font-weight: bold; color: #000;">${task.description}</p>
+                    ${task.claude_code_url ? `<p style="margin: 5px 0;"><strong>CLAUDE CODE:</strong> <a href="${task.claude_code_url}" target="_blank" style="color: #ff00ff; font-weight: bold;">OPEN WORKSPACE </a></p>` : ''}
+                    ${task.pr_url ? `<p style="margin: 5px 0;"><strong>PULL REQUEST:</strong> <a href="${task.pr_url}" target="_blank" style="color: #00ffff; font-weight: bold;">VIEW PR </a></p>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function displayFailedTasks(tasks) {
+            const container = document.getElementById('failed-tasks');
+            
+            if (!tasks || tasks.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></div>
+                        <p>NO FAILED TASKS</p>
+                        <p style="font-size: 14px; margin-top: 8px;">ALL SYSTEMS RUNNING SMOOTH! </p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = tasks.map(task => `
+                <div class="task-item">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span class="task-status status-failed">FAILED</span>
+                        <div>
+                            <button class="retrigger-btn" onclick="retriggerTask('${task.task_id || task.id}')"> RETRIGGER</button>
+                        </div>
+                    </div>
+                    <p style="margin: 10px 0; font-weight: bold; color: #000;">${task.description}</p>
+                    <small style="color: #666; font-weight: bold;">CREATED: ${new Date(task.created_at).toLocaleString()}</small>
+                    ${task.error || task.error_message ? `<div class="error-message">ERROR: ${task.error || task.error_message}</div>` : ''}
+                </div>
+            `).join('');
+        }
+
+        async function retriggerTask(taskId) {
+            try {
+                const response = await fetch(`/api/tasks/${taskId}/retrigger`, {
+                    method: 'POST',
+                });
+
+                if (response.ok) {
+                    loadTasks();
+                    loadFailedTasks();
+                    alert('TASK RETRIGGERED SUCCESSFULLY! ');
+                } else {
+                    throw new Error('FAILED TO RETRIGGER TASK');
+                }
+            } catch (error) {
+                console.error('ERROR RETRIGGERING TASK:', error);
+                alert('ERROR RETRIGGERING TASK. PLEASE TRY AGAIN!');
+            }
+        }
+
+        async function retriggerAllFailed() {
+            try {
+                const response = await fetch('/api/tasks/retrigger-all-failed', {
+                    method: 'POST',
+                });
+
+                if (response.ok) {
+                    loadTasks();
+                    loadFailedTasks();
+                    alert('ALL FAILED TASKS RETRIGGERED SUCCESSFULLY! ');
+                } else {
+                    throw new Error('FAILED TO RETRIGGER ALL TASKS');
+                }
+            } catch (error) {
+                console.error('ERROR RETRIGGERING ALL TASKS:', error);
+                alert('ERROR RETRIGGERING ALL TASKS. PLEASE TRY AGAIN!');
+            }
+        }
+
+        // Chat functionality
+        async function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const sendBtn = document.getElementById('chat-send-btn');
+            const chatContainer = document.getElementById('chat-container');
+            
+            const message = input.value.trim();
+            if (!message) {
+                alert('PLEASE ENTER A MESSAGE!');
+                return;
+            }
+            
+            // Disable send button
+            sendBtn.disabled = true;
+            sendBtn.textContent = 'SENDING...';
+            
+            // Add user message to chat
+            addChatMessage('user', message);
+            
+            // Clear input
+            input.value = '';
+            
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: message
+                    }),
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    addChatMessage('claude', result.response);
+                } else {
+                    addChatMessage('claude', `ERROR: ${result.error}`);
+                }
+                
+            } catch (error) {
+                console.error('CHAT ERROR:', error);
+                addChatMessage('claude', 'ERROR: FAILED TO CONNECT TO CLAUDE. PLEASE TRY AGAIN!');
+            } finally {
+                // Re-enable send button
+                sendBtn.disabled = false;
+                sendBtn.textContent = 'SEND';
+            }
+        }
         
-        <section class="features">
-            <div class="feature-card">
-                <h3>💻 SELF-CODING BEAST</h3>
-                <p>This AI writes its OWN CODE and drops NEW FEATURES into itself like it's nothing! We're talking NEXT LEVEL cyborg vibes - it literally UPGRADES ITSELF! 🔥💎</p>
-            </div>
-            <div class="feature-card">
-                <h3>🛠️ TOOL BUILDING MACHINE</h3>
-                <p>Doesn't just DO tasks - it BUILDS the DOPEST tools and systems, then keeps them for life! This is straight up DIGITAL EVOLUTION happening before your eyes! 🚀</p>
-            </div>
-            <div class="feature-card">
-                <h3>🔄 AUTONOMOUS UPGRADE KING</h3>
-                <p>Keeps getting STRONGER and MORE LEGENDARY with every interaction! This AI doesn't stop - it's ALWAYS leveling up and becoming MORE POWERFUL! The future is NOW! ⚡💯</p>
-            </div>
-        </section>
-    </main>
-    
-    <footer>
-        <p>💎 2024 NEXUS AI - THE REALEST AUTONOMOUS INTELLIGENCE - ALL RIGHTS RESERVED | POWERED BY Y2K ENERGY 💎</p>
-    </footer>
-    
-    <!-- Floating Pets -->
-    <div class="floating-pets floating-cat pet-1"></div>
-    <div class="floating-pets floating-dog pet-2"></div>
-    <div class="floating-pets floating-cat pet-3"></div>
-    <div class="floating-pets floating-dog pet-4"></div>
-    <div class="floating-pets floating-cat pet-5"></div>
-    <div class="floating-pets floating-dog pet-6"></div>
-    
-    <script src="/static/script.js"></script>
+        function addChatMessage(sender, message) {
+            const chatContainer = document.getElementById('chat-container');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `chat-message ${sender}`;
+            
+            if (sender === 'user') {
+                messageDiv.innerHTML = `<strong>YOU:</strong> ${message}`;
+            } else {
+                messageDiv.innerHTML = `<strong>CLAUDIA:</strong> ${message}`;
+            }
+            
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+        
+        // Allow Enter to send chat message (Shift+Enter for new line)
+        document.addEventListener('DOMContentLoaded', function() {
+            const chatInput = document.getElementById('chat-input');
+            chatInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendChatMessage();
+                }
+            });
+        });
+
+        // Load tasks on page load and set up auto-refresh
+        document.addEventListener('DOMContentLoaded', function() {
+            loadTasks();
+            setInterval(loadTasks, 5000); // Refresh every 5 seconds
+            setInterval(loadFailedTasks, 10000); // Check for failed tasks every 10 seconds
+        });
+    </script>
 </body>
 </html>

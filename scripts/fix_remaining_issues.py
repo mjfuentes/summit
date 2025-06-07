@@ -173,7 +173,7 @@ def fix_line_length_issues():
                         break_point = content.find(" ", mid)
                         if break_point > 0:
                             part1 = content[:break_point]
-                            part2 = content[break_point + 1:]
+                            part2 = content[break_point + 1 :]
                             new_line = (
                                 " " * indent
                                 + f'f"{part1} "\n'
@@ -202,7 +202,7 @@ def fix_line_length_issues():
                     paren_pos = stripped.find("(")
                     if paren_pos > 0:
                         func_part = stripped[: paren_pos + 1]
-                        params_part = stripped[paren_pos + 1:]
+                        params_part = stripped[paren_pos + 1 :]
 
                         if params_part.endswith(",") or params_part.endswith(
                             "),"

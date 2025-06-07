@@ -7,9 +7,6 @@ serverless infrastructure. It provides a standardized interface for AI
 operations while leveraging GPU acceleration.
 """
 
-from summit import Summit
-from database import DatabaseManager
-from cost_tracker import CostTracker
 import asyncio
 import json
 import logging
@@ -22,6 +19,10 @@ import runpod
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+
+from cost_tracker import CostTracker
+from database import DatabaseManager
+from summit import Summit
 
 # Add src to path
 sys.path.insert(0, "/workspace/src")
