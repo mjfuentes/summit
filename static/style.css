@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@300;400;500;600;700&family=Staatliches&family=Rubik:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Bungee:wght@400&family=Fredoka+One:wght@400&family=Audiowide:wght@400&family=Orbitron:wght@400;700;900&display=swap');
 
 /* Retro CSS Reset */
 * {
@@ -8,23 +8,25 @@
 }
 
 :root {
-    /* 90s Hip-Hop Color Palette */
-    --primary: #FF6B00;
-    --primary-light: #FFB347;
-    --primary-dark: #CC4500;
-    --secondary: #DC143C;
+    /* Y2K Hip-Hop Color Palette */
+    --primary: #00FFFF;
+    --primary-light: #7FFFD4;
+    --primary-dark: #008B8B;
+    --secondary: #FF1493;
     --accent: #FFD700;
-    --success: #32CD32;
+    --success: #00FF00;
     --warning: #FF4500;
-    --error: #FF1493;
+    --error: #FF0000;
     
-    /* Retro Colors */
+    /* 2000s Hip-Hop Vibes */
+    --bling-gold: #FFD700;
+    --chrome-silver: #C0C0C0;
     --neon-green: #39FF14;
-    --neon-pink: #FF073A;
-    --neon-blue: #00BFFF;
-    --retro-purple: #8A2BE2;
-    --street-yellow: #FFFF00;
-    --graffiti-red: #E30B5D;
+    --hot-pink: #FF69B4;
+    --electric-blue: #00BFFF;
+    --gangster-purple: #9932CC;
+    --street-orange: #FF8C00;
+    --graffiti-red: #DC143C;
     
     /* Background Colors */
     --bg-primary: #000000;
@@ -61,15 +63,23 @@
 }
 
 body {
-    font-family: 'Rubik', 'Oswald', Arial, sans-serif;
+    font-family: 'Orbitron', 'Audiowide', monospace;
     font-weight: 400;
     line-height: 1.4;
     color: var(--text-primary);
     background: var(--bg-primary);
     background-image: 
-        radial-gradient(circle at 20% 50%, var(--retro-purple) 0%, transparent 50%),
-        radial-gradient(circle at 80% 20%, var(--primary-dark) 0%, transparent 50%),
-        radial-gradient(circle at 40% 80%, var(--secondary) 0%, transparent 50%);
+        repeating-linear-gradient(
+            45deg,
+            transparent,
+            transparent 2px,
+            var(--gangster-purple) 2px,
+            var(--gangster-purple) 4px
+        ),
+        radial-gradient(circle at 25% 25%, var(--electric-blue) 0%, transparent 40%),
+        radial-gradient(circle at 75% 75%, var(--hot-pink) 0%, transparent 40%),
+        linear-gradient(135deg, var(--bg-primary) 0%, #001122 100%);
+    background-size: 50px 50px, 300px 300px, 300px 300px, 100% 100%;
     background-attachment: fixed;
     min-height: 100vh;
     overflow-x: hidden;
@@ -88,19 +98,27 @@ header {
 
 header h1 {
     text-align: center;
-    color: var(--accent);
+    color: var(--bling-gold);
     margin-bottom: var(--space-lg);
-    font-size: 3.5rem;
-    font-weight: 400;
-    letter-spacing: 0.2em;
-    font-family: 'Bebas Neue', 'Staatliches', sans-serif;
+    font-size: 4rem;
+    font-weight: 900;
+    letter-spacing: 0.3em;
+    font-family: 'Bungee', 'Permanent Marker', cursive;
     text-transform: uppercase;
     text-shadow: 
-        3px 3px 0px var(--primary),
-        6px 6px 0px var(--secondary),
-        0 0 30px var(--accent);
-    transform: perspective(300px) rotateX(15deg);
+        2px 2px 0px var(--chrome-silver),
+        4px 4px 0px var(--gangster-purple),
+        6px 6px 0px var(--electric-blue),
+        0 0 20px var(--bling-gold),
+        0 0 40px var(--bling-gold);
+    transform: perspective(500px) rotateX(10deg) rotateY(-5deg);
     transition: all 0.3s ease;
+    background: linear-gradient(45deg, var(--bling-gold), var(--chrome-silver), var(--bling-gold));
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: bling 2s ease-in-out infinite alternate;
 }
 
 nav ul {
@@ -111,19 +129,23 @@ nav ul {
 }
 
 nav a {
-    color: var(--text-primary);
+    color: var(--primary);
     text-decoration: none;
     font-weight: 700;
     font-size: 1.1rem;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.15em;
     text-transform: uppercase;
     transition: all 0.3s ease;
     position: relative;
-    font-family: 'Oswald', sans-serif;
-    padding: 8px 16px;
-    border: 2px solid transparent;
+    font-family: 'Audiowide', 'Orbitron', monospace;
+    padding: 12px 20px;
+    border: 2px solid var(--primary);
     background: linear-gradient(45deg, var(--bg-tertiary), var(--bg-card));
-    border-radius: var(--radius-sm);
+    border-radius: 0;
+    box-shadow: 
+        3px 3px 0px var(--bling-gold),
+        inset 0 0 10px rgba(0, 255, 255, 0.2);
+    text-shadow: 0 0 10px var(--primary);
 }
 
 nav a::before {
@@ -141,10 +163,16 @@ nav a::before {
 }
 
 nav a:hover {
-    color: var(--text-primary);
-    text-shadow: 0 0 10px currentColor;
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-retro);
+    color: var(--bling-gold);
+    text-shadow: 
+        0 0 15px var(--bling-gold),
+        0 0 30px var(--bling-gold);
+    transform: translateY(-3px) rotateZ(2deg);
+    border-color: var(--bling-gold);
+    box-shadow: 
+        5px 5px 0px var(--hot-pink),
+        inset 0 0 20px rgba(255, 215, 0, 0.3);
+    animation: matrix 0.5s ease-in-out infinite alternate;
 }
 
 nav a:hover::before {
@@ -208,60 +236,99 @@ main {
     100% { background-position: 0% 50%; }
 }
 
+@keyframes bling {
+    0% { 
+        background-position: 0% 50%;
+        text-shadow: 
+            2px 2px 0px var(--chrome-silver),
+            4px 4px 0px var(--gangster-purple),
+            6px 6px 0px var(--electric-blue),
+            0 0 20px var(--bling-gold);
+    }
+    100% { 
+        background-position: 100% 50%;
+        text-shadow: 
+            3px 3px 0px var(--chrome-silver),
+            6px 6px 0px var(--gangster-purple),
+            9px 9px 0px var(--electric-blue),
+            0 0 40px var(--bling-gold),
+            0 0 60px var(--bling-gold);
+    }
+}
+
+@keyframes matrix {
+    0% { transform: translateY(0px); }
+    100% { transform: translateY(-20px); }
+}
+
 .hero > * {
     position: relative;
     z-index: 2;
 }
 
 .hero h2 {
-    font-size: clamp(2.5rem, 6vw, 5rem);
+    font-size: clamp(3rem, 8vw, 6rem);
     font-weight: 400;
     margin-bottom: var(--space-lg);
-    letter-spacing: 0.05em;
-    line-height: 1.1;
-    font-family: 'Bebas Neue', sans-serif;
+    letter-spacing: 0.1em;
+    line-height: 0.9;
+    font-family: 'Fredoka One', 'Bungee', cursive;
     text-transform: uppercase;
-    background: linear-gradient(45deg, var(--accent), var(--neon-green), var(--neon-pink), var(--accent));
-    background-size: 300% 300%;
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    animation: rainbow 3s ease-in-out infinite;
+    color: var(--bling-gold);
     text-shadow: 
-        2px 2px 0px var(--bg-primary),
-        4px 4px 0px var(--primary);
+        2px 2px 0px var(--chrome-silver),
+        4px 4px 0px var(--gangster-purple),
+        6px 6px 0px var(--electric-blue),
+        8px 8px 0px var(--hot-pink),
+        0 0 30px var(--bling-gold),
+        0 0 50px var(--bling-gold);
+    transform: perspective(400px) rotateX(20deg) rotateY(-10deg);
+    filter: drop-shadow(10px 10px 20px rgba(0, 0, 0, 0.8));
 }
 
 .hero p {
-    font-size: 1.2rem;
+    font-size: 1.3rem;
     margin-bottom: var(--space-xl);
-    color: var(--text-secondary);
+    color: var(--primary);
     max-width: 700px;
     margin-left: auto;
     margin-right: auto;
     line-height: 1.6;
-    font-weight: 400;
-    font-family: 'Rubik', sans-serif;
-    text-shadow: 1px 1px 2px var(--bg-primary);
+    font-weight: 700;
+    font-family: 'Orbitron', monospace;
+    text-shadow: 
+        1px 1px 0px var(--bg-primary),
+        0 0 15px var(--primary);
+    border: 2px solid var(--primary);
+    padding: var(--space-lg);
+    background: rgba(0, 255, 255, 0.1);
+    backdrop-filter: blur(5px);
 }
 
 .cta-button {
-    background: linear-gradient(45deg, var(--primary), var(--secondary));
-    color: var(--text-primary);
-    border: 3px solid var(--accent);
+    background: linear-gradient(45deg, var(--bling-gold), var(--street-orange), var(--bling-gold));
+    color: var(--bg-primary);
+    border: 3px solid var(--chrome-silver);
     padding: var(--space-lg) var(--space-2xl);
-    font-size: 1.2rem;
-    font-weight: 700;
-    border-radius: var(--radius-sm);
+    font-size: 1.4rem;
+    font-weight: 900;
+    border-radius: 0;
     cursor: pointer;
     transition: all 0.3s ease;
     margin-top: var(--space-lg);
-    box-shadow: var(--shadow-deep);
-    font-family: 'Oswald', sans-serif;
-    letter-spacing: 0.1em;
+    box-shadow: 
+        5px 5px 0px var(--hot-pink),
+        10px 10px 0px var(--gangster-purple),
+        15px 15px 30px rgba(0, 0, 0, 0.7);
+    font-family: 'Bungee', 'Permanent Marker', cursive;
+    letter-spacing: 0.15em;
     text-transform: uppercase;
     position: relative;
     overflow: hidden;
+    text-shadow: 
+        1px 1px 0px var(--bg-primary),
+        0 0 10px var(--bling-gold);
+    transform: perspective(200px) rotateX(5deg);
 }
 
 .cta-button::before {
@@ -276,11 +343,16 @@ main {
 }
 
 .cta-button:hover {
-    transform: translateY(-4px) scale(1.05);
+    transform: perspective(200px) rotateX(10deg) translateY(-8px) scale(1.1);
     box-shadow: 
-        var(--shadow-deep),
-        0 0 20px var(--accent);
-    text-shadow: 0 0 10px currentColor;
+        8px 8px 0px var(--electric-blue),
+        16px 16px 0px var(--hot-pink),
+        24px 24px 50px rgba(0, 0, 0, 0.8);
+    text-shadow: 
+        0 0 20px var(--bling-gold),
+        0 0 40px var(--bling-gold);
+    background: linear-gradient(45deg, var(--chrome-silver), var(--bling-gold), var(--chrome-silver));
+    animation: bling 1s ease-in-out infinite alternate;
 }
 
 .cta-button:hover::before {
@@ -412,25 +484,35 @@ main {
 }
 
 .feature-card h3 {
-    font-size: 1.5rem;
+    font-size: 1.8rem;
     font-weight: 400;
     margin-bottom: var(--space-md);
-    color: var(--accent);
-    letter-spacing: 0.05em;
-    font-family: 'Bebas Neue', sans-serif;
+    color: var(--bling-gold);
+    letter-spacing: 0.1em;
+    font-family: 'Audiowide', 'Bungee', monospace;
     text-transform: uppercase;
-    text-shadow: 2px 2px 0px var(--primary);
+    text-shadow: 
+        2px 2px 0px var(--chrome-silver),
+        4px 4px 0px var(--gangster-purple),
+        0 0 20px var(--bling-gold);
     position: relative;
     z-index: 2;
+    transform: perspective(300px) rotateX(10deg);
 }
 
 .feature-card p {
-    color: var(--text-secondary);
+    color: var(--primary);
     line-height: 1.6;
-    font-size: 1rem;
-    font-family: 'Rubik', sans-serif;
+    font-size: 1.1rem;
+    font-family: 'Orbitron', monospace;
+    font-weight: 700;
     position: relative;
     z-index: 2;
+    text-shadow: 0 0 10px var(--primary);
+    border-left: 3px solid var(--bling-gold);
+    padding-left: var(--space-md);
+    background: rgba(0, 255, 255, 0.05);
+    padding: var(--space-md);
 }
 
 footer {
