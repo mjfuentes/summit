@@ -3,8 +3,6 @@ let effectsEnabled = true;
 let matrixContainer = null;
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🔥 NEXUS AI LOADED - READY TO BALL! 🔥');
-    
     // Initialize effects toggle
     initializeEffectsToggle();
     
@@ -35,7 +33,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (effectsEnabled) {
                 createBlingEffect(this);
             }
-            alert('YO! Welcome to NEXUS AI! Time to level up! 💎✨');
+            alert('YO! Welcome to NEXUS AI! Time to level up! ');
         });
     }
     
@@ -111,7 +109,7 @@ function toggleEffects(enabled) {
 
 // Matrix rain effect for that Y2K vibe
 function createMatrixRain() {
-    const chars = '01アイウエオカキクケコサシスセソタチツテト';
+    const chars = '01';
     matrixContainer = document.createElement('div');
     matrixContainer.style.cssText = `
         position: fixed;
