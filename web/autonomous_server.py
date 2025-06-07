@@ -4,16 +4,6 @@ Summit Autonomous Learning Server
 Advanced AI task management with container orchestration
 """
 
-from task_manager import (
-    add_task_log,
-    get_task_data,
-    mark_task_completed,
-    update_task_container_info,
-    update_task_log_file,
-    update_task_status,
-)
-from database import close_database, get_database, init_database
-from pr_reviewers import review_pr_with_multiple_roles
 import asyncio
 import json
 import os
@@ -30,8 +20,24 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
+# Add src directory to path for imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+
+from database import close_database, get_database, init_database
+from pr_reviewers import review_pr_with_multiple_roles
+from task_manager import (
+    add_task_log,
+    get_task_data,
+    mark_task_completed,
+    update_task_container_info,
+    update_task_log_file,
+    update_task_status,
+)
+
 # Import GitHub functionality for PR creation
 try:
+    # Temporarily disable summit import due to MCP version compatibility
+    raise ImportError("Temporarily disabled")
     from summit import create_pull_request, get_github_repo_info
 except ImportError:
     # Fallback if summit module not available
@@ -46,8 +52,20 @@ except ImportError:
         return None, None
 
 
-# Add this import with the other imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+# Import CI/CD monitoring functionality
+try:
+    from github_cicd import get_task_ci_status, get_workflow_runs_for_task
+except ImportError:
+    print("[WARNING] GitHub CI/CD module not available")
+
+    async def get_task_ci_status(task_data):
+        return {
+            "state": "unknown",
+            "message": "CI/CD monitoring not available",
+        }
+
+    async def get_workflow_runs_for_task(task_data):
+        return []
 
 
 def kill_existing_server():
@@ -822,6 +840,11 @@ def create_hybrid_html():
                 ` + logsHtml;
             }
 
+            // Add CI/CD status if available
+            if (task.pr_number || task.ci_status) {
+                logsHtml = createCICDStatusHtml(task) + logsHtml;
+            }
+
             // Add log file download button if log file exists
             if (task.log_file) {
                 logsHtml = `
@@ -841,6 +864,166 @@ def create_hybrid_html():
 
             const progress = task.status === 'completed' ? 100 : task.status === 'running' ? 50 : 0;
             document.getElementById('progress-fill').style.width = progress + '%';
+
+            // Load CI/CD information if task has PR or CI data
+            if (task.pr_number || task.ci_status) {
+                loadCICDInfo(task.task_id);
+            }
+        }
+
+        function createCICDStatusHtml(task) {
+            let cicdHtml = '';
+            
+            // CI/CD Status Section
+            if (task.ci_status || task.pr_number) {
+                const statusColor = getCIStatusColor(task.ci_status);
+                const statusEmoji = getCIStatusEmoji(task.ci_status);
+                
+                cicdHtml = `
+                    <div style="background: linear-gradient(135deg, #f8fafc, #e2e8f0); border: 2px solid ${statusColor}; padding: 15px; border-radius: 10px; margin-bottom: 15px;">
+                        <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 10px;">
+                            <h4 style="margin: 0; color: #1f2937; display: flex; align-items: center; gap: 8px;">
+                                ${statusEmoji} CI/CD Pipeline
+                                <button onclick="refreshCIStatus('${task.task_id}')" style="background: #6366f1; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer;">
+                                    Refresh
+                                </button>
+                            </h4>
+                        </div>
+                        
+                        <div id="cicd-status-${task.task_id}" style="font-size: 14px;">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                <span style="background: ${statusColor}; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 600;">
+                                    ${task.ci_status || 'Unknown'}
+                                </span>
+                                ${task.pr_number ? `
+                                    <a href="${task.pr_url || '#'}" target="_blank" style="color: #6366f1; text-decoration: none; font-weight: 500;">
+                                        PR #${task.pr_number}
+                                    </a>
+                                ` : ''}
+                                ${task.commit_sha ? `
+                                    <span style="font-family: monospace; background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-size: 11px;">
+                                        ${task.commit_sha.substring(0, 7)}
+                                    </span>
+                                ` : ''}
+                            </div>
+                            <div id="workflow-runs-${task.task_id}">
+                                Loading workflow information...
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            return cicdHtml;
+        }
+
+        function getCIStatusColor(status) {
+            switch(status) {
+                case 'success': return '#10b981';
+                case 'failure': return '#ef4444';
+                case 'pending': case 'in_progress': return '#f59e0b';
+                case 'error': return '#dc2626';
+                default: return '#6b7280';
+            }
+        }
+
+        function getCIStatusEmoji(status) {
+            switch(status) {
+                case 'success': return '';
+                case 'failure': return '';
+                case 'pending': case 'in_progress': return '';
+                case 'error': return '';
+                default: return '';
+            }
+        }
+
+        async function loadCICDInfo(taskId) {
+            try {
+                // Load workflow runs
+                const workflowResponse = await fetch(`/api/tasks/${taskId}/workflow-runs`);
+                const workflowData = await workflowResponse.json();
+                
+                if (workflowData.success) {
+                    displayWorkflowRuns(taskId, workflowData.workflow_runs);
+                }
+                
+                // Load PR info if available
+                const prResponse = await fetch(`/api/tasks/${taskId}/pr-info`);
+                const prData = await prResponse.json();
+                
+                if (prData.success) {
+                    updatePRInfo(taskId, prData.pr_info);
+                }
+                
+            } catch (error) {
+                console.error('Error loading CI/CD info:', error);
+                const container = document.getElementById(`workflow-runs-${taskId}`);
+                if (container) {
+                    container.innerHTML = '<span style="color: #ef4444;">Error loading CI/CD information</span>';
+                }
+            }
+        }
+
+        function displayWorkflowRuns(taskId, workflowRuns) {
+            const container = document.getElementById(`workflow-runs-${taskId}`);
+            if (!container) return;
+            
+            if (workflowRuns.length === 0) {
+                container.innerHTML = '<span style="color: #6b7280;">No workflow runs found</span>';
+                return;
+            }
+            
+            const runsHtml = workflowRuns.slice(0, 5).map(run => `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background: white; border-radius: 6px; margin-bottom: 6px; border-left: 3px solid ${run.color};">
+                    <div style="flex: 1;">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                            <span style="font-size: 14px;">${run.emoji}</span>
+                            <strong style="font-size: 13px;">${run.name}</strong>
+                            <span style="background: ${run.color}; color: white; padding: 2px 6px; border-radius: 10px; font-size: 11px;">
+                                ${run.conclusion || run.status}
+                            </span>
+                        </div>
+                        <div style="font-size: 11px; color: #6b7280;">
+                            ${run.event} • ${run.branch} • ${new Date(run.created_at).toLocaleString()}
+                        </div>
+                    </div>
+                    <a href="${run.html_url}" target="_blank" style="color: #6366f1; text-decoration: none; font-size: 12px; padding: 4px 8px; border: 1px solid #6366f1; border-radius: 4px;">
+                        View
+                    </a>
+                </div>
+            `).join('');
+            
+            container.innerHTML = runsHtml;
+        }
+
+        function updatePRInfo(taskId, prInfo) {
+            // Update PR link and status in the CI/CD section
+            const statusContainer = document.getElementById(`cicd-status-${taskId}`);
+            if (statusContainer && prInfo) {
+                const prLink = statusContainer.querySelector('a[href*="pull"]');
+                if (prLink) {
+                    prLink.href = prInfo.html_url;
+                    prLink.textContent = `PR #${prInfo.number}`;
+                }
+            }
+        }
+
+        async function refreshCIStatus(taskId) {
+            try {
+                const response = await fetch(`/api/tasks/${taskId}/update-ci-info`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Refresh the task details to show updated CI status
+                    fetchTaskDetails(taskId);
+                } else {
+                    console.error('Failed to refresh CI status:', result.message);
+                }
+            } catch (error) {
+                console.error('Error refreshing CI status:', error);
+            }
         }
 
         function showTaskMonitor() {
@@ -2446,6 +2629,234 @@ async def delete_specific_task(task_id: str):
         return {
             "success": False,
             "message": f"Error deleting task: {str(e)}",
+        }
+
+
+# CI/CD Monitoring API Endpoints
+
+
+@app.get("/api/tasks/{task_id}/ci-status")
+async def get_task_ci_status_endpoint(task_id: str):
+    """Get CI/CD status for a specific task"""
+    db = await get_database()
+    task = await db.get_task(task_id)
+
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    try:
+        # Get current CI status
+        ci_status = await get_task_ci_status(task.to_dict())
+
+        # Update task with latest CI information
+        update_data = {
+            "ci_status": ci_status.get("state", "unknown"),
+            "last_ci_check": datetime.utcnow(),
+        }
+
+        # Store workflow runs if available
+        if ci_status.get("workflow_runs"):
+            update_data["workflow_runs"] = ci_status["workflow_runs"]
+
+        await db.update_task(task_id, update_data)
+
+        return {
+            "success": True,
+            "task_id": task_id,
+            "ci_status": ci_status,
+            "last_updated": datetime.utcnow().isoformat(),
+        }
+
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "message": "Failed to fetch CI status",
+        }
+
+
+@app.get("/api/tasks/{task_id}/workflow-runs")
+async def get_task_workflow_runs_endpoint(task_id: str):
+    """Get GitHub workflow runs for a specific task"""
+    db = await get_database()
+    task = await db.get_task(task_id)
+
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    try:
+        # Get formatted workflow runs
+        workflow_runs = await get_workflow_runs_for_task(task.to_dict())
+
+        return {
+            "success": True,
+            "task_id": task_id,
+            "workflow_runs": workflow_runs,
+            "count": len(workflow_runs),
+            "last_updated": datetime.utcnow().isoformat(),
+        }
+
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "message": "Failed to fetch workflow runs",
+        }
+
+
+@app.get("/api/tasks/{task_id}/pr-info")
+async def get_task_pr_info_endpoint(task_id: str):
+    """Get GitHub PR information for a specific task"""
+    db = await get_database()
+    task = await db.get_task(task_id)
+
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    if not task.pr_number or not task.repository_url:
+        return {
+            "success": False,
+            "message": "Task does not have PR information",
+        }
+
+    try:
+        from github_cicd import github_cicd_manager
+
+        pr_info = await github_cicd_manager.get_pr_info(
+            task.repository_url, task.pr_number
+        )
+
+        if pr_info:
+            return {
+                "success": True,
+                "task_id": task_id,
+                "pr_info": {
+                    "number": pr_info["number"],
+                    "title": pr_info["title"],
+                    "state": pr_info["state"],
+                    "mergeable": pr_info.get("mergeable"),
+                    "merged": pr_info.get("merged", False),
+                    "html_url": pr_info["html_url"],
+                    "head_sha": pr_info["head"]["sha"],
+                    "base_ref": pr_info["base"]["ref"],
+                    "head_ref": pr_info["head"]["ref"],
+                    "created_at": pr_info["created_at"],
+                    "updated_at": pr_info["updated_at"],
+                },
+                "last_updated": datetime.utcnow().isoformat(),
+            }
+        else:
+            return {
+                "success": False,
+                "message": "Could not fetch PR information",
+            }
+
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "message": "Failed to fetch PR information",
+        }
+
+
+@app.post("/api/tasks/{task_id}/update-ci-info")
+async def update_task_ci_info_endpoint(task_id: str):
+    """Manually trigger CI/CD status update for a task"""
+    db = await get_database()
+    task = await db.get_task(task_id)
+
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    try:
+        # Get comprehensive CI status
+        ci_status = await get_task_ci_status(task.to_dict())
+        workflow_runs = await get_workflow_runs_for_task(task.to_dict())
+
+        # Update task with all CI information
+        update_data = {
+            "ci_status": ci_status.get("state", "unknown"),
+            "workflow_runs": workflow_runs,
+            "last_ci_check": datetime.utcnow(),
+        }
+
+        # Update PR info if available
+        if ci_status.get("pr_info"):
+            pr_info = ci_status["pr_info"]
+            update_data.update(
+                {
+                    "pr_url": pr_info.get("html_url"),
+                    "pr_number": pr_info.get("number"),
+                }
+            )
+
+        # Update commit info if available
+        if ci_status.get("commit_status", {}).get("sha"):
+            update_data["commit_sha"] = ci_status["commit_status"]["sha"]
+
+        await db.update_task(task_id, update_data)
+
+        return {
+            "success": True,
+            "task_id": task_id,
+            "message": "CI information updated successfully",
+            "ci_status": ci_status,
+            "workflow_runs": workflow_runs,
+            "last_updated": datetime.utcnow().isoformat(),
+        }
+
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "message": "Failed to update CI information",
+        }
+
+
+@app.get("/api/ci-status/summary")
+async def get_ci_status_summary():
+    """Get CI/CD status summary for all active tasks"""
+    db = await get_database()
+
+    try:
+        active_tasks = await db.get_active_tasks()
+
+        summary = {
+            "total_tasks": len(active_tasks),
+            "ci_status_counts": {
+                "success": 0,
+                "failure": 0,
+                "pending": 0,
+                "unknown": 0,
+                "error": 0,
+            },
+            "tasks_with_prs": 0,
+            "tasks_with_ci": 0,
+            "last_updated": datetime.utcnow().isoformat(),
+        }
+
+        for task in active_tasks:
+            if task.ci_status:
+                summary["ci_status_counts"][task.ci_status] = (
+                    summary["ci_status_counts"].get(task.ci_status, 0) + 1
+                )
+                summary["tasks_with_ci"] += 1
+            else:
+                summary["ci_status_counts"]["unknown"] += 1
+
+            if task.pr_number:
+                summary["tasks_with_prs"] += 1
+
+        return {
+            "success": True,
+            "summary": summary,
+        }
+
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "message": "Failed to get CI status summary",
         }
 
 
