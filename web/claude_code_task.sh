@@ -167,9 +167,10 @@ Please analyze the current repository state and complete the requested task foll
         # Use Claude Code's built-in autonomous mode (Safe YOLO + Headless)
         log("Running Claude Code in autonomous mode...")
         
-        # Run Claude Code with headless mode (-p) and skip permissions
+        # Run Claude Code with headless mode (-p) without dangerous permissions
+        # (dangerous permissions not supported when running as root)
         process = subprocess.Popen(
-            ['claude', '-p', coding_prompt, '--dangerously-skip-permissions'],
+            ['claude', '-p', coding_prompt],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
