@@ -6,13 +6,14 @@ This script demonstrates how the different reviewer personas analyze PRs
 from their respective expertise areas.
 """
 
-from pr_reviewers import pr_review_system, review_pr_with_multiple_roles
 import asyncio
 import os
 import sys
 
 import pytest
 import pytest_asyncio
+
+from pr_reviewers import pr_review_system, review_pr_with_multiple_roles
 
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))

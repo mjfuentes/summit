@@ -4,6 +4,16 @@ Summit Autonomous Learning Server
 Advanced AI task management with container orchestration
 """
 
+from task_manager import (
+    add_task_log,
+    get_task_data,
+    mark_task_completed,
+    update_task_container_info,
+    update_task_log_file,
+    update_task_status,
+)
+from pr_reviewers import review_pr_with_multiple_roles
+from database import close_database, get_database, init_database
 import asyncio
 import json
 import os
@@ -23,16 +33,6 @@ from pydantic import BaseModel
 # Add src directory to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from database import close_database, get_database, init_database
-from pr_reviewers import review_pr_with_multiple_roles
-from task_manager import (
-    add_task_log,
-    get_task_data,
-    mark_task_completed,
-    update_task_container_info,
-    update_task_log_file,
-    update_task_status,
-)
 
 # Import GitHub functionality for PR creation
 try:
@@ -873,12 +873,12 @@ def create_hybrid_html():
 
         function createCICDStatusHtml(task) {
             let cicdHtml = '';
-            
+
             // CI/CD Status Section
             if (task.ci_status || task.pr_number) {
                 const statusColor = getCIStatusColor(task.ci_status);
                 const statusEmoji = getCIStatusEmoji(task.ci_status);
-                
+
                 cicdHtml = `
                     <div style="background: linear-gradient(135deg, #f8fafc, #e2e8f0); border: 2px solid ${statusColor}; padding: 15px; border-radius: 10px; margin-bottom: 15px;">
                         <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 10px;">
@@ -889,7 +889,7 @@ def create_hybrid_html():
                                 </button>
                             </h4>
                         </div>
-                        
+
                         <div id="cicd-status-${task.task_id}" style="font-size: 14px;">
                             <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
                                 <span style="background: ${statusColor}; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 600;">
@@ -913,7 +913,7 @@ def create_hybrid_html():
                     </div>
                 `;
             }
-            
+
             return cicdHtml;
         }
 
@@ -942,19 +942,19 @@ def create_hybrid_html():
                 // Load workflow runs
                 const workflowResponse = await fetch(`/api/tasks/${taskId}/workflow-runs`);
                 const workflowData = await workflowResponse.json();
-                
+
                 if (workflowData.success) {
                     displayWorkflowRuns(taskId, workflowData.workflow_runs);
                 }
-                
+
                 // Load PR info if available
                 const prResponse = await fetch(`/api/tasks/${taskId}/pr-info`);
                 const prData = await prResponse.json();
-                
+
                 if (prData.success) {
                     updatePRInfo(taskId, prData.pr_info);
                 }
-                
+
             } catch (error) {
                 console.error('Error loading CI/CD info:', error);
                 const container = document.getElementById(`workflow-runs-${taskId}`);
@@ -967,12 +967,12 @@ def create_hybrid_html():
         function displayWorkflowRuns(taskId, workflowRuns) {
             const container = document.getElementById(`workflow-runs-${taskId}`);
             if (!container) return;
-            
+
             if (workflowRuns.length === 0) {
                 container.innerHTML = '<span style="color: #6b7280;">No workflow runs found</span>';
                 return;
             }
-            
+
             const runsHtml = workflowRuns.slice(0, 5).map(run => `
                 <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background: white; border-radius: 6px; margin-bottom: 6px; border-left: 3px solid ${run.color};">
                     <div style="flex: 1;">
@@ -992,7 +992,7 @@ def create_hybrid_html():
                     </a>
                 </div>
             `).join('');
-            
+
             container.innerHTML = runsHtml;
         }
 
@@ -1014,7 +1014,7 @@ def create_hybrid_html():
                     method: 'POST'
                 });
                 const result = await response.json();
-                
+
                 if (result.success) {
                     // Refresh the task details to show updated CI status
                     fetchTaskDetails(taskId);

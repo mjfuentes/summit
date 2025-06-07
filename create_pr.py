@@ -3,6 +3,7 @@
 Script to create a pull request for GitHub CI/CD integration
 """
 
+from agent_git_api import create_pr
 import os
 import subprocess
 import sys
@@ -10,8 +11,6 @@ from datetime import datetime
 
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
-
-from agent_git_api import create_pr
 
 
 def main():
@@ -48,7 +47,7 @@ def main():
         commit_sha = subprocess.check_output(
             ["git", "rev-parse", "HEAD"], text=True
         ).strip()
-    except:
+    except BaseException:
         current_branch = "feature/github-cicd-integration"
         commit_sha = "unknown"
 
