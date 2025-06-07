@@ -63,6 +63,10 @@ class KnowledgeBase:
     
     def save_knowledge(self):
         """Save knowledge base to file"""
+        # Skip saving if we're in test mode or autonomous task mode
+        if os.getenv('SUMMIT_READONLY_MODE') == 'true':
+            return
+            
         try:
             os.makedirs(os.path.dirname(self.data_file), exist_ok=True)
             data = {
