@@ -8,10 +8,10 @@ import asyncio
 import os
 import sys
 
+from summit import handle_call_tool
+
 # Add the src directory to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
-
-from summit import handle_call_tool
 
 
 async def demo_enhanced_search():

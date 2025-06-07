@@ -13,10 +13,10 @@ import sys
 import pytest
 import pytest_asyncio
 
+from pr_reviewers import pr_review_system, review_pr_with_multiple_roles
+
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
-
-from pr_reviewers import pr_review_system, review_pr_with_multiple_roles
 
 
 @pytest.mark.asyncio
@@ -40,13 +40,13 @@ Additions: +500 | Deletions: -50
   @@ -200,6 +200,30 @@ async def create_pull_request(owner: str, repo: str, title: str, head: str, bas
   +    async def conduct_multi_role_review(self, owner: str, repo: str, pr_number: int):
   +        # Get PR details and conduct reviews from multiple perspectives
-  
+
 - ADDED: src/pr_reviewers.py (+350 -0)
   Preview:
   New file implementing multi-role PR review system with personas:
   - Engineer (Alex Chen): Technical implementation and code quality
   - Infrastructure (Jordan Kim): Security, performance, deployment
-  
+
 - MODIFIED: web/autonomous_server.py (+80 -20)
   Preview:
   Integration of multi-role review system into autonomous agent workflow

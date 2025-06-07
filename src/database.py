@@ -63,6 +63,17 @@ class Task(Base):  # type: ignore
     error = Column(Text)
     is_active = Column(Boolean, default=True)
 
+    # CI/CD tracking fields
+    pr_number = Column(Integer)  # GitHub PR number
+    pr_url = Column(String(500))  # GitHub PR URL
+    commit_sha = Column(String(40))  # Git commit SHA
+    branch_name = Column(String(100))  # Feature branch name
+    ci_status = Column(
+        String(20)
+    )  # CI/CD status: pending, success, failure, error
+    workflow_runs = Column(JSON, default=list)  # Store workflow run data
+    last_ci_check = Column(DateTime)  # Last time CI status was checked
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert task to dictionary format"""
         return {
@@ -91,6 +102,16 @@ class Task(Base):  # type: ignore
             "full_logs": self.full_logs,
             "error": self.error,
             "is_active": self.is_active,
+            # CI/CD fields
+            "pr_number": self.pr_number,
+            "pr_url": self.pr_url,
+            "commit_sha": self.commit_sha,
+            "branch_name": self.branch_name,
+            "ci_status": self.ci_status,
+            "workflow_runs": self.workflow_runs or [],
+            "last_ci_check": (
+                self.last_ci_check.isoformat() if self.last_ci_check else None
+            ),
         }
 
 

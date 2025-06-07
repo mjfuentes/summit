@@ -46,7 +46,8 @@ def fix_import_order_manually():
     update,
 )"""
 
-        # The imports are already correctly ordered, check if this is a false positive
+        # The imports are already correctly ordered, check if this is a false
+        # positive
         print(f" {db_file} imports already correctly ordered")
 
     # Fix src/pr_reviewers.py import issues
