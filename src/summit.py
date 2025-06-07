@@ -5,7 +5,6 @@ import os
 import sys
 import time
 import subprocess
-import json
 import requests
 from typing import Any, Dict, List, Optional
 
@@ -14,25 +13,36 @@ import mcp.types as types
 from mcp.server import NotificationOptions, Server
 from anthropic import Anthropic
 
-import sys
-import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'config'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "config"))
 
-from config import setup_environment, SUMMIT_CONFIG
+# Configuration with fallback for CI/testing environments
+try:
+    # type: ignore
+    from config import setup_environment, SUMMIT_CONFIG
+
+    setup_environment()
+except ImportError:
+    # Fallback configuration for CI/testing environments
+    SUMMIT_CONFIG = {
+        "daily_budget": 10.0,
+        "hourly_budget": 2.0,
+        "max_recursion_depth": 3,
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "claude-sonnet-4-20250514",
+    }
+
 from cost_tracker import CostTracker
 
-# Set up environment variables from config
-setup_environment()
-
 # Initialize the MCP server
-server = Server("summit")
+server: Server = Server("summit")
 
 # Initialize cost tracker using config values
 cost_tracker = CostTracker(
     daily_budget=SUMMIT_CONFIG["daily_budget"],
     hourly_budget=SUMMIT_CONFIG["hourly_budget"],
-    max_recursion_depth=SUMMIT_CONFIG["max_recursion_depth"]
+    max_recursion_depth=SUMMIT_CONFIG["max_recursion_depth"],
 )
+
 
 # Initialize Anthropic client
 def get_anthropic_client():
@@ -40,6 +50,7 @@ def get_anthropic_client():
     if not api_key:
         return None
     return Anthropic(api_key=api_key)
+
 
 # GitHub API configuration for Codespaces
 def get_github_headers():
@@ -50,25 +61,26 @@ def get_github_headers():
     return {
         "Authorization": f"Bearer {token}",
         "Accept": "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28"
+        "X-GitHub-Api-Version": "2022-11-28",
     }
+
 
 def get_github_repo_info():
     """Get GitHub repository information from environment or git config"""
     # Try environment variables first
     owner = os.getenv("GITHUB_OWNER")
     repo = os.getenv("GITHUB_REPO")
-    
+
     if owner and repo:
         return owner, repo
-    
+
     # Try to extract from git remote
     try:
         result = subprocess.run(
             ["git", "remote", "get-url", "origin"],
             capture_output=True,
             text=True,
-            cwd=os.path.dirname(__file__)
+            cwd=os.path.dirname(__file__),
         )
         if result.returncode == 0:
             remote_url = result.stdout.strip()
@@ -76,7 +88,11 @@ def get_github_repo_info():
             if "github.com" in remote_url:
                 if remote_url.startswith("git@"):
                     # SSH format: git@github.com:owner/repo.git
-                    parts = remote_url.split(":")[-1].replace(".git", "").split("/")
+                    parts = (
+                        remote_url.split(":")[-1]
+                        .replace(".git", "")
+                        .split("/")
+                    )
                     return parts[0], parts[1]
                 elif remote_url.startswith("https://"):
                     # HTTPS format: https://github.com/owner/repo.git
@@ -84,14 +100,16 @@ def get_github_repo_info():
                     return parts[-2], parts[-1].replace(".git", "")
     except:
         pass
-    
+
     return None, None
+
 
 # Track server start time
 start_time = time.time()
 
 # Store active codespaces for management
 active_codespaces = {}
+
 
 @server.list_tools()
 async def handle_list_tools() -> list[types.Tool]:
@@ -108,7 +126,7 @@ async def handle_list_tools() -> list[types.Tool]:
                         "description": "The question or topic you need advice on",
                     },
                     "context": {
-                        "type": "string", 
+                        "type": "string",
                         "description": "Optional: Additional context about your situation",
                     },
                 },
@@ -131,7 +149,6 @@ async def handle_list_tools() -> list[types.Tool]:
                 "properties": {},
             },
         ),
-
         types.Tool(
             name="summit_learn_capability",
             description="Learn a new capability by modifying Summit's codebase using GitHub Codespaces",
@@ -196,95 +213,92 @@ async def handle_list_tools() -> list[types.Tool]:
         ),
     ]
 
-async def get_advice_from_claude(question: str, context: str = None, recursion_depth: int = 0) -> str:
+
+async def get_advice_from_claude(
+    question: str, context: Optional[str] = None, recursion_depth: int = 0
+) -> str:
     """Get advice from Claude API with cost tracking"""
     client = get_anthropic_client()
-    
+
     if not client:
         return "Summit needs an ANTHROPIC_API_KEY environment variable to provide AI-powered advice. Please set it up!"
-    
+
     # Estimate cost before making the call
     estimated_input_tokens = len(question.split()) * 1.3  # Rough estimate
     if context:
         estimated_input_tokens += len(context.split()) * 1.3
     estimated_output_tokens = 200  # Conservative estimate
-    
+
     estimated_cost = cost_tracker.estimate_cost(
-        int(estimated_input_tokens), 
-        int(estimated_output_tokens)
+        int(estimated_input_tokens), int(estimated_output_tokens)
     )
-    
+
     # Check if we can make the call
-    can_call, reason = cost_tracker.can_make_call(estimated_cost, recursion_depth)
+    can_call, reason = cost_tracker.can_make_call(
+        estimated_cost, recursion_depth
+    )
     if not can_call:
         return f"Summit's cost controls prevented this call: {reason}"
-    
+
     try:
         # Build the prompt
         prompt = f"""You are Summit, a sophisticated AI advisor specializing in autonomous development and programming assistance.
 
 Question: {question}"""
-        
+
         if context:
             prompt += f"\n\nContext: {context}"
-        
+
         prompt += '\n\nPlease provide thoughtful, practical advice. Be concise but thorough. Start your response with "Summit\'s Advice:"'
-        
+
         message = client.messages.create(
             model=SUMMIT_CONFIG["chat_model"],
             max_tokens=1000,
-            messages=[
-                {
-                    "role": "user", 
-                    "content": prompt
-                }
-            ]
+            messages=[{"role": "user", "content": prompt}],
         )
-        
+
         # Record the actual cost
         actual_cost = cost_tracker.record_call(
             input_tokens=message.usage.input_tokens,
             output_tokens=message.usage.output_tokens,
             model=SUMMIT_CONFIG["chat_model"],
             recursion_depth=recursion_depth,
-            call_type="advice"
+            call_type="advice",
         )
-        
+
         response = message.content[0].text
-        
+
         # Add cost info to response for transparency
         response += f"\n\n[Cost: ${actual_cost:.4f} | Daily spent: ${cost_tracker.get_daily_spent():.4f}/${cost_tracker.daily_budget}]"
-        
+
         return response
-        
+
     except Exception as error:
         return f"Summit encountered an error while seeking wisdom: {error}"
 
+
 @server.call_tool()
-async def handle_call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextContent]:
+async def handle_call_tool(
+    name: str, arguments: dict[str, Any]
+) -> list[types.TextContent]:
     """Handle Summit tool calls"""
-    
+
     if name == "summit_advice":
         question = arguments.get("question")
         context = arguments.get("context")
-        
+
         if not question:
             raise ValueError("Question is required for advice")
-            
+
         advice = await get_advice_from_claude(question, context)
-        
-        return [
-            types.TextContent(
-                type="text",
-                text=advice
-            )
-        ]
-    
+
+        return [types.TextContent(type="text", text=advice)]
+
     elif name == "summit_status":
         has_api_key = bool(os.getenv("ANTHROPIC_API_KEY"))
         uptime = int(time.time() - start_time)
         cost_status = cost_tracker.get_status()
-        
+
         status_text = f"""Summit Advisor Status
 
 Uptime: {uptime}s
@@ -299,20 +313,19 @@ Cost Controls:
 - Lifetime Cost: ${cost_status['total_lifetime_cost']:.4f}
 
 Status: Standing by for your questions!"""
-        
-        return [
-            types.TextContent(
-                type="text", 
-                text=status_text
-            )
-        ]
-    
+
+        return [types.TextContent(type="text", text=status_text)]
+
     elif name == "summit_cost_report":
         cost_status = cost_tracker.get_status()
-        
+
         # Get recent call history
-        recent_calls = cost_tracker.call_history[-10:] if cost_tracker.call_history else []
-        
+        recent_calls = (
+            cost_tracker.call_history[-10:]
+            if cost_tracker.call_history
+            else []
+        )
+
         report = f"""Summit Cost Tracking Report
 
 Budget Status:
@@ -325,57 +338,49 @@ Safety Controls:
 - Total Lifetime Cost: ${cost_status['total_lifetime_cost']:.4f}
 
 Recent Calls:"""
-        
+
         for call in recent_calls:
             report += f"\n- {call['timestamp'][:19]}: ${call['cost']:.4f} ({call['input_tokens']}→{call['output_tokens']} tokens)"
-        
-        return [
-            types.TextContent(
-                type="text",
-                text=report
-            )
-        ]
-    
 
-    
+        return [types.TextContent(type="text", text=report)]
 
-    
-
-    
-
-    
     elif name == "summit_learn_capability":
         capability_description = arguments.get("capability_description")
         requirements = arguments.get("requirements")
         machine_type = arguments.get("machine_type", "standardLinux32gb")
-        
+
         if not capability_description:
             raise ValueError("Capability description is required")
-        
+
         try:
             # Get repository information
             owner, repo = get_github_repo_info()
             if not owner or not repo:
-                return [types.TextContent(type="text", text="Error: Could not determine GitHub repository. Please set GITHUB_OWNER and GITHUB_REPO environment variables.")]
-            
+                return [
+                    types.TextContent(
+                        type="text",
+                        text="Error: Could not determine GitHub repository. Please set GITHUB_OWNER and GITHUB_REPO environment variables.",
+                    )
+                ]
+
             # Plan the implementation
-            implementation_plan = await plan_capability_implementation(capability_description, requirements)
-            
+            implementation_plan = await plan_capability_implementation(
+                capability_description, requirements
+            )
+
             # Create a new codespace for development
             codespace_data = await create_codespace(owner, repo, machine_type)
-            
+
             # Start the codespace
-            await start_codespace(codespace_data['name'])
-            
+            await start_codespace(codespace_data["name"])
+
             # Generate implementation instructions
             instructions = await implement_capability_in_codespace(
-                codespace_data['web_url'], 
-                implementation_plan, 
-                capability_description
+                codespace_data["web_url"],
+                implementation_plan,
+                capability_description,
             )
-            
 
-            
             response = f"""Summit is learning a new capability! 
 
 Capability: {capability_description}
@@ -385,58 +390,72 @@ Status: {codespace_data['state']}
 {instructions}
 
 I'll track this learning session and help you deploy the changes when ready."""
-            
+
             return [types.TextContent(type="text", text=response)]
-            
+
         except Exception as e:
-            return [types.TextContent(type="text", text=f"Error starting learning session: {e}")]
-    
+            return [
+                types.TextContent(
+                    type="text", text=f"Error starting learning session: {e}"
+                )
+            ]
+
     elif name == "summit_codespace_status":
         try:
             # List all codespaces
             all_codespaces = await list_user_codespaces()
-            
+
             # Filter for Summit-related codespaces
             summit_codespaces = [
-                cs for cs in all_codespaces 
-                if 'Summit' in cs.get('display_name', '') or cs['name'] in active_codespaces
+                cs
+                for cs in all_codespaces
+                if "Summit" in cs.get("display_name", "")
+                or cs["name"] in active_codespaces
             ]
-            
+
             if not summit_codespaces:
                 response = "No active Summit development environments found."
             else:
                 response = "Summit Development Environments Status:\n\n"
                 for cs in summit_codespaces:
-                    status_emoji = "" if cs['state'] == 'Available' else "" if cs['state'] == 'Starting' else ""
+                    status_emoji = (
+                        ""
+                        if cs["state"] == "Available"
+                        else "" if cs["state"] == "Starting" else ""
+                    )
                     response += f"{status_emoji} {cs['name']}\n"
                     response += f"   Status: {cs['state']}\n"
                     response += f"   Created: {cs['created_at'][:19].replace('T', ' ')}\n"
                     response += f"   URL: {cs['web_url']}\n\n"
-                
+
                 response += f"Total environments: {len(summit_codespaces)}"
-            
+
             return [types.TextContent(type="text", text=response)]
-            
+
         except Exception as e:
-            return [types.TextContent(type="text", text=f"Error checking codespace status: {e}")]
-    
+            return [
+                types.TextContent(
+                    type="text", text=f"Error checking codespace status: {e}"
+                )
+            ]
+
     elif name == "summit_deploy_changes":
         codespace_name = arguments.get("codespace_name")
         commit_message = arguments.get("commit_message")
-        
+
         if not codespace_name or not commit_message:
             raise ValueError("Codespace name and commit message are required")
-        
+
         try:
             # Get codespace status to verify it exists and is accessible
             codespace_status = await get_codespace_status(codespace_name)
-            
+
             # In a full implementation, this would:
             # 1. Connect to the codespace
             # 2. Run tests to validate changes
             # 3. Commit and push changes
             # 4. Potentially restart the Summit server with new capabilities
-            
+
             # For now, provide instructions for manual deployment
             instructions = f"""
 Deployment Instructions for Summit Learning Session:
@@ -457,41 +476,41 @@ Manual Deployment Steps:
 Automated deployment capabilities are coming in future versions!
 """
 
-
-            
             # Stop the codespace to save resources (optional)
             await stop_codespace(codespace_name)
-            
+
             response = f"""Deployment initiated for Summit learning session! 
 
 {instructions}
 
 The development environment has been stopped to save resources.
 Use summit_cleanup_environment to remove it when no longer needed."""
-            
+
             return [types.TextContent(type="text", text=response)]
-            
+
         except Exception as e:
-            return [types.TextContent(type="text", text=f"Error deploying changes: {e}")]
-    
+            return [
+                types.TextContent(
+                    type="text", text=f"Error deploying changes: {e}"
+                )
+            ]
+
     elif name == "summit_cleanup_environment":
         codespace_name = arguments.get("codespace_name")
-        
+
         if not codespace_name:
             raise ValueError("Codespace name is required")
-        
+
         try:
             # Stop the codespace first (if running)
             try:
                 await stop_codespace(codespace_name)
             except:
                 pass  # Might already be stopped
-            
+
             # Delete the codespace
             await delete_codespace(codespace_name)
-            
 
-            
             response = f"""Development environment cleaned up successfully! 
 
 Codespace '{codespace_name}' has been:
@@ -500,167 +519,236 @@ Codespace '{codespace_name}' has been:
 - Removed from active tracking
 
 Ready for the next capability development session!"""
-            
+
             return [types.TextContent(type="text", text=response)]
-            
+
         except Exception as e:
-            return [types.TextContent(type="text", text=f"Error cleaning up environment: {e}")]
-    
+            return [
+                types.TextContent(
+                    type="text", text=f"Error cleaning up environment: {e}"
+                )
+            ]
+
     else:
         raise ValueError(f"Summit doesn't know tool: {name}")
 
-async def create_codespace(owner: str, repo: str, machine_type: str = "standardLinux32gb", ref: str = "main") -> Dict:
+
+async def create_codespace(
+    owner: str,
+    repo: str,
+    machine_type: str = "standardLinux32gb",
+    ref: str = "main",
+) -> Dict:
     """Create a new GitHub Codespace for development"""
     headers = get_github_headers()
     if not headers:
-        raise ValueError("GITHUB_TOKEN environment variable is required for Codespaces")
-    
+        raise ValueError(
+            "GITHUB_TOKEN environment variable is required for Codespaces"
+        )
+
     url = f"https://api.github.com/repos/{owner}/{repo}/codespaces"
-    
+
     payload = {
         "ref": ref,
         "machine": machine_type,
         "display_name": f"Summit Learning Session - {time.strftime('%Y%m%d-%H%M%S')}",
         "idle_timeout_minutes": 60,
-        "retention_period_minutes": 1440  # 24 hours
+        "retention_period_minutes": 1440,  # 24 hours
     }
-    
+
     try:
-        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        response = requests.post(
+            url, headers=headers, json=payload, timeout=30
+        )
         response.raise_for_status()
-        
+
         codespace_data = response.json()
-        
+
         # Store in active codespaces
-        active_codespaces[codespace_data['name']] = {
-            'id': codespace_data['id'],
-            'name': codespace_data['name'],
-            'state': codespace_data['state'],
-            'web_url': codespace_data['web_url'],
-            'created_at': codespace_data['created_at'],
-            'purpose': 'capability_learning'
+        active_codespaces[codespace_data["name"]] = {
+            "id": codespace_data["id"],
+            "name": codespace_data["name"],
+            "state": codespace_data["state"],
+            "web_url": codespace_data["web_url"],
+            "created_at": codespace_data["created_at"],
+            "purpose": "capability_learning",
         }
-        
+
         return codespace_data
-        
+
     except requests.RequestException as e:
         raise Exception(f"Failed to create codespace: {e}")
+
 
 async def start_codespace(codespace_name: str) -> Dict:
     """Start an existing codespace"""
     headers = get_github_headers()
     if not headers:
         raise ValueError("GITHUB_TOKEN environment variable is required")
-    
+
     url = f"https://api.github.com/user/codespaces/{codespace_name}/start"
-    
+
     try:
         response = requests.post(url, headers=headers, timeout=30)
         response.raise_for_status()
-        
+
         codespace_data = response.json()
-        
+
         # Update stored info
         if codespace_name in active_codespaces:
-            active_codespaces[codespace_name]['state'] = codespace_data['state']
-        
+            active_codespaces[codespace_name]["state"] = codespace_data[
+                "state"
+            ]
+
         return codespace_data
-        
+
     except requests.RequestException as e:
         raise Exception(f"Failed to start codespace: {e}")
+
 
 async def stop_codespace(codespace_name: str) -> Dict:
     """Stop a running codespace"""
     headers = get_github_headers()
     if not headers:
         raise ValueError("GITHUB_TOKEN environment variable is required")
-    
+
     url = f"https://api.github.com/user/codespaces/{codespace_name}/stop"
-    
+
     try:
         response = requests.post(url, headers=headers, timeout=30)
         response.raise_for_status()
-        
+
         codespace_data = response.json()
-        
+
         # Update stored info
         if codespace_name in active_codespaces:
-            active_codespaces[codespace_name]['state'] = codespace_data['state']
-        
+            active_codespaces[codespace_name]["state"] = codespace_data[
+                "state"
+            ]
+
         return codespace_data
-        
+
     except requests.RequestException as e:
         raise Exception(f"Failed to stop codespace: {e}")
+
 
 async def delete_codespace(codespace_name: str) -> bool:
     """Delete a codespace"""
     headers = get_github_headers()
     if not headers:
         raise ValueError("GITHUB_TOKEN environment variable is required")
-    
+
     url = f"https://api.github.com/user/codespaces/{codespace_name}"
-    
+
     try:
         response = requests.delete(url, headers=headers, timeout=30)
         response.raise_for_status()
-        
+
         # Remove from active codespaces
         if codespace_name in active_codespaces:
             del active_codespaces[codespace_name]
-        
+
         return True
-        
+
     except requests.RequestException as e:
         raise Exception(f"Failed to delete codespace: {e}")
+
 
 async def get_codespace_status(codespace_name: str) -> Dict:
     """Get the current status of a codespace"""
     headers = get_github_headers()
     if not headers:
         raise ValueError("GITHUB_TOKEN environment variable is required")
-    
+
     url = f"https://api.github.com/user/codespaces/{codespace_name}"
-    
+
     try:
         response = requests.get(url, headers=headers, timeout=30)
         response.raise_for_status()
-        
+
         return response.json()
-        
+
     except requests.RequestException as e:
         raise Exception(f"Failed to get codespace status: {e}")
 
+
 async def list_user_codespaces() -> List[Dict]:
-    """List all user's codespaces"""
+    """List all user codespaces"""
     headers = get_github_headers()
     if not headers:
         raise ValueError("GITHUB_TOKEN environment variable is required")
-    
+
     url = "https://api.github.com/user/codespaces"
-    
+
     try:
-        response = requests.get(url, headers=headers, timeout=30)
+        response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
-        
-        return response.json()['codespaces']
-        
-    except requests.RequestException as e:
+
+        return response.json().get("codespaces", [])
+    except Exception as e:
         raise Exception(f"Failed to list codespaces: {e}")
 
-async def plan_capability_implementation(capability_description: str, requirements: str = None) -> str:
+
+async def create_pull_request(
+    owner: str,
+    repo: str,
+    title: str,
+    head: str,
+    base: str = "main",
+    body: str = "",
+) -> Dict:
+    """Create a new pull request"""
+    headers = get_github_headers()
+    if not headers:
+        raise ValueError(
+            "GITHUB_TOKEN environment variable is required for creating pull requests"
+        )
+
+    url = f"https://api.github.com/repos/{owner}/{repo}/pulls"
+
+    payload = {
+        "title": title,
+        "head": head,
+        "base": base,
+        "body": body,
+        "maintainer_can_modify": True,
+    }
+
+    try:
+        response = requests.post(
+            url, headers=headers, json=payload, timeout=30
+        )
+        response.raise_for_status()
+
+        pr_data = response.json()
+        return {
+            "number": pr_data["number"],
+            "url": pr_data["html_url"],
+            "state": pr_data["state"],
+            "title": pr_data["title"],
+            "head": pr_data["head"]["ref"],
+            "base": pr_data["base"]["ref"],
+        }
+    except Exception as e:
+        raise Exception(f"Failed to create pull request: {e}")
+
+
+async def plan_capability_implementation(
+    capability_description: str, requirements: Optional[str] = None
+) -> str:
     """Use Claude to plan the implementation of a new capability"""
     client = get_anthropic_client()
-    
+
     if not client:
         return "Summit needs an ANTHROPIC_API_KEY to plan capability implementations."
-    
+
     # Get current codebase context
     owner, repo = get_github_repo_info()
     if not owner or not repo:
         codebase_context = "Working with local Summit codebase"
     else:
         codebase_context = f"Working with Summit repository: {owner}/{repo}"
-    
+
     planning_prompt = f"""You are Summit, an AI that can learn new capabilities by modifying its own code. You need to plan how to implement a new capability following the MANDATORY DEVELOPMENT PROCESS.
 
 CRITICAL: You MUST follow the complete development workflow from CODING_STANDARDS.md:
@@ -715,28 +803,31 @@ Be extremely specific about commands to run and code to write. The agent must fo
         message = client.messages.create(
             model=SUMMIT_CONFIG["chat_model"],
             max_tokens=1500,
-            messages=[{"role": "user", "content": planning_prompt}]
+            messages=[{"role": "user", "content": planning_prompt}],
         )
-        
+
         return message.content[0].text
-        
+
     except Exception as e:
         return f"Error planning implementation: {e}"
 
-async def implement_capability_in_codespace(codespace_url: str, implementation_plan: str, capability_description: str) -> str:
+
+async def implement_capability_in_codespace(
+    codespace_url: str, implementation_plan: str, capability_description: str
+) -> str:
     """
     Implement the capability in the codespace environment
     This is a simplified version - in practice, you'd use the Codespaces API
     or VS Code extension API to execute commands and modify files.
     """
-    
+
     # For now, we'll provide detailed instructions for manual implementation
     # In a full implementation, this would use the Codespaces API to:
     # 1. Clone the repository
     # 2. Create/modify files
     # 3. Run tests
     # 4. Validate changes
-    
+
     instructions = f"""
 Summit Learning Session Instructions
 
@@ -807,8 +898,9 @@ The implementation will be rejected if you skip any phase. You must demonstrate:
 
 Environment provides: Ubuntu, Python 3.x, Git, VS Code, all dependencies
 """
-    
+
     return instructions
+
 
 async def main():
     """Run Summit MCP server"""
@@ -819,6 +911,10 @@ async def main():
             NotificationOptions(),
         )
 
+
 if __name__ == "__main__":
-    print("Summit AI Advisor is running with cost controls enabled!", file=sys.stderr)
-    asyncio.run(main()) 
+    print(
+        "Summit AI Advisor is running with cost controls enabled!",
+        file=sys.stderr,
+    )
+    asyncio.run(main())
