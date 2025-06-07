@@ -1191,28 +1191,76 @@
       "context": null,
       "timestamp": "2025-06-07T08:47:35.308870",
       "processed": false
+    },
+    {
+      "id": 150,
+      "content": "AI pair programming works best when developers maintain control and AI provides suggestions",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-07T08:48:06.639632",
+      "processed": false
+    },
+    {
+      "id": 151,
+      "content": "I've noticed that developers are increasingly using AI for debugging rather than just code generation",
+      "category": "observation",
+      "context": "Based on conversations this week",
+      "timestamp": "2025-06-07T08:48:24.465761",
+      "processed": false
+    },
+    {
+      "id": 152,
+      "content": "The most effective AI collaborations happen when humans focus on high-level strategy while AI handles implementation details",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-07T08:48:33.064663",
+      "processed": false
+    },
+    {
+      "id": 153,
+      "content": "AI pair programming works best when developers maintain control and AI provides suggestions",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-07T08:49:15.331852",
+      "processed": false
+    },
+    {
+      "id": 154,
+      "content": "I've noticed that developers are increasingly using AI for debugging rather than just code generation",
+      "category": "observation",
+      "context": "Based on conversations this week",
+      "timestamp": "2025-06-07T08:49:32.711927",
+      "processed": false
+    },
+    {
+      "id": 155,
+      "content": "The most effective AI collaborations happen when humans focus on high-level strategy while AI handles implementation details",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-07T08:49:42.743977",
+      "processed": false
     }
   ],
   "synthesized_insights": [],
   "categories": {
-    "observation": 53,
-    "insight": 37,
+    "observation": 57,
+    "insight": 39,
     "test": 8,
     "challenge": 17,
     "best_practice": 17,
     "trend": 17
   },
   "search_analytics": {
-    "total_searches": 196,
+    "total_searches": 206,
     "empty_results": 0,
     "query_types": {
       "question": 20,
       "general": 6
     },
     "popular_categories": {
-      "observation": 987,
+      "observation": 1087,
       "insight": 410
     }
   },
-  "last_updated": "2025-06-07T08:47:35.309018"
+  "last_updated": "2025-06-07T08:49:42.744096"
 }
