@@ -70,6 +70,13 @@ class DeployRequest(BaseModel):
 class CleanupRequest(BaseModel):
     codespace_name: str
 
+class SoundCloudConfigRequest(BaseModel):
+    access_token: str
+
+class SoundCloudSearchRequest(BaseModel):
+    query: str
+    limit: Optional[int] = 10
+
 class ApiResponse(BaseModel):
     success: bool
     data: Any
@@ -320,6 +327,35 @@ async def root():
                 <button class="btn" onclick="getInsights()">Get Content Insights</button>
                 <div id="analytics-response" class="response" style="display: none;"></div>
             </div>
+
+            <!-- SoundCloud Settings -->
+            <div class="card">
+                <h3>SoundCloud Settings</h3>
+                <div class="form-group">
+                    <label for="soundcloud-token">Access Token:</label>
+                    <input type="password" id="soundcloud-token" placeholder="Enter your SoundCloud access token">
+                </div>
+                <button class="btn" onclick="configureSoundCloud()" style="margin-bottom: 10px;">Save Token</button>
+                <button class="btn" onclick="checkSoundCloudConfig()">Check Status</button>
+                <div id="soundcloud-config-response" class="response" style="display: none;"></div>
+            </div>
+
+            <!-- SoundCloud Music Player -->
+            <div class="card">
+                <h3>SoundCloud Music Player</h3>
+                <div class="form-group">
+                    <label for="music-search">Search Music:</label>
+                    <input type="text" id="music-search" placeholder="Search for tracks...">
+                </div>
+                <button class="btn" onclick="searchMusic()">Search</button>
+                <div id="music-results" class="response" style="display: none;"></div>
+                <div id="music-player" style="margin-top: 15px; display: none;">
+                    <audio id="audio-player" controls style="width: 100%;">
+                        Your browser does not support the audio element.
+                    </audio>
+                    <div id="current-track-info" style="margin-top: 10px; font-size: 14px; color: #667eea;"></div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -486,6 +522,114 @@ async def root():
             }
         }
 
+        // SoundCloud functions
+        async function configureSoundCloud() {
+            const token = document.getElementById('soundcloud-token').value.trim();
+            if (!token) {
+                alert('Please enter a SoundCloud access token');
+                return;
+            }
+            
+            showLoading('soundcloud-config-response');
+            
+            try {
+                const result = await makeRequest('/api/soundcloud/config', {
+                    access_token: token
+                });
+                
+                showResponse('soundcloud-config-response', result.data, !result.success);
+                if (result.success) {
+                    document.getElementById('soundcloud-token').value = '';
+                }
+            } catch (error) {
+                showResponse('soundcloud-config-response', `Error: ${error.message}`, true);
+            }
+        }
+
+        async function checkSoundCloudConfig() {
+            showLoading('soundcloud-config-response');
+            
+            try {
+                const result = await makeRequest('/api/soundcloud/config');
+                const status = result.data.configured ? 'SoundCloud is configured and ready' : 'SoundCloud token not configured';
+                showResponse('soundcloud-config-response', status, !result.success);
+            } catch (error) {
+                showResponse('soundcloud-config-response', `Error: ${error.message}`, true);
+            }
+        }
+
+        async function searchMusic() {
+            const query = document.getElementById('music-search').value.trim();
+            if (!query) {
+                alert('Please enter a search query');
+                return;
+            }
+            
+            showLoading('music-results');
+            
+            try {
+                const result = await makeRequest('/api/soundcloud/search', {
+                    query: query,
+                    limit: 10
+                });
+                
+                if (result.success && result.data.length > 0) {
+                    displayMusicResults(result.data);
+                } else if (result.success && result.data.length === 0) {
+                    showResponse('music-results', 'No tracks found for your search.', false);
+                } else {
+                    showResponse('music-results', result.message || 'Search failed', true);
+                }
+            } catch (error) {
+                showResponse('music-results', `Error: ${error.message}`, true);
+            }
+        }
+
+        function displayMusicResults(tracks) {
+            const resultsDiv = document.getElementById('music-results');
+            resultsDiv.style.display = 'block';
+            resultsDiv.className = 'response';
+            
+            let html = '<div style="max-height: 300px; overflow-y: auto;">';
+            tracks.forEach(track => {
+                const duration = track.duration ? Math.floor(track.duration / 1000 / 60) + ':' + String(Math.floor(track.duration / 1000) % 60).padStart(2, '0') : 'Unknown';
+                html += `
+                    <div style="border-bottom: 1px solid #eee; padding: 10px 0; cursor: pointer;" onclick="playTrack('${track.id}', '${track.title.replace(/'/g, "\\'")}', '${track.artist.replace(/'/g, "\\'")}')">
+                        <div style="font-weight: bold; color: #667eea;">${track.title}</div>
+                        <div style="color: #666; font-size: 12px;">by ${track.artist} • ${duration}</div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            resultsDiv.innerHTML = html;
+        }
+
+        async function playTrack(trackId, title, artist) {
+            try {
+                const result = await makeRequest(`/api/soundcloud/stream/${trackId}`);
+                
+                if (result.success && result.data.stream_url) {
+                    const audioPlayer = document.getElementById('audio-player');
+                    const trackInfo = document.getElementById('current-track-info');
+                    const playerDiv = document.getElementById('music-player');
+                    
+                    audioPlayer.src = result.data.stream_url;
+                    trackInfo.textContent = `Now playing: ${title} by ${artist}`;
+                    playerDiv.style.display = 'block';
+                    
+                    audioPlayer.play().catch(error => {
+                        console.error('Error playing audio:', error);
+                        alert('Unable to play track. The stream may not be available.');
+                    });
+                } else {
+                    alert('Unable to stream this track. It may not be available for streaming.');
+                }
+            } catch (error) {
+                console.error('Error streaming track:', error);
+                alert('Error streaming track: ' + error.message);
+            }
+        }
+
         // Auto-refresh status every 30 seconds
         setInterval(loadStatus, 30000);
     </script>
@@ -613,6 +757,91 @@ async def cleanup_environment(request: CleanupRequest):
             "codespace_name": request.codespace_name
         })
         return ApiResponse(success=True, data=result[0].text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# SoundCloud integration endpoints
+settings_store = {}
+
+@app.post("/api/soundcloud/config", response_model=ApiResponse)
+async def configure_soundcloud(request: SoundCloudConfigRequest):
+    """Configure SoundCloud access token"""
+    try:
+        settings_store['soundcloud_token'] = request.access_token
+        return ApiResponse(success=True, data="SoundCloud token configured successfully")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/soundcloud/config", response_model=ApiResponse)
+async def get_soundcloud_config():
+    """Get SoundCloud configuration status"""
+    try:
+        token = settings_store.get('soundcloud_token', '')
+        has_token = token and token.strip()
+        return ApiResponse(success=True, data={"configured": bool(has_token)})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/soundcloud/search", response_model=ApiResponse)
+async def search_soundcloud(request: SoundCloudSearchRequest):
+    """Search SoundCloud tracks"""
+    try:
+        import requests
+        
+        token = settings_store.get('soundcloud_token', '')
+        if not token or not token.strip():
+            raise HTTPException(status_code=400, detail="SoundCloud token not configured")
+        
+        # SoundCloud API search
+        url = "https://api.soundcloud.com/tracks"
+        params = {
+            'q': request.query,
+            'limit': request.limit,
+            'oauth_token': token
+        }
+        
+        response = requests.get(url, params=params, timeout=10)
+        if response.status_code == 200:
+            tracks = response.json()
+            # Format tracks for frontend
+            formatted_tracks = []
+            for track in tracks:
+                if track.get('streamable'):
+                    formatted_tracks.append({
+                        'id': track.get('id'),
+                        'title': track.get('title'),
+                        'artist': track.get('user', {}).get('username'),
+                        'duration': track.get('duration'),
+                        'artwork_url': track.get('artwork_url'),
+                        'stream_url': track.get('stream_url'),
+                        'permalink_url': track.get('permalink_url')
+                    })
+            return ApiResponse(success=True, data=formatted_tracks)
+        else:
+            raise HTTPException(status_code=response.status_code, detail="SoundCloud API error")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/soundcloud/stream/{track_id}")
+async def stream_soundcloud_track(track_id: str):
+    """Get SoundCloud track stream URL"""
+    try:
+        import requests
+        
+        token = settings_store.get('soundcloud_token', '')
+        if not token or not token.strip():
+            raise HTTPException(status_code=400, detail="SoundCloud token not configured")
+        
+        # Get track stream URL
+        url = f"https://api.soundcloud.com/tracks/{track_id}/stream"
+        params = {'oauth_token': token}
+        
+        response = requests.get(url, params=params, timeout=10, allow_redirects=False)
+        if response.status_code == 302:
+            stream_url = response.headers.get('Location')
+            return ApiResponse(success=True, data={"stream_url": stream_url})
+        else:
+            raise HTTPException(status_code=response.status_code, detail="Track not available for streaming")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
