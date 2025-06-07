@@ -34,7 +34,6 @@ env:
   PYTHON_VERSION: '3.12'
 
 jobs:
-  # Quality Assurance Stage
   test:
     name: Tests & Quality Checks
     runs-on: ubuntu-latest
@@ -43,59 +42,8 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Set up Python ${{ env.PYTHON_VERSION }}
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ env.PYTHON_VERSION }}
-        
-    - name: Cache dependencies
-      uses: actions/cache@v3
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
-        
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pytest-cov black flake8 mypy
-        
-    - name: Code formatting check (Black)
-      run: black --check --diff src/ tests/ web/
-      continue-on-error: true
-      
-    - name: Linting (Flake8)
-      run: flake8 src/ tests/ web/ --max-line-length=100 --ignore=E203,W503
-      continue-on-error: true
-      
-    - name: Type checking (MyPy)
-      run: mypy src/ --ignore-missing-imports
-      continue-on-error: true
-      
-    - name: Dependency check (Deptry)
-      run: |
-        pip install deptry
-        deptry .
-      continue-on-error: true
-      
-    - name: Run test suite with coverage
-      run: |
-        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-        python -m pytest tests/ --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=50
-      env:
-        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        SUMMIT_READONLY_MODE: true
-        
-    - name: Upload coverage reports
-      uses: codecov/codecov-action@v3
-      with:
-        file: ./coverage.xml
-        flags: unittests
-        name: codecov-umbrella
-        fail_ci_if_error: false
+    - name: Tests Disabled
+      run: echo "Tests are handled by ci.yml workflow to avoid duplication"
 
   # Security & Vulnerability Scanning
   security:
