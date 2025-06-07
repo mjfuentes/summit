@@ -19,6 +19,12 @@ pytest tests/test_autonomous_integration.py::test_autonomous_container_lifecycle
 # Run with specific marker
 pytest -m autonomous -v -s
 
+# Run slow/CI-only tests locally (if needed)
+pytest -m "slow or ci_only" -v -s
+
+# Run all tests including slow ones
+pytest -m "not ci_only" -v -s
+
 # Debug container lifecycle specifically
 pytest tests/test_autonomous_integration.py::test_autonomous_container_lifecycle -v -s --tb=long
 
@@ -268,8 +274,10 @@ if __name__ == "__main__":
                     process.kill()
                     process.wait(timeout=2)
 
+    @pytest.mark.slow
+    @pytest.mark.ci_only
     def test_container_build_process(self, mock_env_vars):
-        """Test building the autonomous container"""
+        """Test building the autonomous container (CI/CD only due to build time)"""
 
         # Copy requirements.txt to web directory for build context
         requirements_src = "requirements.txt"
