@@ -1,7 +1,20 @@
 #!/usr/bin/env python3
 """
 Agent Git API - Simplified Python interface for agent Git operations
-This is the ONLY approved way for the agent to interact with Gi
+This is the ONLY approved way for the agent to interact with Git
+
+## PR Creation
+
+The agent creates PRs with custom descriptions by providing the complete
+description as a string parameter to create_pr().
+
+Example:
+    from src.agent_git_api import create_pr
+
+    description = "# Feature: Authentication\\n\\nImplemented JWT auth system..."
+    create_pr("Add auth", "Feature: JWT Authentication", description)
+
+The agent should use the PR_TEMPLATE environment variable to format descriptions.
 """
 
 import sys
@@ -60,11 +73,11 @@ class AgentGitAPI:
 
         Args:
 
-            commit_message: Message for the commi
+            commit_message: Message for the commit
 
             pr_title: Title for the PR
 
-            pr_body: Optional PR description
+            pr_body: Complete PR description (agent should provide this)
 
 
 
