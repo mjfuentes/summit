@@ -1,9 +1,17 @@
 // Y2K Hip-Hop JavaScript for Summit Application
+let effectsEnabled = true;
+let matrixContainer = null;
+
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🔥 NEXUS AI LOADED - READY TO BALL! 🔥');
     
+    // Initialize effects toggle
+    initializeEffectsToggle();
+    
     // Add some Y2K matrix-style effects
-    createMatrixRain();
+    if (effectsEnabled) {
+        createMatrixRain();
+    }
     
     // Add smooth scrolling for anchor links with some swagger
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
@@ -24,7 +32,9 @@ document.addEventListener('DOMContentLoaded', function() {
     if (ctaButton) {
         ctaButton.addEventListener('click', function() {
             // Create some bling effects
-            createBlingEffect(this);
+            if (effectsEnabled) {
+                createBlingEffect(this);
+            }
             alert('YO! Welcome to NEXUS AI! Time to level up! 💎✨');
         });
     }
@@ -39,26 +49,71 @@ document.addEventListener('DOMContentLoaded', function() {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
                 entry.target.style.opacity = '1';
-                entry.target.style.transform = 'translateY(0) rotateX(0deg)';
-                // Add some bling when cards appear
-                setTimeout(() => createBlingEffect(entry.target), 500);
+                if (effectsEnabled) {
+                    entry.target.style.transform = 'translateY(0) rotateX(0deg)';
+                    // Add some bling when cards appear
+                    setTimeout(() => createBlingEffect(entry.target), 500);
+                } else {
+                    entry.target.style.transform = 'translateY(0)';
+                }
             }
         });
     }, observerOptions);
     
     document.querySelectorAll('.feature-card').forEach(card => {
         card.style.opacity = '0';
-        card.style.transform = 'translateY(50px) rotateX(20deg)';
+        if (effectsEnabled) {
+            card.style.transform = 'translateY(50px) rotateX(20deg)';
+        } else {
+            card.style.transform = 'translateY(50px)';
+        }
         card.style.transition = 'opacity 0.8s ease, transform 0.8s ease';
         observer.observe(card);
     });
 });
 
+function initializeEffectsToggle() {
+    const effectsSwitch = document.getElementById('effects-switch');
+    if (effectsSwitch) {
+        // Load saved preference
+        const savedPreference = localStorage.getItem('effectsEnabled');
+        if (savedPreference !== null) {
+            effectsEnabled = savedPreference === 'true';
+            effectsSwitch.checked = effectsEnabled;
+        }
+        
+        // Apply initial state
+        toggleEffects(effectsEnabled);
+        
+        // Add event listener
+        effectsSwitch.addEventListener('change', function() {
+            effectsEnabled = this.checked;
+            localStorage.setItem('effectsEnabled', effectsEnabled.toString());
+            toggleEffects(effectsEnabled);
+        });
+    }
+}
+
+function toggleEffects(enabled) {
+    if (enabled) {
+        document.body.classList.remove('effects-disabled');
+        if (!matrixContainer) {
+            createMatrixRain();
+        }
+    } else {
+        document.body.classList.add('effects-disabled');
+        if (matrixContainer) {
+            matrixContainer.remove();
+            matrixContainer = null;
+        }
+    }
+}
+
 // Matrix rain effect for that Y2K vibe
 function createMatrixRain() {
     const chars = '01アイウエオカキクケコサシスセソタチツテト';
-    const container = document.createElement('div');
-    container.style.cssText = `
+    matrixContainer = document.createElement('div');
+    matrixContainer.style.cssText = `
         position: fixed;
         top: 0;
         left: 0;
@@ -82,10 +137,10 @@ function createMatrixRain() {
             animation-delay: ${Math.random() * 3}s;
             opacity: 0.3;
         `;
-        container.appendChild(span);
+        matrixContainer.appendChild(span);
     }
     
-    document.body.appendChild(container);
+    document.body.appendChild(matrixContainer);
     
     // Add CSS animation
     const style = document.createElement('style');
