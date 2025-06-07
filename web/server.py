@@ -5,8 +5,6 @@
 Summit Web API - FastAPI server that exposes Summit's capabilities via REST endpoints
 """
 
-from summit import handle_call_tool
-from config import setup_environment
 import os
 import sys
 from typing import Any, Dict, Optional
@@ -17,6 +15,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+
+from config import setup_environment
+from summit import handle_call_tool
 
 # Add the current directory to the path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
