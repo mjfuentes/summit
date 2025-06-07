@@ -356,7 +356,7 @@ Examples:
                 <h2>Active Tasks</h2>
                 <div id="active-tasks">
                     <div class="empty-state">
-                        <div style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;">⏱️</div>
+                        <div style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></div>
                         <p>No active tasks</p>
                         <p style="font-size: 14px; margin-top: 8px;">Create a task to get started</p>
                     </div>
@@ -467,7 +467,7 @@ Examples:
             if (tasks.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
-                        <div style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;">⏱️</div>
+                        <div style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></div>
                         <p>No active tasks</p>
                         <p style="font-size: 14px; margin-top: 8px;">Create a task to get started</p>
                     </div>
@@ -576,7 +576,7 @@ Examples:
                     
                     // Show success notification
                     const notification = document.createElement('div');
-                    notification.innerHTML = '✅ Task created successfully! Monitor below.';
+                    notification.innerHTML = ' Task created successfully! Monitor below.';
                     notification.style.cssText = `
                         position: fixed; top: 80px; right: 20px; z-index: 1001;
                         background: linear-gradient(135deg, #10b981, #059669); color: white;
@@ -823,6 +823,7 @@ async def run_autonomous_task(task_id: str, task_data: Dict):
                 "-e", f"GITHUB_TOKEN={task_data.get('github_token', '')}",
                 "-e", f"REPOSITORY_URL={task_data.get('repository_url', '')}",
                 "-e", f"TARGET_BRANCH={task_data.get('target_branch', 'main')}",
+                "-e", "SUMMIT_READONLY_MODE=true",  # Prevent knowledge base modifications
                 "claude-code-task"
             ]
             

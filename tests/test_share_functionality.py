@@ -4,11 +4,13 @@ import asyncio
 import os
 import sys
 import pytest
+import tempfile
 
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from summit import handle_call_tool, knowledge_base
+from summit import handle_call_tool
+from knowledge_base import KnowledgeBase
 
 @pytest.mark.asyncio
 async def test_summit_share():
@@ -17,10 +19,18 @@ async def test_summit_share():
     print("Testing Summit Share Functionality")
     print("=" * 40)
     
-    # Set API key for AI responses
-    os.environ["ANTHROPIC_API_KEY"] = "***REMOVED***"
+    # Create temporary knowledge base for testing
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as temp_file:
+        temp_kb_path = temp_file.name
+    
+    # Import summit module and temporarily replace its knowledge_base
+    import summit
+    original_kb = summit.knowledge_base
+    summit.knowledge_base = KnowledgeBase(temp_kb_path)
     
     try:
+        # Set API key for AI responses
+        os.environ["ANTHROPIC_API_KEY"] = "***REMOVED***"
         # Test 1: Share an observation
         print("Test 1: Sharing an observation")
         
@@ -48,7 +58,7 @@ async def test_summit_share():
         
         # Test 3: Check knowledge base state
         print("\nTest 3: Checking knowledge base")
-        summary = knowledge_base.get_knowledge_summary()
+        summary = summit.knowledge_base.get_knowledge_summary()
         print(f"Total shares: {summary['total_shares']}")
         print(f"Categories: {summary['categories']}")
         
@@ -56,6 +66,13 @@ async def test_summit_share():
         
     except Exception as e:
         print(f"ERROR: Summit Share test failed: {e}")
+    finally:
+        # Restore original knowledge base and clean up temp file
+        summit.knowledge_base = original_kb
+        try:
+            os.unlink(temp_kb_path)
+        except:
+            pass
 
 if __name__ == "__main__":
     asyncio.run(test_summit_share()) 

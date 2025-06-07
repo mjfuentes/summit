@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+# Prevent modifications to production knowledge base during autonomous tasks
+export SUMMIT_READONLY_MODE=true
+
 # Store start time
 START_TIME=$(date)
 echo "[$(date '+%H:%M:%S')] Starting Claude AI autonomous development..."
