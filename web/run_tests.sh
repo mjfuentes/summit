@@ -29,22 +29,28 @@ case "${1:-full}" in
         echo " Running quick API test (no Docker required)..."
         python3 test_e2e_autonomous_system.py --quick
         ;;
+    "debug" | "--debug" | "-d")
+        echo " Running debug test (Docker, no git)..."
+        python3 test_e2e_autonomous_system.py --debug
+        ;;
     "full" | "--full" | "-f")
         echo " Running full test with Docker containers..."
         python3 test_e2e_autonomous_system.py
         ;;
     "help" | "--help" | "-h")
         echo ""
-        echo "Usage: $0 [quick|full|help]"
+        echo "Usage: $0 [quick|debug|full|help]"
         echo ""
         echo "Options:"
         echo "  quick    - Test only the API endpoints (no Docker)"
-        echo "  full     - Complete test including Docker containers (default)"
+        echo "  debug    - Test Docker and Claude Code (no git workflow)"
+        echo "  full     - Complete test including Docker and git (default)"
         echo "  help     - Show this help message"
         echo ""
         echo "Examples:"
         echo "  $0           # Run full test"
         echo "  $0 quick     # Run quick test"
+        echo "  $0 debug     # Run debug test"
         echo "  $0 full      # Run full test"
         echo ""
         exit 0

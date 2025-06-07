@@ -858,8 +858,31 @@ async def get_task_logs(task_id: str):
 async def health_check():
     return {"status": "healthy", "message": "Summit autonomous AI is running"}
 
+def load_environment():
+    """Load environment variables from setup_env.sh"""
+    setup_env_path = "setup_env.sh"
+    if os.path.exists(setup_env_path):
+        print("Loading environment from setup_env.sh...")
+        try:
+            with open(setup_env_path, 'r') as f:
+                content = f.read()
+                for line in content.split('\n'):
+                    if line.strip().startswith('export ANTHROPIC_API_KEY='):
+                        # Extract the API key value
+                        key_part = line.split('=', 1)[1].strip().strip('"')
+                        os.environ['ANTHROPIC_API_KEY'] = key_part
+                        print("API key loaded from setup_env.sh")
+                        break
+        except Exception as e:
+            print(f"Warning: Could not load setup_env.sh: {e}")
+    else:
+        print("Warning: setup_env.sh not found")
+
 if __name__ == "__main__":
     kill_existing_server()
+    
+    # Load environment variables
+    load_environment()
     
     print("Starting Summit Autonomous AI...")
     print("Web interface: http://localhost:8000")
