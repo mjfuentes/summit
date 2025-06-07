@@ -394,6 +394,43 @@ async def root():
         .logs::-webkit-scrollbar-track { background: #1e293b; }
         .logs::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
         .logs::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        
+        .retrigger-btn {
+            background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin-left: 10px;
+            display: inline-block;
+        }
+        .retrigger-btn:hover {
+            background: linear-gradient(135deg, #7c3aed, #6d28d9);
+            transform: translateY(-1px);
+        }
+        .retrigger-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .batch-retrigger-section {
+            background: rgba(139, 92, 246, 0.1);
+            border: 2px solid rgba(139, 92, 246, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .failed-tasks-card {
+            background: rgba(239, 68, 68, 0.1);
+            border-left: 4px solid #ef4444;
+        }
     </style>
 </head>
 <body>
@@ -436,6 +473,23 @@ Examples:
                         <p>No active tasks</p>
                         <p style="font-size: 14px; margin-top: 8px;">Create a task to get started</p>
                     </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Failed Tasks Management Section -->
+        <div class="card failed-tasks-card" id="failed-tasks-section" style="display: none;">
+            <h2 style="color: #ef4444;">Failed Tasks Management</h2>
+            <div class="batch-retrigger-section">
+                <h3>Batch Operations</h3>
+                <p style="color: #6b7280; margin: 10px 0;">Retrigger all failed tasks with fresh Claude instances</p>
+                <button class="btn" onclick="retriggerAllFailed()" id="batch-retrigger-btn" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); max-width: 300px;">
+                    Retrigger All Failed Tasks
+                </button>
+            </div>
+            <div id="failed-tasks-list">
+                <div class="empty-state">
+                    <p>No failed tasks found</p>
                 </div>
             </div>
         </div>
@@ -757,6 +811,115 @@ Examples:
         
         setInterval(pollTasks, 5000);
         pollTasks(); // Initial load
+        
+        // Failed tasks management functions
+        async function retriggerTask(taskId) {
+            try {
+                const response = await fetch(`/api/tasks/${taskId}/retrigger`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(`Task retriggered successfully!\nNew task ID: ${result.new_task_id}`);
+                    // Refresh task lists
+                    pollTasks();
+                    loadFailedTasks();
+                } else {
+                    alert('Failed to retrigger task: ' + result.message);
+                }
+            } catch (error) {
+                alert('Error retriggering task: ' + error.message);
+            }
+        }
+        
+        async function retriggerAllFailed() {
+            const btn = document.getElementById('batch-retrigger-btn');
+            btn.disabled = true;
+            btn.textContent = 'Retriggering...';
+            
+            try {
+                const response = await fetch('/api/tasks/retrigger-all-failed', {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(`Batch retrigger completed!\n${result.retriggered_count} tasks retriggered\n${result.errors.length} errors`);
+                    // Refresh task lists
+                    pollTasks();
+                    loadFailedTasks();
+                } else {
+                    alert('Batch retrigger failed: ' + result.message);
+                }
+            } catch (error) {
+                alert('Error in batch retrigger: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Retrigger All Failed Tasks';
+            }
+        }
+        
+        async function loadFailedTasks() {
+            try {
+                const response = await fetch('/api/tasks/failed');
+                const result = await response.json();
+                
+                if (result.success) {
+                    displayFailedTasks(result.failed_tasks);
+                    
+                    // Show/hide failed tasks section based on whether there are failed tasks
+                    const section = document.getElementById('failed-tasks-section');
+                    if (result.failed_tasks.length > 0) {
+                        section.style.display = 'block';
+                    } else {
+                        section.style.display = 'none';
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading failed tasks:', error);
+            }
+        }
+        
+        function displayFailedTasks(failedTasks) {
+            const container = document.getElementById('failed-tasks-list');
+            
+            if (failedTasks.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <p>No failed tasks found</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = failedTasks.map(task => `
+                <div class="task-item" style="border-left-color: #ef4444;">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                        <strong style="flex: 1; margin-right: 12px;">${task.short_description}</strong>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span class="task-status status-failed">${task.status}</span>
+                            <button class="retrigger-btn" onclick="retriggerTask('${task.task_id}')">
+                                Retrigger
+                            </button>
+                        </div>
+                    </div>
+                    <div style="font-size: 13px; color: #6b7280; margin-bottom: 8px;">
+                        Created: ${new Date(task.created_at).toLocaleString()}
+                        ${task.completed_at ? '| Failed: ' + new Date(task.completed_at).toLocaleString() : ''}
+                    </div>
+                    ${task.error ? `
+                        <div style="font-size: 12px; color: #ef4444; background: rgba(239, 68, 68, 0.1); padding: 8px; border-radius: 6px; margin-top: 8px;">
+                            <strong>Error:</strong> ${task.error.substring(0, 150)}${task.error.length > 150 ? '...' : ''}
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+        
+        // Load failed tasks on initial load and set up periodic refresh
+        loadFailedTasks();
+        setInterval(loadFailedTasks, 10000); // Check for failed tasks every 10 seconds
     </script>
 </body>
 </html>
@@ -1608,6 +1771,236 @@ async def get_task_logs(task_id: str):
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "message": "Summit autonomous AI is running"}
+
+
+@app.post("/api/tasks/{task_id}/retrigger")
+async def retrigger_failed_task(task_id: str):
+    """
+    Retrigger a failed task by creating a new task with the same description.
+    This sends the task to a fresh Claude instance with a new container.
+    """
+    db = await get_database()
+    original_task = await db.get_task(task_id)
+
+    if not original_task:
+        return {"success": False, "message": "Original task not found"}
+
+    # Only allow retriggering of failed, stopped, or timeout tasks
+    if original_task.status not in ["failed", "stopped", "timeout"]:
+        return {
+            "success": False,
+            "message": f"Can only retrigger failed, stopped, or timeout tasks. Current status: {original_task.status}",
+        }
+
+    try:
+        # Create a new task with the same description but fresh ID
+        new_task_id = str(uuid.uuid4())
+
+        # Copy relevant data from original task
+        new_task_data = {
+            "task_id": new_task_id,
+            "task_description": original_task.task_description,
+            "repository_url": original_task.repository_url,
+            "github_token": original_task.github_token,
+            "target_branch": original_task.target_branch or "main",
+            "timeout_minutes": original_task.timeout_minutes or 60,
+            "save_word": original_task.save_word or "SUMMIT_TASK_COMPLETE",
+            "status": "pending",
+            "progress": "Task retriggered from failed task",
+            "logs": [
+                f"Task retriggered from original task: {task_id}",
+                f"Original task failed with: {original_task.error or 'Unknown error'}",
+                "Starting fresh Claude instance...",
+            ],
+            "created_at": datetime.utcnow(),
+            "is_active": True,
+        }
+
+        # Create the new task in database
+        new_task = await db.create_task(new_task_data)
+        await add_task_log(
+            new_task_id, f"New task created as retrigger of {task_id}"
+        )
+
+        # Start the autonomous task in background
+        asyncio.create_task(run_autonomous_task(new_task_id))
+
+        # Delete the original failed task to avoid duplicates
+        delete_success = await db.delete_task(task_id)
+
+        if not delete_success:
+            # If deletion failed, at least log it but don't fail the retrigger
+            await add_task_log(
+                new_task_id,
+                f"Warning: Could not delete original task {task_id}",
+            )
+
+        return {
+            "success": True,
+            "message": "Task retriggered successfully",
+            "original_task_id": task_id,
+            "new_task_id": new_task_id,
+            "new_task": new_task.to_dict(),
+            "original_task_deleted": delete_success,
+        }
+
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Failed to retrigger task: {str(e)}",
+        }
+
+
+@app.post("/api/tasks/retrigger-all-failed")
+async def retrigger_all_failed_tasks():
+    """
+    Retrigger all failed tasks at once.
+    Useful for batch recovery after fixing infrastructure issues.
+    """
+    from database import Task  # Import Task model for the query
+
+    db = await get_database()
+
+    try:
+        # Get all tasks with failed status
+        from database import Task
+
+        async with db.get_session() as session:
+            from sqlalchemy import select
+
+            result = await session.execute(
+                select(Task).where(
+                    Task.status.in_(["failed", "stopped", "timeout"])
+                )
+            )
+            failed_tasks = result.scalars().all()
+
+        if not failed_tasks:
+            return {
+                "success": True,
+                "message": "No failed tasks found to retrigger",
+                "retriggered_count": 0,
+                "new_tasks": [],
+            }
+
+        retriggered_tasks = []
+        errors = []
+
+        for failed_task in failed_tasks:
+            try:
+                # Create new task for each failed task
+                new_task_id = str(uuid.uuid4())
+
+                new_task_data = {
+                    "task_id": new_task_id,
+                    "task_description": failed_task.task_description,
+                    "repository_url": failed_task.repository_url,
+                    "github_token": failed_task.github_token,
+                    "target_branch": failed_task.target_branch or "main",
+                    "timeout_minutes": failed_task.timeout_minutes or 60,
+                    "save_word": failed_task.save_word
+                    or "SUMMIT_TASK_COMPLETE",
+                    "status": "pending",
+                    "progress": "Batch retriggered from failed task",
+                    "logs": [
+                        f"Batch retriggered from failed task: {failed_task.task_id}",
+                        f"Original error: {failed_task.error or 'Unknown error'}",
+                        "Starting fresh Claude instance...",
+                    ],
+                    "created_at": datetime.utcnow(),
+                    "is_active": True,
+                }
+
+                # Create the new task
+                new_task = await db.create_task(new_task_data)
+
+                # Start the task
+                asyncio.create_task(run_autonomous_task(new_task_id))
+
+                # Delete the original failed task to avoid duplicates
+                delete_success = await db.delete_task(failed_task.task_id)
+
+                retriggered_tasks.append(
+                    {
+                        "original_task_id": failed_task.task_id,
+                        "new_task_id": new_task_id,
+                        "description": (
+                            failed_task.task_description[:100] + "..."
+                            if len(failed_task.task_description) > 100
+                            else failed_task.task_description
+                        ),
+                        "original_deleted": delete_success,
+                    }
+                )
+
+            except Exception as e:
+                errors.append(
+                    {"task_id": failed_task.task_id, "error": str(e)}
+                )
+
+        return {
+            "success": True,
+            "message": f"Batch retrigger completed. {len(retriggered_tasks)} tasks retriggered, {len(errors)} errors",
+            "retriggered_count": len(retriggered_tasks),
+            "new_task_ids": [
+                task["new_task_id"] for task in retriggered_tasks
+            ],
+            "new_tasks": retriggered_tasks,
+            "errors": errors,
+        }
+
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Batch retrigger failed: {str(e)}",
+        }
+
+
+@app.get("/api/tasks/failed")
+async def get_failed_tasks():
+    """
+    Get all failed tasks that can be retriggered.
+    Useful for showing users what tasks are available for retry.
+    """
+    db = await get_database()
+
+    try:
+        from database import Task
+
+        async with db.get_session() as session:
+            from sqlalchemy import select
+
+            result = await session.execute(
+                select(Task)
+                .where(Task.status.in_(["failed", "stopped", "timeout"]))
+                .order_by(Task.created_at.desc())
+            )
+            failed_tasks = result.scalars().all()
+
+        failed_task_list = []
+        for task in failed_tasks:
+            task_dict = task.to_dict()
+            # Add summary info for easier display
+            task_dict["short_description"] = (
+                task.task_description[:100] + "..."
+                if len(task.task_description) > 100
+                else task.task_description
+            )
+            task_dict["can_retrigger"] = True
+            failed_task_list.append(task_dict)
+
+        return {
+            "success": True,
+            "failed_tasks": failed_task_list,
+            "count": len(failed_task_list),
+            "message": f"Found {len(failed_task_list)} failed tasks that can be retriggered",
+        }
+
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Failed to get failed tasks: {str(e)}",
+        }
 
 
 def load_environment():

@@ -106,6 +106,81 @@ class AgentGitAPI:
 
         return self.git._get_current_branch()
 
+    def check_ci_status(self, commit_sha: str = None) -> dict:
+        """
+        Check CI/CD pipeline status for a commit.
+
+        Args:
+            commit_sha: Optional commit SHA (defaults to HEAD)
+
+        Returns:
+            dict: CI status information
+        """
+        if commit_sha is None:
+            # Get current HEAD commit
+            result = self.git._run_command(["git", "rev-parse", "HEAD"])
+            commit_sha = result.stdout.strip()
+
+        return self.git._check_ci_status(commit_sha)
+
+    def show_failed_checks(self, commit_sha: str = None) -> None:
+        """
+        Show details of failed CI checks.
+
+        Args:
+            commit_sha: Optional commit SHA (defaults to HEAD)
+        """
+        if commit_sha is None:
+            # Get current HEAD commit
+            result = self.git._run_command(["git", "rev-parse", "HEAD"])
+            commit_sha = result.stdout.strip()
+
+        self.git._show_failed_checks(commit_sha)
+
+    def wait_for_ci(self, commit_sha: str = None) -> bool:
+        """
+        Wait for CI/CD pipeline to complete.
+
+        Args:
+            commit_sha: Optional commit SHA (defaults to HEAD)
+
+        Returns:
+            bool: True if CI passed, False if failed/errored
+        """
+        if commit_sha is None:
+            # Get current HEAD commit
+            result = self.git._run_command(["git", "rev-parse", "HEAD"])
+            commit_sha = result.stdout.strip()
+
+        return self.git._wait_for_ci(commit_sha)
+
+    def check_pipeline_status(self) -> None:
+        """
+        Check and display current CI/CD pipeline status.
+        Convenience method for checking the latest commit's CI status.
+        """
+        # Get current HEAD commit
+        result = self.git._run_command(["git", "rev-parse", "HEAD"])
+        commit_sha = result.stdout.strip()
+        short_sha = commit_sha[:7]
+
+        print(f"Checking CI/CD status for commit {short_sha}...")
+
+        status = self.git._check_ci_status(commit_sha)
+        state = status.get("state", "unknown")
+
+        if state == "success":
+            print("CI/CD pipeline: PASSED")
+        elif state == "pending":
+            print("CI/CD pipeline: RUNNING")
+        elif state == "failure":
+            print("CI/CD pipeline: FAILED")
+            self.git._show_failed_checks(commit_sha)
+        elif state == "error":
+            print("CI/CD pipeline: ERROR")
+        else:
+            print(f"CI/CD pipeline: {state.upper()}")
+
     def create_feature_branch(self, branch_name: str) -> bool:
         """
 
@@ -241,3 +316,47 @@ def pull() -> bool:
     """Update from remote"""
 
     return agent_git.update_from_remote()
+
+
+def check_ci_status(commit_sha: str = None) -> dict:
+    """
+    Check CI/CD pipeline status for a commit.
+
+    Args:
+        commit_sha: Optional commit SHA (defaults to HEAD)
+
+    Returns:
+        dict: CI status information
+    """
+    return agent_git.check_ci_status(commit_sha)
+
+
+def show_failed_checks(commit_sha: str = None) -> None:
+    """
+    Show details of failed CI checks.
+
+    Args:
+        commit_sha: Optional commit SHA (defaults to HEAD)
+    """
+    agent_git.show_failed_checks(commit_sha)
+
+
+def wait_for_ci(commit_sha: str = None) -> bool:
+    """
+    Wait for CI/CD pipeline to complete.
+
+    Args:
+        commit_sha: Optional commit SHA (defaults to HEAD)
+
+    Returns:
+        bool: True if CI passed, False if failed/errored
+    """
+    return agent_git.wait_for_ci(commit_sha)
+
+
+def check_pipeline_status() -> None:
+    """
+    Check and display current CI/CD pipeline status.
+    Primary function for checking pipeline status - use this one.
+    """
+    agent_git.check_pipeline_status()
