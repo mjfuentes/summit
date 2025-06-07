@@ -88,7 +88,16 @@ class TestAutonomousIntegration:
 
     async def create_test_db_manager(self):
         """Create a test database manager"""
-        from src.database import DatabaseManager
+        import sys
+        import os
+        
+        # Add src directory to path for imports
+        repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        src_path = os.path.join(repo_root, 'src')
+        if src_path not in sys.path:
+            sys.path.insert(0, src_path)
+        
+        from database import DatabaseManager
         db_manager = DatabaseManager("sqlite+aiosqlite:///:memory:")
         await db_manager.init_database()
         return db_manager

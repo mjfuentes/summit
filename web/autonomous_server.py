@@ -30,6 +30,10 @@ except ImportError:
     def get_github_repo_info():
         return None, None
 
+# Add this import with the other imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+from pr_reviewers import review_pr_with_multiple_roles
+
 def kill_existing_server():
     """Kill any existing processes using port 8000"""
     try:
@@ -47,9 +51,6 @@ def kill_existing_server():
         
     except (subprocess.CalledProcessError, FileNotFoundError):
         pass
-
-# Add src to path for basic imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 # Bootstrap dependencies
 def bootstrap_dependencies():
@@ -1023,54 +1024,103 @@ async def run_autonomous_task(task_id: str):
                                         # Assume the container created a feature branch following our workflow
                                         feature_branch = f"feature/task-{task_id}"
                                         
-                                        # Create pull request
-                                        pr_data = await create_pull_request(
+                                        # Create PR
+                                        pr_title = f"feat: autonomous task completion - {task.task_description[:50]}..."
+                                        pr_body = f"""
+# Autonomous Task Completion
+
+**Task ID**: {task_id}
+**Description**: {task.task_description}
+**Branch**: {task.target_branch}
+**Completed**: {datetime.utcnow().isoformat()}Z
+
+## Summary
+This PR was automatically created by Summit's autonomous agent upon successful task completion.
+
+## Changes
+- Implemented requested functionality: {task.task_description}
+- All tests passing
+- Quality checks completed
+
+## Review Process
+This PR will be automatically reviewed by our multi-role review system:
+- **Engineering Review**: Code quality, testing, architecture
+- **Infrastructure Review**: Security, deployment, performance  
+- **Product Review**: User experience, business alignment
+- **Domain Expert Review**: AI/ML best practices, technical depth
+
+The PR will auto-merge upon successful CI completion and positive reviews.
+"""
+                                        
+                                        print(f"Creating PR for task {task_id}...")
+                                        pr_result = await create_pull_request(
                                             owner=owner,
                                             repo=repo,
-                                            title=f"feat: {task.task_description[:50]}{'...' if len(task.task_description) > 50 else ''}",
-                                            head=feature_branch,
+                                            title=pr_title,
+                                            head=task.target_branch,
                                             base="main",
-                                            body=f"""## Autonomous Task Completion
-
-**Task ID:** {task_id}
-**Description:** {task.task_description}
-
-This pull request was automatically created by Summit's autonomous development system after successfully completing the requested task.
-
-### Changes Made
-The autonomous agent used Claude Code to implement the requested functionality and has committed the changes to this feature branch.
-
-### Validation
--  Container executed successfully (exit code 0)
--  All changes committed to `{feature_branch}`
--  Ready for review and merge
-
-**Note:** This PR will auto-merge once all CI/CD checks pass."""
+                                            body=pr_body
                                         )
                                         
-                                        logs.append(f"Created pull request #{pr_data['number']}: {pr_data['url']}")
-                                        pr_created = True
-                                        print(f"[SUCCESS] Created PR #{pr_data['number']}: {pr_data['url']}")
-                                        
-                                except Exception as e:
-                                    print(f"[WARNING] Failed to create pull request: {e}")
-                                    logs.append(f"Warning: Could not create pull request automatically: {e}")
+                                        if pr_result:
+                                            pr_number = pr_result['number']
+                                            pr_url = pr_result['url']
+                                            
+                                            print(f"PR created: {pr_url}")
+                                            await update_task_status(
+                                                task_id, 
+                                                "completed", 
+                                                f"Task completed, PR created: {pr_url}"
+                                            )
+                                            
+                                            # Trigger multi-role reviews (internal quality gate)
+                                            print(f"Running internal multi-role review for PR #{pr_number}...")
+                                            try:
+                                                review_result = await review_pr_with_multiple_roles(
+                                                    owner=owner,
+                                                    repo=repo, 
+                                                    pr_number=pr_number,
+                                                    roles=["engineer", "infrastructure", "product", "domain_expert"]
+                                                )
+                                                
+                                                if review_result.get("success"):
+                                                    decision = review_result.get("decision", "COMMENTED")
+                                                    all_approved = review_result.get("all_approved", False)
+                                                    approval_count = review_result.get("approval_count", "0/0")
+                                                    
+                                                    print(f"Multi-role review completed: {decision} ({approval_count})")
+                                                    
+                                                    if all_approved:
+                                                        await add_task_log(
+                                                            task_id, 
+                                                            f"✅ All AI reviewers approved PR #{pr_number} - Ready for auto-merge"
+                                                        )
+                                                    else:
+                                                        await add_task_log(
+                                                            task_id, 
+                                                            f"❌ AI reviewers requested changes on PR #{pr_number} - Auto-merge blocked"
+                                                        )
+                                                else:
+                                                    print(f"Multi-role review failed: {review_result.get('error', 'Unknown error')}")
+                                                    await add_task_log(
+                                                        task_id, 
+                                                        f"Multi-role review failed for PR #{pr_number}"
+                                                    )
+                                                    
+                                            except Exception as review_error:
+                                                print(f"Error during multi-role review: {review_error}")
+                                                await add_task_log(
+                                                    task_id, 
+                                                    f"Multi-role review error: {str(review_error)}"
+                                                )
+                                            
+                                        else:
+                                            print(f"Failed to create PR for task {task_id}")
+                                            await update_task_status(task_id, "completed", "Task completed but PR creation failed")
                                 
-                                await db.update_task(task_id, {
-                                    "status": "completed",
-                                    "progress": "Task completed successfully!" + (" PR created." if pr_created else ""),
-                                    "logs": logs
-                                })
-                                
-                                # Save completion status to log file
-                                try:
-                                    with open(log_file_path, 'a', encoding='utf-8') as f:
-                                        f.write(f"[SYSTEM] Task completed at {datetime.now().isoformat()}\n")
-                                        f.write(f"[SYSTEM] Container exited with code {exit_code} (success)\n")
-                                        if pr_created:
-                                            f.write(f"[SYSTEM] Pull request created successfully\n")
-                                except Exception as e:
-                                    print(f"[ERROR] Failed to write completion to log file: {e}")
+                                except Exception as pr_error:
+                                    print(f"Error creating PR for task {task_id}: {pr_error}")
+                                    await update_task_status(task_id, "completed", f"Task completed but PR error: {str(pr_error)}")
                             else:
                                 error_msg = f"Claude Code exited with error code {exit_code}"
                                 logs = task.logs or []

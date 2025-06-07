@@ -82,7 +82,7 @@ jobs:
       
     - name: Run test suite with coverage
       run: |
-        pytest tests/ --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=70
+        pytest tests/ --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=50
       env:
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

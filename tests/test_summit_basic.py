@@ -18,11 +18,15 @@ def test_summit_basic():
     print("Test 1: Starting Summit process")
     
     try:
+        # Get the correct path to summit.py
+        repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        summit_path = os.path.join(repo_root, "src", "summit.py")
+        
         # Start Summit process
         process = subprocess.Popen([
-            sys.executable, "src/summit.py"
+            sys.executable, summit_path
         ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, 
-          text=True, env=env)
+          text=True, env=env, cwd=repo_root)
         
         # Give it a moment to start
         time.sleep(2)
