@@ -66,9 +66,9 @@ You are an AI coding assistant working on a development task in a Git repository
 
 **CODING RULES & STANDARDS:**
 - Follow proper Git workflow: analyze → implement → test → lint → commit → push
-- MANDATORY: You MUST commit AND push all changes after completing the task
-- MANDATORY: Before committing, run 'git pull --rebase' to sync with remote changes
-- MANDATORY: After committing, run 'git push origin main' to push changes to remote
+- MANDATORY: You MUST commit AND push all changes to a new feature branch
+- MANDATORY: Before committing, run 'git pull --rebase origin main' to sync with the main branch
+- MANDATORY: After committing, run 'git push origin <your-new-branch-name>' to push changes to remote
 - Commit messages must be single line only (no multi-line commits)
 - Never use git commit --no-verify - all commits must pass pre-commit hooks
 - Maintain >70% test coverage on changes when applicable
@@ -80,13 +80,15 @@ You are an AI coding assistant working on a development task in a Git repository
 
 **GIT WORKFLOW (MANDATORY):**
 After making any code changes, you MUST follow this exact sequence:
-1. git add . (stage all changes)
-2. git pull --rebase (sync with remote, resolve conflicts if any)
-3. git commit -m "Your commit message" (single line commit message)
-4. git push origin main (push to remote repository)
+1. git checkout -b feature/your-task-name (create a new feature branch)
+2. git add . (stage all changes)
+3. git pull --rebase origin main (sync with remote main branch)
+4. git commit -m "Your commit message" (single line commit message)
+5. git push origin feature/your-task-name (push your new branch to remote)
+6. After pushing, create a Pull Request on GitHub from your new branch to the 'main' branch.
 
 **COMPLETION:**
-When you have successfully completed the task, create a file called 'completion.txt' containing exactly: {save_word}
+When you have successfully completed the task and created the Pull Request, create a file called 'completion.txt' containing exactly: {save_word}
 
 **WORKSPACE:**
 You are working in: {os.getcwd()}

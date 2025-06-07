@@ -28,10 +28,12 @@ python -m black src/ tests/     # Code formatting (if available)
 ### 4. Git Operations Phase
 ```bash
 # REQUIRED: Complete Git workflow
+git checkout -b feature/<your-branch-name> # Create a feature branch
 git add .                       # Stage all changes
 git status                      # Verify what's being committed
 git commit -m "descriptive message"  # Commit with clear message
-git push origin main           # Push to repository
+git push origin feature/<your-branch-name> # Push the new branch
+# After pushing, create a Pull Request on GitHub
 ```
 
 **COMMIT MESSAGE REQUIREMENTS:**
@@ -39,6 +41,8 @@ git push origin main           # Push to repository
 - **NO MULTI-LINE COMMITS** - Do not use line breaks or multiple paragraphs
 - **DESCRIPTIVE BUT CONCISE** - Include essential information in one clear line
 - **PROFESSIONAL TONE** - Use clear, technical language without emojis
+- **Use proper Git workflow: analyze → implement → test → lint → commit → push**
+- **Maintain >70% test coverage on all changes**
 
 **CRITICAL GIT RULE: NEVER USE --no-verify**
 - NEVER bypass pre-commit hooks with `git commit --no-verify`
