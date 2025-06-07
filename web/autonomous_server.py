@@ -2115,6 +2115,8 @@ The PR will auto-merge upon successful CI completion and positive reviews.
 
         # Add completion timestamp and mark as inactive
         try:
+            from datetime import datetime
+
             await db.update_task(
                 task_id, {"completed_at": datetime.now(), "is_active": False}
             )
