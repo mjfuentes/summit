@@ -2,23 +2,25 @@
 
 import asyncio
 import os
+import subprocess
 import sys
 import time
-import subprocess
-import requests
 from typing import Any, Dict, List, Optional
 
 import mcp.server.stdio
 import mcp.types as types
-from mcp.server import NotificationOptions, Server
+import requests
 from anthropic import Anthropic
+from mcp.server import NotificationOptions, Server
+
+from cost_tracker import CostTracker
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "config"))
 
 # Configuration with fallback for CI/testing environments
 try:
     # type: ignore
-    from config import setup_environment, SUMMIT_CONFIG
+    from config import SUMMIT_CONFIG, setup_environment
 
     setup_environment()
 except ImportError:
@@ -31,7 +33,6 @@ except ImportError:
         "chat_model": "claude-sonnet-4-20250514",
     }
 
-from cost_tracker import CostTracker
 
 # Initialize the MCP server
 server: Server = Server("summit")
@@ -505,7 +506,7 @@ Use summit_cleanup_environment to remove it when no longer needed."""
             # Stop the codespace first (if running)
             try:
                 await stop_codespace(codespace_name)
-            except:
+            except Exception:
                 pass  # Might already be stopped
 
             # Delete the codespace

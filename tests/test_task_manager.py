@@ -2,9 +2,18 @@
 
 import os
 import sys
-import unittest
+from unittest.mock import AsyncMock, Mock, patch
+
 import pytest
-from unittest.mock import patch, Mock, AsyncMock
+
+from src.task_manager import (
+    add_task_log,
+    get_task_data,
+    mark_task_completed,
+    update_task_container_info,
+    update_task_log_file,
+    update_task_status,
+)
 
 # Add src to path for imports
 repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -12,14 +21,6 @@ src_path = os.path.join(repo_root, "src")
 if src_path not in sys.path:
     sys.path.insert(0, src_path)
 
-from src.task_manager import (
-    update_task_status,
-    add_task_log,
-    mark_task_completed,
-    get_task_data,
-    update_task_container_info,
-    update_task_log_file
-)
 
 class TestTaskManager:
     """Test task manager utility functions"""
@@ -238,4 +239,3 @@ class TestTaskManager:
 
             mock_db.get_task.assert_called_once_with("test-123")
             assert result is None
-
