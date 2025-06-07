@@ -450,14 +450,7 @@ async def root():
                         <button class="voice-btn" id="voice-btn" onclick="toggleVoiceInput()">MIC</button>
                         <span class="voice-status" id="voice-status">Click to speak</span>
                     </div>
-                    <textarea id="task-description" placeholder="Describe the coding task you want me to learn and complete...
-
-Examples:
-- Build a REST API for a todo application using FastAPI
-- Create a React component for user authentication  
-- Write a Python script to analyze CSV data and generate charts
-- Fix bugs in the payment processing module
-- Implement a caching layer using Redis"></textarea>
+                    <textarea id="task-description" placeholder="What are we building today?"></textarea>
                     
                     <!-- All backend configuration is now hardcoded -->
                     
