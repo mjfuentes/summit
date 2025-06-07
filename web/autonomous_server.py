@@ -1093,12 +1093,12 @@ The PR will auto-merge upon successful CI completion and positive reviews.
                                                     if all_approved:
                                                         await add_task_log(
                                                             task_id, 
-                                                            f"✅ All AI reviewers approved PR #{pr_number} - Ready for auto-merge"
+                                                            f" All AI reviewers approved PR #{pr_number} - Ready for auto-merge"
                                                         )
                                                     else:
                                                         await add_task_log(
                                                             task_id, 
-                                                            f"❌ AI reviewers requested changes on PR #{pr_number} - Auto-merge blocked"
+                                                            f" AI reviewers requested changes on PR #{pr_number} - Auto-merge blocked"
                                                         )
                                                 else:
                                                     print(f"Multi-role review failed: {review_result.get('error', 'Unknown error')}")

@@ -9,12 +9,15 @@ from their respective expertise areas.
 import asyncio
 import sys
 import os
+import pytest
+import pytest_asyncio
 
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 from pr_reviewers import review_pr_with_multiple_roles, pr_review_system
 
+@pytest.mark.asyncio
 async def test_single_persona_review():
     """Test a single reviewer persona"""
     print("Testing single persona review...")
@@ -56,6 +59,7 @@ Additions: +500 | Deletions: -50
     
     return engineer_review
 
+@pytest.mark.asyncio
 async def test_multi_role_review_on_current_pr():
     """Test the multi-role review system on our actual PR"""
     print("\nTesting multi-role review on current PR...")
