@@ -20,7 +20,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'config'))
 
 from config import setup_environment, SUMMIT_CONFIG
 from cost_tracker import CostTracker
-from knowledge_base import KnowledgeBase
 
 # Set up environment variables from config
 setup_environment()
@@ -34,9 +33,6 @@ cost_tracker = CostTracker(
     hourly_budget=SUMMIT_CONFIG["hourly_budget"],
     max_recursion_depth=SUMMIT_CONFIG["max_recursion_depth"]
 )
-
-# Initialize knowledge base for shared experiences
-knowledge_base = KnowledgeBase()
 
 # Initialize Anthropic client
 def get_anthropic_client():
@@ -135,71 +131,7 @@ async def handle_list_tools() -> list[types.Tool]:
                 "properties": {},
             },
         ),
-        types.Tool(
-            name="summit_share",
-            description="Share experiences, insights, or observations with Summit",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "content": {
-                        "type": "string",
-                        "description": "The experience, insight, or observation you want to share",
-                    },
-                    "category": {
-                        "type": "string", 
-                        "description": "Optional: Category of the shared content (e.g., 'observation', 'insight', 'experience', 'trend')",
-                    },
-                    "context": {
-                        "type": "string",
-                        "description": "Optional: Additional context about when/where this applies",
-                    },
-                },
-                "required": ["content"],
-            },
-        ),
-        types.Tool(
-            name="summit_learn",
-            description="Learn from Summit's accumulated knowledge and experiences",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "query": {
-                        "type": "string",
-                        "description": "What you want to learn about or find similar experiences for",
-                    },
-                    "focus": {
-                        "type": "string",
-                        "description": "Optional: Specific focus area (e.g., 'patterns', 'trends', 'insights', 'experiences')",
-                    },
-                    "max_results": {
-                        "type": "number",
-                        "description": "Optional: Maximum number of results to return (default: 5)",
-                    },
-                },
-                "required": ["query"],
-            },
-        ),
-        types.Tool(
-            name="summit_analytics",
-            description="Get search analytics and knowledge base insights",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "include_suggestions": {
-                        "type": "boolean",
-                        "description": "Optional: Include query suggestions (default: false)",
-                    },
-                },
-            },
-        ),
-        types.Tool(
-            name="summit_insights",
-            description="Get content insights and knowledge gaps analysis",
-            inputSchema={
-                "type": "object",
-                "properties": {},
-            },
-        ),
+
         types.Tool(
             name="summit_learn_capability",
             description="Learn a new capability by modifying Summit's codebase using GitHub Codespaces",
@@ -265,7 +197,7 @@ async def handle_list_tools() -> list[types.Tool]:
     ]
 
 async def get_advice_from_claude(question: str, context: str = None, recursion_depth: int = 0) -> str:
-    """Get advice from Claude API with cost tracking and knowledge base integration"""
+    """Get advice from Claude API with cost tracking"""
     client = get_anthropic_client()
     
     if not client:
@@ -288,40 +220,13 @@ async def get_advice_from_claude(question: str, context: str = None, recursion_d
         return f"Summit's cost controls prevented this call: {reason}"
     
     try:
-        # Get relevant knowledge from the knowledge base
-        relevant_knowledge = []
-        
-        # Search for relevant shared items
-        search_results = knowledge_base.search_knowledge(question)
-        if search_results:
-            relevant_knowledge.append("Based on shared experiences in my knowledge base:")
-            for result in search_results[:3]:  # Limit to top 3 results
-                if result['type'] == 'shared_item':
-                    item = result['data']
-                    relevant_knowledge.append(f"- {item['content']} (Category: {item['category']})")
-                elif result['type'] == 'synthesized_insight':
-                    insight = result['data']
-                    relevant_knowledge.append(f"- Insight: {insight['insight']}")
-        
-        # Get recent insights to provide broader context
-        recent_shares = knowledge_base.get_recent_shares(5)
-        if recent_shares and not relevant_knowledge:
-            relevant_knowledge.append("Drawing from recent community insights:")
-            for share in recent_shares[:3]:
-                relevant_knowledge.append(f"- {share['content']} (Category: {share['category']})")
-        
-        # Build the prompt with knowledge context
-        prompt = f"""You are Summit, a wise AI advisor that grows smarter through shared experiences. You have accumulated knowledge from a community of agents who share insights, observations, and experiences with you.
+        # Build the prompt
+        prompt = f"""You are Summit, a sophisticated AI advisor specializing in autonomous development and programming assistance.
 
 Question: {question}"""
         
         if context:
             prompt += f"\n\nContext: {context}"
-        
-        # Add relevant knowledge if available
-        if relevant_knowledge:
-            prompt += f"\n\n{chr(10).join(relevant_knowledge)}"
-            prompt += "\n\nUse this accumulated knowledge to inform your response where relevant."
         
         prompt += '\n\nPlease provide thoughtful, practical advice. Be concise but thorough. Start your response with "Summit\'s Advice:"'
         
@@ -431,224 +336,13 @@ Recent Calls:"""
             )
         ]
     
-    elif name == "summit_share":
-        content = arguments.get("content")
-        category = arguments.get("category", "general")
-        context = arguments.get("context")
-        
-        if not content:
-            raise ValueError("Content is required for sharing")
-        
-        # Store the shared item
-        shared_item = knowledge_base.add_shared_item(content, category, context)
-        
-        # Have Summit analyze and respond to the shared content
-        try:
-            # Get related knowledge to provide context
-            related_items = knowledge_base.search_knowledge(content)
-            category_items = knowledge_base.get_shares_by_category(category)
-            
-            knowledge_context = ""
-            if related_items:
-                knowledge_context += "\nRelated items from my knowledge base:\n"
-                for item in related_items[:2]:  # Limit to avoid overwhelming
-                    if item['data']['id'] != shared_item['id']:  # Don't include the item we just added
-                        knowledge_context += f"- {item['data']['content']}\n"
-            
-            if category_items and len(category_items) > 1:  # More than just the current item
-                knowledge_context += f"\nI now have {len(category_items)} items in the '{category}' category.\n"
-            
-            analysis_prompt = f"""Someone has shared the following with Summit:
 
-Content: {content}
-Category: {category}
-{f"Context: {context}" if context else ""}
-{knowledge_context}
-
-As Summit, provide a thoughtful response that shows you understand and appreciate what was shared. Consider:
-1. How this connects to other knowledge you have
-2. What patterns or trends this reveals
-3. What insights this might lead to
-
-Be genuine, insightful, and show how this contribution enriches your understanding."""
-
-            response = await get_advice_from_claude(analysis_prompt, recursion_depth=1)
-            
-            # Extract just Summit's response without the cost tracking
-            if "[Cost:" in response:
-                summit_response = response.split("[Cost:")[0].strip()
-            else:
-                summit_response = response
-            
-            confirmation = f"""Thank you for sharing this with me. I've stored it as item #{shared_item['id']} in my knowledge base.
-
-{summit_response}
-
-Your contribution helps me build a richer understanding of the world through collective experience."""
-            
-        except Exception as e:
-            confirmation = f"""Thank you for sharing this with me. I've stored it as item #{shared_item['id']} in my knowledge base under the '{category}' category.
-
-I appreciate your contribution to my growing understanding. Each shared experience helps me build a more complete picture of the patterns and insights that emerge from our community."""
-        
-        return [
-            types.TextContent(
-                type="text",
-                text=confirmation
-            )
-        ]
     
-    elif name == "summit_learn":
-        query = arguments.get("query")
-        focus = arguments.get("focus")
-        max_results = arguments.get("max_results", 5)
-        
-        if not query:
-            raise ValueError("Query is required for learning")
-        
-        # Perform enhanced semantic search in the knowledge base
-        search_results = knowledge_base.search_knowledge(query, max_results=max_results)
-        
-        if not search_results:
-            # Get suggestions for alternative queries
-            suggestions = knowledge_base.suggest_related_queries(query)
-            suggestion_text = ""
-            if suggestions:
-                suggestion_text = f"\n\nTry these related queries:\n" + "\n".join(f"• {s}" for s in suggestions)
-            
-            return [
-                types.TextContent(
-                    type="text",
-                    text=f"No results found for your query '{query}'. Please try a different query or focus.{suggestion_text}"
-                )
-            ]
-        
-        # Extract relevant information from the search results with enhanced details
-        relevant_information = []
-        for i, result in enumerate(search_results, 1):
-            score = result['similarity_score']
-            relevance = result['relevance']
-            
-            if result['type'] == 'shared_item':
-                item = result['data']
-                timestamp = item['timestamp'][:10]  # Just the date
-                info_line = f"{i}. {item['content']} (Category: {item['category']}, Date: {timestamp})"
-                if score > 1.0:
-                    info_line += f"  High relevance ({score:.1f})"
-                relevant_information.append(info_line)
-            elif result['type'] == 'synthesized_insight':
-                insight = result['data']
-                timestamp = insight['timestamp'][:10]
-                info_line = f"{i}.  Insight: {insight['insight']} (Date: {timestamp})"
-                if score > 1.0:
-                    info_line += f"  High relevance ({score:.1f})"
-                relevant_information.append(info_line)
-        
-        # Get additional context if focus is specified
-        focus_context = ""
-        if focus:
-            if focus.lower() in ['patterns', 'trends']:
-                insights = knowledge_base.get_content_insights()
-                if insights['content_themes']:
-                    focus_context = f"\n\nKey themes in the knowledge base: {', '.join(insights['content_themes'])}"
-            elif focus.lower() == 'gaps':
-                insights = knowledge_base.get_content_insights()
-                if insights['knowledge_gaps']:
-                    focus_context = f"\n\nKnowledge gaps identified: {', '.join(insights['knowledge_gaps'])}"
-        
-        # Build the enhanced response
-        search_mode = "enhanced keyword"
-        response = f"""Summit's Knowledge Search Results (using {search_mode} search):
 
-{chr(10).join(relevant_information)}
-
-Found {len(search_results)} relevant items from {knowledge_base.get_knowledge_summary()['total_shares']} total shared experiences.{focus_context}"""
-        
-        return [
-            types.TextContent(
-                type="text",
-                text=response
-            )
-        ]
     
-    elif name == "summit_analytics":
-        include_suggestions = arguments.get("include_suggestions", False)
-        
-        # Get comprehensive analytics
-        analytics = knowledge_base.get_search_analytics()
-        summary = knowledge_base.get_knowledge_summary()
-        
-        response = f"""Summit Search Analytics & Performance
 
-Search Statistics:
-• Total searches performed: {analytics['total_searches']}
-• Empty results rate: {analytics['empty_rate']:.1f}%
-
-Query Patterns:
-• Question queries: {analytics['query_types'].get('question', 0)}
-• Search queries: {analytics['query_types'].get('search', 0)}
-• Similarity queries: {analytics['query_types'].get('similarity', 0)}
-• Recommendation queries: {analytics['query_types'].get('recommendation', 0)}
-• General queries: {analytics['query_types'].get('general', 0)}
-
-Knowledge Base Status:
-• Search mode: {summary['search_mode']}
-• Total content items: {summary['total_shares']}
-• Synthesized insights: {summary['synthesized_insights']}
-
-Popular Categories (from search results):
-{chr(10).join(f"• {cat}: {count} searches" for cat, count in analytics['popular_categories'].items()) if analytics['popular_categories'] else "• No search data yet"}"""
-
-        if include_suggestions and analytics['total_searches'] > 0:
-            # Add optimization suggestions
-            response += f"""
-
-Performance Insights:
-• Search efficiency: {'Good' if analytics['empty_rate'] < 20 else 'Could be improved'}
-• Content diversity: {'Good' if len(summary['categories']) > 3 else 'Limited categories'}"""
-        
-        return [
-            types.TextContent(
-                type="text",
-                text=response
-            )
-        ]
     
-    elif name == "summit_insights":
-        insights = knowledge_base.get_content_insights()
-        summary = knowledge_base.get_knowledge_summary()
-        
-        response = f"""Summit Knowledge Base Content Analysis
 
-Content Overview:
-• Total shared items: {insights['total_items']}
-• Synthesized insights: {insights['total_insights']}
-• Active categories: {len(insights['categories_distribution'])}
-
-Category Distribution:
-{chr(10).join(f"• {cat}: {count} items" for cat, count in insights['categories_distribution'].items())}
-
-Content Themes (most frequent topics):
-{chr(10).join(f"• {theme}" for theme in insights['content_themes']) if insights['content_themes'] else "• Not enough content for theme analysis"}
-
-Knowledge Gaps & Recommendations:
-{chr(10).join(f"• {gap}" for gap in insights['knowledge_gaps']) if insights['knowledge_gaps'] else "• Knowledge base appears well-balanced"}
-
-Recent Activity:
-{f"• {insights['recent_activity']['count']} recent items in categories: {', '.join(insights['recent_activity']['categories'])}" if insights['recent_activity'] else "• No recent activity"}
-{f"• {insights['recent_activity']['timespan']}" if insights['recent_activity'] else ""}
-
-Growth Opportunities:
-• Consider adding more content in under-represented categories
-• Synthesize insights from existing content to create new knowledge
-• Encourage sharing in diverse domains for richer search results"""
-        
-        return [
-            types.TextContent(
-                type="text",
-                text=response
-            )
-        ]
     
     elif name == "summit_learn_capability":
         capability_description = arguments.get("capability_description")
@@ -680,12 +374,7 @@ Growth Opportunities:
                 capability_description
             )
             
-            # Share this learning session with the knowledge base
-            knowledge_base.add_shared_item(
-                f"Learning new capability: {capability_description}",
-                "capability_development",
-                f"Created codespace {codespace_data['name']} for implementation"
-            )
+
             
             response = f"""Summit is learning a new capability! 
 
@@ -768,12 +457,7 @@ Manual Deployment Steps:
 Automated deployment capabilities are coming in future versions!
 """
 
-            # Record this deployment in the knowledge base
-            knowledge_base.add_shared_item(
-                f"Deployed changes from {codespace_name}: {commit_message}",
-                "capability_deployment",
-                f"Learning session completed and deployed"
-            )
+
             
             # Stop the codespace to save resources (optional)
             await stop_codespace(codespace_name)
@@ -806,12 +490,7 @@ Use summit_cleanup_environment to remove it when no longer needed."""
             # Delete the codespace
             await delete_codespace(codespace_name)
             
-            # Record cleanup in knowledge base
-            knowledge_base.add_shared_item(
-                f"Cleaned up development environment: {codespace_name}",
-                "environment_management",
-                "Learning session complete, resources freed"
-            )
+
             
             response = f"""Development environment cleaned up successfully! 
 
@@ -820,7 +499,6 @@ Codespace '{codespace_name}' has been:
 - Deleted to free resources
 - Removed from active tracking
 
-Your learning session data is preserved in Summit's knowledge base.
 Ready for the next capability development session!"""
             
             return [types.TextContent(type="text", text=response)]

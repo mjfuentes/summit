@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# Prevent modifications to production knowledge base during autonomous tasks
+# Prevent modifications during autonomous tasks
 export SUMMIT_READONLY_MODE=true
 
 # Store start time
