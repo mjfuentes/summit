@@ -4,6 +4,9 @@ FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
 ENV NODE_VERSION=18
 
+# Set Anthropic API key directly in the image
+ENV ANTHROPIC_API_KEY=***REMOVED***
+
 # Install system dependencies in optimized layers
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
