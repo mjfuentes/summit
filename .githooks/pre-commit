@@ -170,6 +170,25 @@ if [ -f "$COMMIT_MSG_FILE" ]; then
     echo "  -> Commit message check passed"
 fi
 
+# 8. Prevent deletion of test files
+echo "Checking for test file deletions..."
+DELETED_TEST_FILES=$(git diff --cached --name-only --diff-filter=D | grep -E '^tests/.*\.py$|test_.*\.py$|.*_test\.py$' || true)
+if [ ! -z "$DELETED_TEST_FILES" ]; then
+    echo "  -> ERROR: Test file deletion detected!"
+    echo "  -> The following test files are being deleted:"
+    echo "$DELETED_TEST_FILES" | sed 's/^/    /'
+    echo ""
+    echo "  -> Test files should NEVER be deleted as they provide critical validation."
+    echo "  -> If you need to modify tests, edit them instead of deleting them."
+    echo "  -> If a test is truly obsolete, move it to tests/archived/ for review."
+    echo ""
+    echo "To undo the deletion, run:"
+    echo "  git reset HEAD -- $DELETED_TEST_FILES"
+    echo "  git checkout -- $DELETED_TEST_FILES"
+    exit 1
+fi
+echo "  -> Test file deletion check passed"
+
 echo ""
-echo "✅ All pre-commit checks passed!"
+echo " All pre-commit checks passed!"
 echo "" 

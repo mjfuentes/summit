@@ -223,6 +223,14 @@ class DatabaseManager:
                 .where(Task.is_active.is_(False))
             )
 
+    async def delete_task(self, task_id: str) -> bool:
+        """Delete a specific task by ID"""
+        async with self.get_session() as session:
+            result = await session.execute(
+                delete(Task).where(Task.task_id == task_id)
+            )
+            return result.rowcount > 0
+
     async def get_task_statistics(self) -> Dict[str, Any]:
         """Get task statistics"""
         async with self.get_session() as session:

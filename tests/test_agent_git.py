@@ -317,3 +317,90 @@ class TestAgentGitAPI:
             # Test switch_branch
             mock_wrapper._run_command.return_value = Mock(returncode=0)
             assert api.switch_branch("main") is True
+
+    def test_ci_cd_monitoring_functions(self):
+        """Test CI/CD monitoring convenience functions"""
+        from agent_git_api import (
+            check_ci_status,
+            check_pipeline_status,
+            show_failed_checks,
+            wait_for_ci,
+        )
+
+        with patch("agent_git_api.agent_git") as mock_agent_git:
+            # Test check_ci_status
+            mock_agent_git.check_ci_status.return_value = {
+                "state": "success",
+                "statuses": [],
+                "total_count": 0,
+            }
+            result = check_ci_status("abc123")
+            assert result["state"] == "success"
+            mock_agent_git.check_ci_status.assert_called_with("abc123")
+
+            # Test check_ci_status with default commit
+            check_ci_status()
+            mock_agent_git.check_ci_status.assert_called_with(None)
+
+            # Test show_failed_checks
+            show_failed_checks("abc123")
+            mock_agent_git.show_failed_checks.assert_called_with("abc123")
+
+            # Test show_failed_checks with default commit
+            show_failed_checks()
+            mock_agent_git.show_failed_checks.assert_called_with(None)
+
+            # Test wait_for_ci
+            mock_agent_git.wait_for_ci.return_value = True
+            result = wait_for_ci("abc123")
+            assert result is True
+            mock_agent_git.wait_for_ci.assert_called_with("abc123")
+
+            # Test wait_for_ci with default commit
+            wait_for_ci()
+            mock_agent_git.wait_for_ci.assert_called_with(None)
+
+            # Test check_pipeline_status
+            check_pipeline_status()
+            mock_agent_git.check_pipeline_status.assert_called_once()
+
+    def test_agent_git_api_ci_methods(self):
+        """Test AgentGitAPI CI/CD monitoring methods"""
+        from agent_git_api import AgentGitAPI
+
+        with patch("agent_git_api.AgentGitWrapper") as mock_wrapper_class:
+            mock_wrapper = Mock()
+            mock_wrapper_class.return_value = mock_wrapper
+
+            api = AgentGitAPI()
+
+            # Test check_ci_status method
+            expected_status = {
+                "state": "pending",
+                "statuses": [],
+                "total_count": 0,
+            }
+
+            # Mock the git rev-parse command
+            mock_wrapper._run_command.return_value = Mock(stdout="abc123")
+            # Mock the actual CI status check method (with underscore)
+            mock_wrapper._check_ci_status.return_value = expected_status
+
+            result = api.check_ci_status("abc123")
+            assert result == expected_status
+            mock_wrapper._check_ci_status.assert_called_with("abc123")
+
+            # Test show_failed_checks method
+            api.show_failed_checks("abc123")
+            mock_wrapper._show_failed_checks.assert_called_with("abc123")
+
+            # Test wait_for_ci method
+            mock_wrapper._wait_for_ci.return_value = True
+            result = api.wait_for_ci("abc123")
+            assert result is True
+            mock_wrapper._wait_for_ci.assert_called_with("abc123")
+
+            # Test check_pipeline_status method
+            api.check_pipeline_status()
+            mock_wrapper._check_ci_status.assert_called()
+            mock_wrapper._run_command.assert_called()

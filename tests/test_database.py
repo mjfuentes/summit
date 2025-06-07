@@ -247,6 +247,39 @@ async def test_task_to_dict(test_db):
     assert isinstance(task_dict["updated_at"], str)
 
 
+@pytest.mark.asyncio
+async def test_delete_task(test_db):
+    """Test deleting a task from the database"""
+
+    # Create a task first
+    task_data = {
+        "task_id": "delete-test-123",
+        "task_description": "Task to be deleted",
+        "status": "failed",
+        "logs": ["Task failed"],
+        "is_active": False,
+    }
+
+    task = await test_db.create_task(task_data)
+    assert task.task_id == "delete-test-123"
+
+    # Verify task exists
+    retrieved_task = await test_db.get_task("delete-test-123")
+    assert retrieved_task is not None
+
+    # Delete the task
+    delete_result = await test_db.delete_task("delete-test-123")
+    assert delete_result is True
+
+    # Verify task is deleted
+    deleted_task = await test_db.get_task("delete-test-123")
+    assert deleted_task is None
+
+    # Test deleting non-existent task
+    delete_result_nonexistent = await test_db.delete_task("non-existent-task")
+    assert delete_result_nonexistent is False
+
+
 if __name__ == "__main__":
 
     pytest.main([__file__, "-v"])
