@@ -11,8 +11,7 @@ summit/
  src/                    # Core source code
     summit.py          # Main MCP server
     cost_tracker.py    # Budget management & safety
-    vector_knowledge_base.py  # AI knowledge storage
-    knowledge_base.py  # Legacy knowledge storage
+    autonomous_server.py  # Autonomous Claude Code task management
  config/                # Configuration files
     config.py         # API keys & settings
     requirements.txt  # Python dependencies

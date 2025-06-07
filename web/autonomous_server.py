@@ -823,7 +823,7 @@ async def run_autonomous_task(task_id: str, task_data: Dict):
                 "-e", f"GITHUB_TOKEN={task_data.get('github_token', '')}",
                 "-e", f"REPOSITORY_URL={task_data.get('repository_url', '')}",
                 "-e", f"TARGET_BRANCH={task_data.get('target_branch', 'main')}",
-                "-e", "SUMMIT_READONLY_MODE=true",  # Prevent knowledge base modifications
+                "-e", "SUMMIT_READONLY_MODE=true",  # Prevent data modifications during tasks
                 "claude-code-task"
             ]
             

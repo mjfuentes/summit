@@ -39,13 +39,11 @@ def kill_existing_server():
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 try:
-    from knowledge_base import KnowledgeBase
     from cost_tracker import CostTracker
     from config import setup_environment, SUMMIT_CONFIG
     setup_environment()
     
     # Initialize components
-    knowledge_base = KnowledgeBase()
     cost_tracker = CostTracker(
         daily_budget=SUMMIT_CONFIG["daily_budget"],
         hourly_budget=SUMMIT_CONFIG["hourly_budget"],
@@ -55,7 +53,6 @@ try:
     COMPONENTS_AVAILABLE = True
 except ImportError as e:
     print(f"Warning: Some components unavailable: {e}")
-    knowledge_base = None
     cost_tracker = None
     COMPONENTS_AVAILABLE = False
 
@@ -69,14 +66,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-class ShareRequest(BaseModel):
-    content: str
-    category: str = "general"
-    context: Optional[str] = None
 
-class LearnRequest(BaseModel):
-    query: str
-    max_results: Optional[int] = 5
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
@@ -105,29 +95,12 @@ async def root():
         <p style="text-align: center; color: #666;">Standalone web interface for Summit AI</p>
         
         <div class="warning">
-            <strong>Note:</strong> This is a simplified web interface. Full AI capabilities require additional setup.
+            <strong>Note:</strong> This is a simplified web interface. Full autonomous capabilities are available through the main API.
         </div>
         
         <div class="card">
-            <h3>Knowledge Base</h3>
-            <h4>Share Knowledge</h4>
-            <textarea id="share-content" placeholder="Share your experience, insight, or observation..." rows="3"></textarea>
-            <select id="share-category">
-                <option value="observation">Observation</option>
-                <option value="insight">Insight</option>
-                <option value="challenge">Challenge</option>
-                <option value="best_practice">Best Practice</option>
-                <option value="trend">Trend</option>
-            </select>
-            <button onclick="shareKnowledge()">Share</button>
-            <div id="share-response" class="response" style="display: none;"></div>
-        </div>
-        
-        <div class="card">
-            <h4>Search Knowledge</h4>
-            <input type="text" id="learn-query" placeholder="What do you want to learn about?">
-            <button onclick="searchKnowledge()">Search</button>
-            <div id="learn-response" class="response" style="display: none;"></div>
+            <h3>Autonomous System</h3>
+            <p>This standalone interface provides basic system status. For full autonomous Claude Code functionality, use the main API at <code>/api/tasks</code>.</p>
         </div>
         
         <div class="card">
@@ -163,43 +136,7 @@ async def root():
             element.textContent = 'Loading...';
         }
 
-        async function shareKnowledge() {
-            const content = document.getElementById('share-content').value.trim();
-            if (!content) return alert('Please enter content to share');
-            
-            showLoading('share-response');
-            
-            try {
-                const result = await makeRequest('/api/share', {
-                    content: content,
-                    category: document.getElementById('share-category').value
-                });
-                
-                showResponse('share-response', result.message || 'Knowledge shared successfully!', !result.success);
-                if (result.success) {
-                    document.getElementById('share-content').value = '';
-                }
-            } catch (error) {
-                showResponse('share-response', 'Error: ' + error.message, true);
-            }
-        }
 
-        async function searchKnowledge() {
-            const query = document.getElementById('learn-query').value.trim();
-            if (!query) return alert('Please enter a search query');
-            
-            showLoading('learn-response');
-            
-            try {
-                const result = await makeRequest('/api/learn', {
-                    query: query
-                });
-                
-                showResponse('learn-response', result.data || result.message, !result.success);
-            } catch (error) {
-                showResponse('learn-response', 'Error: ' + error.message, true);
-            }
-        }
 
         async function getStatus() {
             showLoading('status-response');
@@ -216,43 +153,7 @@ async def root():
 </html>
     """
 
-@app.post("/api/share")
-async def share_knowledge(request: ShareRequest):
-    if not COMPONENTS_AVAILABLE or not knowledge_base:
-        return {"success": False, "message": "Knowledge base not available"}
-    
-    try:
-        item = knowledge_base.add_shared_item(
-            request.content, 
-            request.category, 
-            request.context
-        )
-        return {"success": True, "message": f"Added item {item['id']} to knowledge base"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/api/learn")
-async def search_knowledge(request: LearnRequest):
-    if not COMPONENTS_AVAILABLE or not knowledge_base:
-        return {"success": False, "message": "Knowledge base not available"}
-    
-    try:
-        results = knowledge_base.search_knowledge(request.query, request.max_results)
-        
-        if not results:
-            return {"success": True, "data": f"No results found for '{request.query}'"}
-        
-        response_text = f"Found {len(results)} results:\n\n"
-        for i, result in enumerate(results, 1):
-            data = result['data']
-            content = data.get('content', data.get('insight', ''))
-            score = result.get('similarity_score', 0)
-            response_text += f"{i}. {content}\n"
-            response_text += f"   Category: {data.get('category', 'unknown')}, Score: {score:.2f}\n\n"
-        
-        return {"success": True, "data": response_text}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/status")
 async def get_status():
@@ -260,15 +161,8 @@ async def get_status():
     
     if COMPONENTS_AVAILABLE:
         status_info += "Components Status:\n"
-        status_info += f"- Knowledge Base: Available ({len(knowledge_base.shared_items) if knowledge_base else 0} items)\n"
-        status_info += f"- Cost Tracker: Available\n\n"
-        
-        if knowledge_base:
-            summary = knowledge_base.get_knowledge_summary()
-            status_info += f"Knowledge Base Summary:\n"
-            status_info += f"- Total items: {summary['total_shares']}\n"
-            status_info += f"- Categories: {list(summary['categories'].keys())}\n"
-            status_info += f"- Search mode: {summary['search_mode']}\n"
+        status_info += f"- Cost Tracker: Available\n"
+        status_info += f"- Autonomous System: Ready\n\n"
     else:
         status_info += "Components Status:\n"
         status_info += "- Limited functionality (some dependencies missing)\n"
