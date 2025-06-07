@@ -205,6 +205,114 @@ class TestAgentGitWrapper:
             # Should skip and return True
             assert wrapper._check_pre_commit_hooks() is True
 
+    @patch.object(AgentGitWrapper, "push", return_value=True)
+    @patch.object(
+        AgentGitWrapper, "_get_current_branch", return_value="feature/test"
+    )
+    @patch.object(
+        AgentGitWrapper, "_get_repo_info", return_value=("owner", "repo")
+    )
+    @patch("requests.post")
+    def test_create_pr_success(
+        self, mock_post, mock_repo, mock_branch, mock_push, wrapper
+    ):
+        """Test successful PR creation"""
+        # Mock successful GitHub API response
+        mock_response = Mock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.json.return_value = {
+            "html_url": "https://github.com/owner/repo/pull/123",
+            "number": 123,
+        }
+        mock_post.return_value = mock_response
+
+        # Test PR creation
+        result = wrapper.create_pr("Test PR Title", "Test PR Body")
+
+        assert result is True
+        mock_push.assert_called_once()
+        mock_post.assert_called_once()
+
+        # Verify the API call
+        call_args = mock_post.call_args
+        assert (
+            call_args[0][0] == "https://api.github.com/repos/owner/repo/pulls"
+        )
+
+        # Verify the request data
+        data = call_args[1]["json"]
+        assert data["title"] == "Test PR Title"
+        assert data["body"] == "Test PR Body"
+        assert data["head"] == "feature/test"
+        assert data["base"] == "main"
+
+    @patch.object(AgentGitWrapper, "_get_current_branch", return_value="main")
+    def test_create_pr_from_main_branch(self, mock_branch, wrapper):
+        """Test PR creation fails from main branch"""
+        result = wrapper.create_pr("Test PR", "Test body")
+        assert result is False
+
+    @patch.object(AgentGitWrapper, "push", return_value=False)
+    @patch.object(
+        AgentGitWrapper, "_get_current_branch", return_value="feature/test"
+    )
+    def test_create_pr_push_fails(self, mock_branch, mock_push, wrapper):
+        """Test PR creation fails when push fails"""
+        result = wrapper.create_pr("Test PR", "Test body")
+        assert result is False
+
+    @patch.object(AgentGitWrapper, "push", return_value=True)
+    @patch.object(
+        AgentGitWrapper, "_get_current_branch", return_value="feature/test"
+    )
+    @patch.object(
+        AgentGitWrapper, "_get_repo_info", return_value=("owner", "repo")
+    )
+    @patch("requests.post")
+    def test_create_pr_api_failure(
+        self, mock_post, mock_repo, mock_branch, mock_push, wrapper
+    ):
+        """Test PR creation handles API failures"""
+        mock_post.side_effect = Exception("API Error")
+
+        result = wrapper.create_pr("Test PR", "Test body")
+        assert result is False
+
+    def test_create_pr_no_github_token(self, wrapper):
+        """Test PR creation fails without GitHub token"""
+        wrapper.github_token = None
+        result = wrapper.create_pr("Test PR", "Test body")
+        assert result is False
+
+    @patch.object(AgentGitWrapper, "push", return_value=True)
+    @patch.object(
+        AgentGitWrapper, "_get_current_branch", return_value="feature/test"
+    )
+    @patch.object(
+        AgentGitWrapper, "_get_repo_info", return_value=("owner", "repo")
+    )
+    @patch("requests.post")
+    def test_create_pr_with_default_body(
+        self, mock_post, mock_repo, mock_branch, mock_push, wrapper
+    ):
+        """Test PR creation with default body when none provided"""
+        mock_response = Mock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.json.return_value = {
+            "html_url": "https://github.com/owner/repo/pull/123"
+        }
+        mock_post.return_value = mock_response
+
+        # Test with empty body
+        result = wrapper.create_pr("Test PR Title", "")
+
+        assert result is True
+
+        # Verify the default body was used
+        call_args = mock_post.call_args
+        data = call_args[1]["json"]
+        assert data["body"] == "Automated PR from branch feature/test"
+
 
 class TestAgentGitAPI:
     """Test the simplified API"""
@@ -404,3 +512,63 @@ class TestAgentGitAPI:
             api.check_pipeline_status()
             mock_wrapper._check_ci_status.assert_called()
             mock_wrapper._run_command.assert_called()
+
+    @patch("agent_git_api.agent_git")
+    def test_save_and_create_pr_success(self, mock_agent_git):
+        """Test save_and_create_pr method success"""
+        from agent_git_api import AgentGitAPI
+
+        mock_agent_git.git.quick_commit_push.return_value = True
+        mock_agent_git.git.create_pr.return_value = True
+
+        api = AgentGitAPI()
+        api.git = mock_agent_git.git
+
+        result = api.save_and_create_pr(
+            "Fix test issue",
+            "Fix: Resolve test failure",
+            "This PR fixes the failing test by updating the assertion",
+        )
+
+        assert result is True
+        mock_agent_git.git.quick_commit_push.assert_called_once_with(
+            "Fix test issue", None
+        )
+        mock_agent_git.git.create_pr.assert_called_once_with(
+            "Fix: Resolve test failure",
+            "This PR fixes the failing test by updating the assertion",
+        )
+
+    @patch("agent_git_api.agent_git")
+    def test_save_and_create_pr_commit_fails(self, mock_agent_git):
+        """Test save_and_create_pr when commit fails"""
+        from agent_git_api import AgentGitAPI
+
+        mock_agent_git.git.quick_commit_push.return_value = False
+
+        api = AgentGitAPI()
+        api.git = mock_agent_git.git
+
+        result = api.save_and_create_pr("Bad commit", "PR Title", "PR Body")
+
+        assert result is False
+        mock_agent_git.git.quick_commit_push.assert_called_once()
+        # Should not call create_pr if commit fails
+        mock_agent_git.git.create_pr.assert_not_called()
+
+    @patch("agent_git_api.agent_git")
+    def test_save_and_create_pr_pr_creation_fails(self, mock_agent_git):
+        """Test save_and_create_pr when PR creation fails"""
+        from agent_git_api import AgentGitAPI
+
+        mock_agent_git.git.quick_commit_push.return_value = True
+        mock_agent_git.git.create_pr.return_value = False
+
+        api = AgentGitAPI()
+        api.git = mock_agent_git.git
+
+        result = api.save_and_create_pr("Good commit", "PR Title", "PR Body")
+
+        assert result is False
+        mock_agent_git.git.quick_commit_push.assert_called_once()
+        mock_agent_git.git.create_pr.assert_called_once()
