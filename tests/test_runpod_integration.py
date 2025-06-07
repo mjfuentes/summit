@@ -6,13 +6,6 @@ This module tests the RunPod integration functionality including
 configuration, deployment management, and cost calculations.
 """
 
-from runpod_integration import (
-    DeploymentInfo,
-    RunPodClient,
-    RunPodConfig,
-    RunPodDeploymentManager,
-    create_runpod_config,
-)
 import asyncio
 import os
 import sys
@@ -20,6 +13,14 @@ from datetime import datetime, timezone
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
+
+from runpod_integration import (
+    DeploymentInfo,
+    RunPodClient,
+    RunPodConfig,
+    RunPodDeploymentManager,
+    create_runpod_config,
+)
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
