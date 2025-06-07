@@ -697,8 +697,9 @@ async def create_pull_request(
     head: str,
     base: str = "main",
     body: str = "",
+    enable_auto_merge: bool = True,
 ) -> Dict:
-    """Create a new pull request"""
+    """Create a new pull request with optional auto-merge"""
     headers = get_github_headers()
     if not headers:
         raise ValueError(
@@ -716,12 +717,78 @@ async def create_pull_request(
     }
 
     try:
+        # Create the PR first
         response = requests.post(
             url, headers=headers, json=payload, timeout=30
         )
         response.raise_for_status()
 
         pr_data = response.json()
+        pr_number = pr_data["number"]
+
+        # Enable auto-merge if requested
+        if enable_auto_merge:
+            try:
+                auto_merge_url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}/merge"
+                auto_merge_payload = {
+                    "merge_method": "squash"  # or "merge" or "rebase"
+                }
+
+                # Use GraphQL API for auto-merge (REST API doesn't support it yet)
+                graphql_url = "https://api.github.com/graphql"
+                graphql_query = """
+                mutation($pullRequestId: ID!) {
+                  enablePullRequestAutoMerge(input: {
+                    pullRequestId: $pullRequestId,
+                    mergeMethod: SQUASH
+                  }) {
+                    pullRequest {
+                      autoMergeRequest {
+                        enabledAt
+                        enabledBy {
+                          login
+                        }
+                      }
+                    }
+                  }
+                }
+                """
+
+                graphql_payload = {
+                    "query": graphql_query,
+                    "variables": {
+                        "pullRequestId": pr_data[
+                            "node_id"
+                        ]  # GraphQL needs node_id
+                    },
+                }
+
+                graphql_response = requests.post(
+                    graphql_url,
+                    headers=headers,
+                    json=graphql_payload,
+                    timeout=30,
+                )
+
+                if graphql_response.status_code == 200:
+                    graphql_data = graphql_response.json()
+                    if "errors" not in graphql_data:
+                        print(f"Auto-merge enabled for PR #{pr_number}")
+                    else:
+                        print(
+                            f"Auto-merge failed: {graphql_data.get('errors', 'Unknown error')}"
+                        )
+                else:
+                    print(
+                        f"Auto-merge request failed with status {graphql_response.status_code}"
+                    )
+
+            except Exception as e:
+                print(
+                    f"Warning: Could not enable auto-merge for PR #{pr_number}: {e}"
+                )
+                # Don't fail the PR creation if auto-merge fails
+
         return {
             "number": pr_data["number"],
             "url": pr_data["html_url"],
@@ -729,6 +796,7 @@ async def create_pull_request(
             "title": pr_data["title"],
             "head": pr_data["head"]["ref"],
             "base": pr_data["base"]["ref"],
+            "auto_merge_enabled": enable_auto_merge,
         }
     except Exception as e:
         raise Exception(f"Failed to create pull request: {e}")
@@ -850,8 +918,8 @@ REQUIRED WORKFLOW - Execute these phases in order:
 # Navigate to Summit codebase
 cat CODING_STANDARDS.md          # Read the complete workflow
 find . -name "*.py" | head -20    # Understand codebase structure
-grep -r "def " src/               # Find existing functions
-```
+  grep -r "def " src/               # Find existing functions
+  ```
 
 ## Phase 2: Implementation (MANDATORY)
 - Follow the implementation plan above
