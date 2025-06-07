@@ -776,7 +776,7 @@ async def run_autonomous_task(task_id: str, task_data: Dict):
         task_data["logs"].append(f"Error: {str(e)}")
     
     finally:
-        # Save final log entry
+        # Save final log entry and add completion timestamp
         if 'log_file_path' in locals():
             try:
                 with open(log_file_path, 'a', encoding='utf-8') as f:
@@ -784,14 +784,25 @@ async def run_autonomous_task(task_id: str, task_data: Dict):
                     f.write(f"[SYSTEM] Task ended at {datetime.now().isoformat()}\n")
                     f.write(f"[SYSTEM] Final status: {task_data.get('status', 'unknown')}\n")
                     f.write(f"[SYSTEM] Log file saved to: {log_file_path}\n")
+                
+                # Read the complete log file content for completed tasks
+                with open(log_file_path, 'r', encoding='utf-8') as f:
+                    task_data["full_logs"] = f.read()
+                    
             except Exception as e:
                 print(f"[ERROR] Failed to write final log entry: {e}")
         
-        # Task data updated in memory, available via HTTP polling
+        # Add completion timestamp
+        task_data["completed_at"] = datetime.now().isoformat()
         
-        # Ensure container cleanup
+        # Move completed/failed tasks to history instead of deleting them
         if task_id in active_tasks:
+            task_history.append(active_tasks[task_id])
             del active_tasks[task_id]
+            
+            # Keep only last 50 completed tasks to avoid memory issues
+            if len(task_history) > 50:
+                task_history.pop(0)
         
         # Clean up Docker container
         try:
@@ -804,20 +815,61 @@ async def run_autonomous_task(task_id: str, task_data: Dict):
 
 @app.get("/api/tasks")
 async def get_all_tasks():
-    """Get all active and recent tasks"""
-    all_tasks = list(active_tasks.values()) + task_history[-10:]  # Last 10 from history
-    return {"success": True, "tasks": all_tasks}
+    """Get all active and recent completed tasks"""
+    # Get active tasks
+    active_task_list = list(active_tasks.values())
+    
+    # Get recent completed tasks (last 20)
+    recent_completed = task_history[-20:] if task_history else []
+    
+    # Mark tasks with their status for easier identification
+    for task in active_task_list:
+        task["is_active"] = True
+        task["is_completed"] = False
+        
+    for task in recent_completed:
+        task["is_active"] = False
+        task["is_completed"] = True
+    
+    all_tasks = active_task_list + recent_completed
+    
+    return {
+        "success": True, 
+        "tasks": all_tasks,
+        "active_count": len(active_task_list),
+        "completed_count": len(recent_completed),
+        "total_completed_in_history": len(task_history)
+    }
 
 @app.get("/api/tasks/{task_id}")
 async def get_task(task_id: str):
-    """Get details of a specific task"""
+    """Get details of a specific task with full logs if completed"""
+    # Check active tasks first
     if task_id in active_tasks:
-        return {"success": True, "task": active_tasks[task_id]}
+        return {"success": True, "task": active_tasks[task_id], "is_active": True}
     
-    # Check history
+    # Check completed tasks in history
     for task in task_history:
         if task["task_id"] == task_id:
-            return {"success": True, "task": task}
+            # Include full logs for completed tasks
+            response_task = task.copy()
+            
+            # If we don't have full_logs in memory, try to read from file
+            if "full_logs" not in response_task:
+                log_file_path = os.path.join("task_logs", f"task_{task_id}.log")
+                if os.path.exists(log_file_path):
+                    try:
+                        with open(log_file_path, 'r', encoding='utf-8') as f:
+                            response_task["full_logs"] = f.read()
+                    except Exception as e:
+                        response_task["full_logs_error"] = f"Could not read log file: {str(e)}"
+            
+            return {
+                "success": True, 
+                "task": response_task, 
+                "is_active": False,
+                "is_completed": True
+            }
     
     return {"success": False, "message": "Task not found"}
 
@@ -893,4 +945,4 @@ if __name__ == "__main__":
     print("Web interface: http://localhost:8000")
     print("API documentation: http://localhost:8000/docs")
     
-    uvicorn.run("autonomous_server:app", host="0.0.0.0", port=8000, reload=True) 
+    uvicorn.run("autonomous_server:app", host="0.0.0.0", port=8000, reload=False) 
