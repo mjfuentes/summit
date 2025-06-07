@@ -1,0 +1,20 @@
+#!/bin/bash
+clear
+echo "======================================================"
+echo "  Summit AI - Development Environment"  
+echo "======================================================"
+echo ""
+echo "Task: $TASK_DESCRIPTION" 
+echo "Status: Ready for Claude development"
+echo ""
+echo "Commands:"
+echo "  git log --oneline -5  - Recent commits"
+echo "  git status            - Repository status"
+echo "  cat completion.txt    - Completion signal"
+echo "  ls -la                - List files"
+echo "  cat task_context.md   - Task details"
+echo ""
+echo "======================================================"
+echo "Development environment ready!"
+echo "======================================================"
+exec bash
