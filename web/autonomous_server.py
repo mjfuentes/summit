@@ -21,18 +21,59 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 # Add src directory to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+# Handle both local development and deployment environments
+current_dir = os.path.dirname(os.path.abspath(__file__))
+src_dir = os.path.join(current_dir, "..", "src")
+if not os.path.exists(src_dir):
+    # Try alternative path for deployment environments
+    src_dir = os.path.join(os.path.dirname(current_dir), "src")
+if not os.path.exists(src_dir):
+    # Last resort: look for src in parent directories
+    parent_dir = os.path.dirname(os.path.dirname(current_dir))
+    src_dir = os.path.join(parent_dir, "src")
 
-from database import close_database, get_database, init_database
-from pr_reviewers import review_pr_with_multiple_roles
-from task_manager import (
-    add_task_log,
-    get_task_data,
-    mark_task_completed,
-    update_task_container_info,
-    update_task_log_file,
-    update_task_status,
-)
+sys.path.insert(0, src_dir)
+print(f"[DEBUG] Added to Python path: {src_dir}")
+print(f"[DEBUG] Current working directory: {os.getcwd()}")
+print(f"[DEBUG] Script location: {current_dir}")
+
+# Import core modules with error handling
+try:
+    from database import close_database, get_database, init_database
+
+    print("[DEBUG] Successfully imported database module")
+except ImportError as e:
+    print(f"[ERROR] Failed to import database module: {e}")
+    print(f"[DEBUG] Python path: {sys.path}")
+    raise
+
+try:
+    from pr_reviewers import review_pr_with_multiple_roles
+
+    print("[DEBUG] Successfully imported pr_reviewers module")
+except ImportError as e:
+    print(f"[ERROR] Failed to import pr_reviewers module: {e}")
+
+    # This is not critical, so we can continue
+    def review_pr_with_multiple_roles(*args, **kwargs):
+        return {"error": "PR reviewers module not available"}
+
+
+try:
+    from task_manager import (
+        add_task_log,
+        get_task_data,
+        mark_task_completed,
+        update_task_container_info,
+        update_task_log_file,
+        update_task_status,
+    )
+
+    print("[DEBUG] Successfully imported task_manager module")
+except ImportError as e:
+    print(f"[ERROR] Failed to import task_manager module: {e}")
+    print(f"[DEBUG] Python path: {sys.path}")
+    raise
 
 # Import GitHub functionality for PR creation
 try:
@@ -163,6 +204,7 @@ async def shutdown_event():
 
 
 @app.get("/")
+@app.head("/")
 async def root():
     import os
 
@@ -2239,6 +2281,7 @@ async def get_task_logs(task_id: str):
 
 
 @app.get("/health")
+@app.head("/health")
 async def health_check():
     return {"status": "healthy", "message": "Summit autonomous AI is running"}
 
