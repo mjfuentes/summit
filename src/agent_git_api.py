@@ -69,7 +69,11 @@ class AgentGitAPI:
 
         Save work and immediately create a PR.
 
-
+        Automatically handles branch management:
+        - If on main, creates a new feature branch
+        - Updates main if needed
+        - Commits and pushes to feature branch
+        - Creates PR from feature branch to main
 
         Args:
 
@@ -87,14 +91,36 @@ class AgentGitAPI:
 
         """
 
-        # First save the work
+        current_branch = self.get_current_branch()
 
+        # If we're on main, we need to create a feature branch
+        if current_branch == "main" or current_branch == "master":
+            print(
+                f" Currently on {current_branch} branch - creating feature branch..."
+            )
+
+            # Update main first
+            if not self.update_from_remote():
+                print(" Warning: Could not update main branch")
+
+            # Create feature branch name from PR title
+            import re
+
+            branch_name = "feature/" + re.sub(
+                r"[^a-zA-Z0-9]+", "-", pr_title.lower()
+            ).strip("-")
+            branch_name = branch_name[:50]  # Limit length
+
+            if not self.create_feature_branch(branch_name):
+                return False
+
+            print(f" Created feature branch: {branch_name}")
+
+        # Save the work on the feature branch
         if not self.quick_save(commit_message):
-
             return False
 
-        # Then create PR
-
+        # Create PR from feature branch to main
         return self.git.create_pr(pr_title, pr_body)
 
     def check_status(self) -> None:
@@ -314,7 +340,24 @@ def save_work(message: str, files: list = None) -> bool:
 
 
 def create_pr(commit_message: str, pr_title: str, pr_body: str = "") -> bool:
-    """Save work and create a PR"""
+    """
+    Save work and create a PR with automatic branch management.
+
+    This function will:
+    1. Check if we're on main/master branch
+    2. If so, create a new feature branch automatically
+    3. Update main branch if needed
+    4. Commit and push to feature branch
+    5. Create PR from feature branch to main
+
+    Args:
+        commit_message: Message for the commit
+        pr_title: Title for the PR
+        pr_body: Complete PR description
+
+    Returns:
+        bool: True if successful, False otherwise
+    """
 
     return agent_git.save_and_create_pr(commit_message, pr_title, pr_body)
 
