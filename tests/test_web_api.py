@@ -9,17 +9,17 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "web"))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
+# Import the app but don't create TestClient at module level
 from standalone_server import app
 
 # Skip environment setup since standalone server handles missing components gracefully
-
-# Create test client
-client = TestClient(app)
 
 
 @pytest.mark.asyncio
 async def test_health_endpoint():
     """Test health check endpoint"""
+    # Create test client inside the test function
+    client = TestClient(app)
     response = client.get("/health")
     assert response.status_code == 200
     data = response.json()
@@ -30,6 +30,8 @@ async def test_health_endpoint():
 @pytest.mark.asyncio
 async def test_root_endpoint():
     """Test root endpoint returns HTML"""
+    # Create test client inside the test function
+    client = TestClient(app)
     response = client.get("/")
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
@@ -40,6 +42,8 @@ async def test_root_endpoint():
 @pytest.mark.asyncio
 async def test_status_endpoint():
     """Test status endpoint"""
+    # Create test client inside the test function
+    client = TestClient(app)
     response = client.get("/api/status")
     assert response.status_code == 200
     data = response.json()
@@ -50,6 +54,8 @@ async def test_status_endpoint():
 @pytest.mark.asyncio
 async def test_api_error_handling():
     """Test API error handling with malformed requests"""
+    # Create test client inside the test function
+    client = TestClient(app)
     # Test with invalid JSON to status endpoint
     response = client.post(
         "/api/status",
@@ -62,6 +68,8 @@ async def test_api_error_handling():
 
 def test_cors_headers():
     """Test CORS headers are present"""
+    # Create test client inside the test function
+    client = TestClient(app)
     response = client.get("/")
     # CORS headers should be present for browser access
     assert response.status_code == 200

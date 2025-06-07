@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from src.pr_reviewers import (
     PRReviewSystem,
     ReviewerPersona,
-    review_pr_with_multiple_roles
+    review_pr_with_multiple_roles,
 )
 
 # Add src to path for imports
@@ -22,6 +22,7 @@ repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 src_path = os.path.join(repo_root, "src")
 if src_path not in sys.path:
     sys.path.insert(0, src_path)
+
 
 class TestPRReviewers:
     """Test PR review system functionality"""

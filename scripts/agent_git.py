@@ -82,9 +82,11 @@ class AgentGitWrapper:
 
         # No leading/trailing whitespace
         if message != message.strip():
-            print(" ERROR: Commit message should not have leading or trailing whitespace")
+            print(
+                " ERROR: Commit message should not have leading or trailing whitespace"
+            )
             return False
-            
+
         # No emojis
         if any(ord(char) > 127 for char in message):
             print(" ERROR: No emojis allowed in commit messages")

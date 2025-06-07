@@ -18,8 +18,9 @@ from src.task_manager import (
     mark_task_completed,
     get_task_data,
     update_task_container_info,
-    update_task_log_file
+    update_task_log_file,
 )
+
 
 class TestTaskManager:
     """Test task manager utility functions"""
@@ -238,4 +239,3 @@ class TestTaskManager:
 
             mock_db.get_task.assert_called_once_with("test-123")
             assert result is None
-

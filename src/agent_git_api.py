@@ -16,25 +16,14 @@ sys.path.insert(0, str(scripts_path))
 from scripts.agent_git import AgentGitWrapper
 
 
-
-
-
-
-
 class AgentGitAPI:
-
     """Simplified API for agent Git operations"""
-
-
 
     def __init__(self):
 
         self.git = AgentGitWrapper()
 
-
-
     def quick_save(self, message: str, files: list = None) -> bool:
-
         """
 
         The main method agents should use for saving work.
@@ -59,14 +48,9 @@ class AgentGitAPI:
 
         return self.git.quick_commit_push(message, files)
 
-
-
     def save_and_create_pr(
-
         self, commit_message: str, pr_title: str, pr_body: str = ""
-
     ) -> bool:
-
         """
 
         Save work and immediately create a PR.
@@ -95,50 +79,33 @@ class AgentGitAPI:
 
             return False
 
-
-
         # Then create PR
 
         return self.git.create_pr(pr_title, pr_body)
 
-
-
     def check_status(self) -> None:
-
         """Show current git status"""
 
         self.git.status()
 
-
-
     def update_from_remote(self) -> bool:
-
         """Pull latest changes from remote"""
 
         return self.git.pull()
 
-
-
     def is_clean(self) -> bool:
-
         """Check if working directory is clean"""
 
         result = self.git._run_command(["git", "status", "--porcelain"])
 
         return len(result.stdout.strip()) == 0
 
-
-
     def get_current_branch(self) -> str:
-
         """Get current branch name"""
 
         return self.git._get_current_branch()
 
-
-
     def create_feature_branch(self, branch_name: str) -> bool:
-
         """
 
         Create and switch to a new feature branch.
@@ -160,9 +127,7 @@ class AgentGitAPI:
         # Create branch
 
         result = self.git._run_command(
-
             ["git", "checkout", "-b", branch_name], check=False
-
         )
 
         if result.returncode != 0:
@@ -171,16 +136,11 @@ class AgentGitAPI:
 
             return False
 
-
-
         print(f" Created and switched to branch: {branch_name}")
 
         return True
 
-
-
     def switch_branch(self, branch_name: str) -> bool:
-
         """
 
         Switch to an existing branch.
@@ -200,9 +160,7 @@ class AgentGitAPI:
         """
 
         result = self.git._run_command(
-
             ["git", "checkout", branch_name], check=False
-
         )
 
         if result.returncode != 0:
@@ -211,14 +169,9 @@ class AgentGitAPI:
 
             return False
 
-
-
         print(f" Switched to branch: {branch_name}")
 
         return True
-
-
-
 
 
 # Global instance for easy agent access
@@ -226,13 +179,10 @@ class AgentGitAPI:
 agent_git = AgentGitAPI()
 
 
-
-
-
 # Convenience functions for the most common operations
 
-def save_work(message: str, files: list = None) -> bool:
 
+def save_work(message: str, files: list = None) -> bool:
     """
 
     Quick save work - the primary function agents should use.
@@ -274,32 +224,19 @@ def save_work(message: str, files: list = None) -> bool:
     return agent_git.git.quick_commit_push(message, files)
 
 
-
-
-
 def create_pr(commit_message: str, pr_title: str, pr_body: str = "") -> bool:
-
     """Save work and create a PR"""
 
     return agent_git.save_and_create_pr(commit_message, pr_title, pr_body)
 
 
-
-
-
 def status() -> None:
-
     """Show git status"""
 
     agent_git.check_status()
 
 
-
-
-
 def pull() -> bool:
-
     """Update from remote"""
 
     return agent_git.update_from_remote()
-
