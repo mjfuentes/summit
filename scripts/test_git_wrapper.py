@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Test script for the interactive git wrapper"""
 
+import os
+import sys
 import unittest
 from pathlib import Path
-import sys
-import os
 
 # Get repo root
 repo_root = Path(__file__).parent.parent

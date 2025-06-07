@@ -21,10 +21,69 @@
   save_work("Update test configuration", ["tests/test_pr_reviewers.py", "pytest.ini"])
   ```
 
+## MANDATORY PR-Based Workflow
+- NEVER push directly to main or master branch
+- ALWAYS create Pull Requests for all changes using agent git API
+- Use `create_pr()` function which automatically:
+  - Creates a new branch if needed
+  - Runs full quality checks (tests, linting, coverage)
+  - Pushes to feature branch
+  - Creates GitHub Pull Request with proper formatting
+  - Enables automatic merging when CI/CD passes
+- Example usage:
+  ```python
+  from src.agent_git_api import create_pr
+  create_pr(
+      commit_message="Fix critical bug in authentication",
+      pr_title="Fix authentication bug and improve error handling", 
+      pr_description="Detailed description of changes and impact"
+  )
+  ```
+
+## MANDATORY Code Quality Prevention Rules
+- ALWAYS run formatting tools IMMEDIATELY after making any code changes:
+  - `python -m black src/ tests/ --line-length 79`
+  - `python -m isort src/ tests/ --profile black --line-length 79`
+  - `python -m autopep8 --in-place --aggressive --recursive src/ tests/`
+- NEVER write lines longer than 79 characters
+- ALWAYS use proper import organization:
+  - Standard library imports first
+  - Third-party imports second (with blank line separation)
+  - Local imports last (with blank line separation)
+- ALWAYS check line length when writing template strings or long expressions
+- BREAK long strings using parentheses and concatenation instead of backslashes
+- Example of proper line breaking:
+  ```python
+  # GOOD
+  long_string = (
+      "This is a very long string that needs to be broken "
+      "across multiple lines to stay under 79 characters"
+  )
+  
+  # BAD
+  long_string = "This is a very long string that exceeds the 79 character limit and causes E501 errors"
+  ```
+
+## Code Quality Enforcement
+- Pre-commit hooks MUST pass before any commit
+- Code formatting automatically applied (Black + isort)
+- All tests must pass with >70% coverage
+- Linting errors must be resolved
+- No debugging statements or obvious comments allowed
+
+## Communication Standards
+- NO EMOJIS in any documentation, comments, or messages
+- NO excessive celebratory language like "MAJOR SUCCESS", "AMAZING", etc.
+- NO check mark symbols () or other visual decorations
+- Use clear, professional, factual language only
+- Report status and results objectively without emotional language
+- Focus on technical facts and actionable information
+
 ## Documentation Standards
-- NO EMOJIS in documentation files - use clear, professional text only
 - Keep documentation concise and focused on core capabilities
 - Emphasize learning and self-improvement aspects
+- Use professional technical writing style
+- Avoid marketing language or hype
 
 ## Code Comments
 - NEVER add obvious/redundant comments like "# Test passed", "# Success", "# End of function"
@@ -32,13 +91,28 @@
 - Avoid stating the obvious - let the code speak for itself
 - Only comment when adding genuine value or explaining complex logic
 
+## Testing Rules
+- NO AD-HOC TESTING - Never use sleep and curl commands for testing
+- FORMAL TEST SUITE ONLY - All testing must be done through pytest or proper test files
+- AUTOMATED VALIDATION - Create proper test cases instead of manual command validation
+- NEVER SKIP TESTS - Do not add pytest.mark.skip decorators or skip failing tests
+- FIX ROOT CAUSE - Address the underlying issue causing test failures instead of avoiding them
+
 ## Development Workflow
 - Follow the MANDATORY DEVELOPMENT PROCESS from CODING_STANDARDS.md
 - Always run tests and coverage before committing
 - Use proper Git workflow: analyze → implement → test → lint → commit → push
 - Maintain >70% test coverage on all changes
 
-## Testing Rules
-- NO AD-HOC TESTING - Never use sleep and curl commands for testing
-- FORMAL TEST SUITE ONLY - All testing must be done through pytest or proper test files
-- AUTOMATED VALIDATION - Create proper test cases instead of manual command validation
+## PROACTIVE QUALITY CHECKLIST
+Before making any commit, ALWAYS verify:
+1.  Ran automated linting fixes: `python scripts/fix_all_linting.py`
+   OR manually run:
+   - `python -m black src/ tests/ --line-length 79`
+   - `python -m isort src/ tests/ --profile black --line-length 79`  
+   - `python -m autopep8 --in-place --aggressive --recursive src/ tests/`
+2.  No lines exceed 79 characters
+3.  Proper import organization (stdlib, third-party, local with blank lines)
+4.  No trailing whitespace
+5.  All tests pass
+6.  Coverage >70%
