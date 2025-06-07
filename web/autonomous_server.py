@@ -40,6 +40,13 @@ def kill_existing_server():
 # Add src to path for basic imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
+# Import database functionality
+from database import get_database, init_database, close_database
+from task_manager import (
+    update_task_status, add_task_log, update_task_container_info,
+    update_task_log_file, mark_task_completed, get_task_data
+)
+
 app = FastAPI(title="Summit Autonomous AI", version="2.0.0")
 
 app.add_middleware(
@@ -50,9 +57,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Global task management
-active_tasks: Dict[str, Dict] = {}
-task_history: List[Dict] = []
+# Database will replace these in-memory structures
+# active_tasks: Dict[str, Dict] = {}
+# task_history: List[Dict] = []
 
 # Log directory for task logs
 log_dir = "task_logs"
@@ -67,6 +74,18 @@ class TaskStatus(BaseModel):
     logs: List[str]
     created_at: str
     container_id: Optional[str] = None
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database on startup"""
+    await init_database()
+    print("Database initialized successfully")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Clean up database connections on shutdown"""
+    await close_database()
+    print("Database connections closed")
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
@@ -708,25 +727,39 @@ async def create_task(request: TaskRequest):
         "progress": "Creating container environment...",
         "logs": ["Task created", "Initializing autonomous learning environment"],
         "created_at": datetime.now().isoformat(),
-        "container_id": None
+        "container_id": None,
+        "is_active": True
     }
     
-    active_tasks[task_id] = task_data
+    # Save task to database
+    db = await get_database()
+    await db.create_task(task_data)
     
     # Start the autonomous task in background
-    asyncio.create_task(run_autonomous_task(task_id, task_data))
+    asyncio.create_task(run_autonomous_task(task_id))
     
     return {"success": True, "task_id": task_id, "message": "Task created successfully"}
 
-async def run_autonomous_task(task_id: str, task_data: Dict):
+async def run_autonomous_task(task_id: str):
     """Run the autonomous learning task in a Docker container"""
     container_id = None
     
+    # Get task data from database
+    db = await get_database()
+    task = await db.get_task(task_id)
+    if not task:
+        print(f"Task {task_id} not found in database")
+        return
+    
     try:
         # Update status to running
-        task_data["status"] = "running"
-        task_data["progress"] = "Building Docker container..."
-        task_data["logs"].append("Creating isolated development environment")
+        logs = task.logs or []
+        logs.append("Creating isolated development environment")
+        await db.update_task(task_id, {
+            "status": "running",
+            "progress": "Building Docker container...",
+            "logs": logs
+        })
         
         # Build and run Claude Code container
         print("[TASK] Starting Claude Code environment...")
@@ -746,9 +779,13 @@ async def run_autonomous_task(task_id: str, task_data: Dict):
             if missing_files:
                 error_msg = f"Critical error: Missing required files: {', '.join(missing_files)}. Cannot proceed without proper Docker configuration."
                 print(f"[ERROR] {error_msg}")
-                task_data["status"] = "failed"
-                task_data["error"] = error_msg
-                task_data["logs"].append(f"Error: {error_msg}")
+                logs = task.logs or []
+                logs.append(f"Error: {error_msg}")
+                await db.update_task(task_id, {
+                    "status": "failed",
+                    "error": error_msg,
+                    "logs": logs
+                })
                 return
             
             # Check Docker availability
@@ -758,16 +795,14 @@ async def run_autonomous_task(task_id: str, task_data: Dict):
                 if docker_check.returncode != 0:
                     error_msg = "Critical error: Docker is not available or not running."
                     print(f"[ERROR] {error_msg}")
-                    task_data["status"] = "failed"
-                    task_data["error"] = error_msg
-                    task_data["logs"].append(f"Error: {error_msg}")
+                    await add_task_log(task_id, f"Error: {error_msg}")
+                    await update_task_status(task_id, "failed", error=error_msg)
                     return
             except (subprocess.TimeoutExpired, FileNotFoundError):
                 error_msg = "Critical error: Docker command not found or timeout."
                 print(f"[ERROR] {error_msg}")
-                task_data["status"] = "failed"
-                task_data["error"] = error_msg
-                task_data["logs"].append(f"Error: {error_msg}")
+                await add_task_log(task_id, f"Error: {error_msg}")
+                await update_task_status(task_id, "failed", error=error_msg)
                 return
             
             # Build the container with proper Claude Code support
@@ -782,8 +817,7 @@ async def run_autonomous_task(task_id: str, task_data: Dict):
             
             if build_process.returncode != 0:
                 print(f"[ERROR] Docker build failed: {build_process.stderr}")
-                task_data["status"] = "failed"
-                task_data["error"] = f"Container build failed: {build_process.stderr}"
+                await update_task_status(task_id, "failed", error=f"Container build failed: {build_process.stderr}")
                 return
             
             print("[TASK] Container built successfully, starting Claude Code...")
@@ -793,9 +827,8 @@ async def run_autonomous_task(task_id: str, task_data: Dict):
             if not api_key:
                 error_msg = "ANTHROPIC_API_KEY not found in server environment"
                 print(f"[ERROR] {error_msg}")
-                task_data["status"] = "failed"
-                task_data["error"] = error_msg
-                task_data["logs"].append(f"Error: {error_msg}")
+                await add_task_log(task_id, f"Error: {error_msg}")
+                await update_task_status(task_id, "failed", error=error_msg)
                 return
             
             print(f"[DEBUG] API key loaded: {api_key[:20]}...")
@@ -1049,11 +1082,15 @@ async def run_autonomous_task(task_id: str, task_data: Dict):
 @app.get("/api/tasks")
 async def get_all_tasks():
     """Get all active and recent completed tasks"""
+    db = await get_database()
+    
     # Get active tasks
-    active_task_list = list(active_tasks.values())
+    active_tasks = await db.get_active_tasks()
+    active_task_list = [task.to_dict() for task in active_tasks]
     
     # Get recent completed tasks (last 20)
-    recent_completed = task_history[-20:] if task_history else []
+    completed_tasks = await db.get_completed_tasks(limit=20)
+    recent_completed = [task.to_dict() for task in completed_tasks]
     
     # Mark tasks with their status for easier identification
     for task in active_task_list:
@@ -1066,83 +1103,101 @@ async def get_all_tasks():
     
     all_tasks = active_task_list + recent_completed
     
+    # Get total counts from database
+    stats = await db.get_task_statistics()
+    
     return {
         "success": True, 
         "tasks": all_tasks,
         "active_count": len(active_task_list),
         "completed_count": len(recent_completed),
-        "total_completed_in_history": len(task_history)
+        "total_completed_in_history": stats.get("completed_tasks", 0)
     }
 
 @app.get("/api/tasks/{task_id}")
 async def get_task(task_id: str):
     """Get details of a specific task with full logs if completed"""
-    # Check active tasks first
-    if task_id in active_tasks:
-        return {"success": True, "task": active_tasks[task_id], "is_active": True}
+    db = await get_database()
+    task = await db.get_task(task_id)
     
-    # Check completed tasks in history
-    for task in task_history:
-        if task["task_id"] == task_id:
-            # Include full logs for completed tasks
-            response_task = task.copy()
-            
-            # If we don't have full_logs in memory, try to read from file
-            if "full_logs" not in response_task:
-                log_file_path = os.path.join("task_logs", f"task_{task_id}.log")
-                if os.path.exists(log_file_path):
-                    try:
-                        with open(log_file_path, 'r', encoding='utf-8') as f:
-                            response_task["full_logs"] = f.read()
-                    except Exception as e:
-                        response_task["full_logs_error"] = f"Could not read log file: {str(e)}"
-            
-            return {
-                "success": True, 
-                "task": response_task, 
-                "is_active": False,
-                "is_completed": True
-            }
+    if not task:
+        return {"success": False, "message": "Task not found"}
     
-    return {"success": False, "message": "Task not found"}
+    response_task = task.to_dict()
+    
+    # If we don't have full_logs in memory, try to read from file
+    if not response_task.get("full_logs") and response_task.get("log_file"):
+        log_file_path = response_task["log_file"]
+        if os.path.exists(log_file_path):
+            try:
+                with open(log_file_path, 'r', encoding='utf-8') as f:
+                    response_task["full_logs"] = f.read()
+            except Exception as e:
+                response_task["full_logs_error"] = f"Could not read log file: {str(e)}"
+    
+    return {
+        "success": True, 
+        "task": response_task, 
+        "is_active": task.is_active,
+        "is_completed": not task.is_active
+    }
 
 @app.post("/api/tasks/{task_id}/stop")
 async def stop_task(task_id: str):
     """Stop a running task"""
-    if task_id not in active_tasks:
+    db = await get_database()
+    task = await db.get_task(task_id)
+    
+    if not task:
         return {"success": False, "message": "Task not found"}
     
-    task_data = active_tasks[task_id]
-    
     # Stop the Docker container if it exists
-    if task_data.get("container_id"):
+    if task.container_id:
         try:
-            subprocess.run(['docker', 'stop', task_data["container_id"]], 
+            subprocess.run(['docker', 'stop', task.container_id], 
                          capture_output=True, timeout=10)
-            task_data["logs"].append("Docker container stopped")
+            await add_task_log(task_id, "Docker container stopped")
         except Exception as e:
-            task_data["logs"].append(f"Error stopping container: {e}")
+            await add_task_log(task_id, f"Error stopping container: {e}")
     
-    task_data["status"] = "stopped"
-    task_data["progress"] = "Task stopped by user"
-    task_data["logs"].append("Task stopped by user")
+    await add_task_log(task_id, "Task stopped by user")
+    await update_task_status(task_id, "stopped", "Task stopped by user")
     
     return {"success": True, "message": "Task stopped"}
 
 @app.get("/api/tasks/{task_id}/logs")
 async def get_task_logs(task_id: str):
     """Get the full log file for a specific task"""
+    db = await get_database()
+    task = await db.get_task(task_id)
+    
+    if not task:
+        return {"success": False, "message": "Task not found"}
+    
+    # First try to get from database
+    if task.full_logs:
+        return {"success": True, "logs": task.full_logs, "source": "database"}
+    
+    # Fall back to log file
+    if task.log_file and os.path.exists(task.log_file):
+        try:
+            with open(task.log_file, 'r', encoding='utf-8') as f:
+                logs = f.read()
+            return {"success": True, "logs": logs, "file_path": task.log_file, "source": "file"}
+        except Exception as e:
+            return {"success": False, "message": f"Error reading log file: {str(e)}"}
+    
+    # Try default log file path
     log_file_path = os.path.join("task_logs", f"task_{task_id}.log")
+    if os.path.exists(log_file_path):
+        try:
+            with open(log_file_path, 'r', encoding='utf-8') as f:
+                logs = f.read()
+            return {"success": True, "logs": logs, "file_path": log_file_path, "source": "default_file"}
+        except Exception as e:
+            return {"success": False, "message": f"Error reading log file: {str(e)}"}
     
-    if not os.path.exists(log_file_path):
-        return {"success": False, "message": "Log file not found"}
-    
-    try:
-        with open(log_file_path, 'r', encoding='utf-8') as f:
-            logs = f.read()
-        return {"success": True, "logs": logs, "file_path": log_file_path}
-    except Exception as e:
-        return {"success": False, "message": f"Error reading log file: {str(e)}"}
+    return {"success": False, "message": "Log file not found"}
 
 @app.get("/health")
 async def health_check():
