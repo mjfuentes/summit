@@ -247,6 +247,12 @@ REGARDLESS of what the task asks for, you MUST ALWAYS finish by committing and p
 - ALWAYS push to git even for configuration tasks
 - Git workflow is MANDATORY for EVERY task, no exceptions
 
+**CONTAINER ISOLATION REQUIREMENTS:**
+- ALL file operations must happen inside the container at /workspace/repo
+- NO local host files should ever be modified outside the container
+- Knowledge base updates must be contained within the repository structure
+- All code changes must be committed to the git repository for persistence
+
 **CODING STANDARDS:**
 - Commit messages must be single line only (no multi-line commits)
 - Never use git commit --no-verify - all commits must pass pre-commit hooks
