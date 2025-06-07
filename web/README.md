@@ -1,4 +1,4 @@
-# Summit AI Web Server
+# summit.ai Web Server
 
 ## Quick Start
 
@@ -33,7 +33,7 @@ python3 server.py
 
 ## Access Points
 
-Once started, access Summit through:
+Once started, access summit.ai through:
 
 - **Web Interface:** http://localhost:8000
 - **API Documentation:** http://localhost:8000/docs  

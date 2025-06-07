@@ -5,6 +5,8 @@
 Summit Web API - FastAPI server that exposes Summit's capabilities via REST endpoints
 """
 
+from summit import handle_call_tool
+from config import setup_environment
 import os
 import sys
 from typing import Any, Dict, Optional
@@ -19,16 +21,14 @@ from pydantic import BaseModel
 # Add the current directory to the path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from config import setup_environment
-from summit import handle_call_tool
 
 # Set up environment variables
 setup_environment()
 
 # Initialize FastAPI app
 app = FastAPI(
-    title="Summit AI API",
-    description="REST API for Summit AI Advisor with self-modification capabilities",
+    title="summit.ai API",
+    description="REST API for summit.ai with self-modification capabilities",
     version="1.0.0",
 )
 
@@ -117,18 +117,18 @@ async def root():
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Summit AI Advisor</title>
+    <title>summit.ai</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
+        body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             color: #333;
         }
-        .container { 
-            max-width: 1200px; 
-            margin: 0 auto; 
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
             padding: 20px;
         }
         .header {
@@ -251,7 +251,7 @@ async def root():
 <body>
     <div class="container">
         <div class="header">
-            <h1>Summit AI Advisor</h1>
+            <h1>summit.ai</h1>
             <p>Your autonomous AI companion with self-modification capabilities</p>
         </div>
 
@@ -389,11 +389,11 @@ async def root():
                     'Content-Type': 'application/json',
                 }
             };
-            
+
             if (data) {
                 options.body = JSON.stringify(data);
             }
-            
+
             const response = await fetch(endpoint, options);
             return await response.json();
         }
@@ -421,7 +421,7 @@ async def root():
                     const uptime = uptimeMatch ? Math.round(parseInt(uptimeMatch.split('Uptime: ')[1].split('s')[0]) / 60) : 0;
                     document.getElementById('uptime').textContent = uptime;
                 }
-                
+
                 const knowledgeResult = await makeRequest('/api/insights');
                 if (knowledgeResult.success) {
                     const lines = knowledgeResult.data.split('\\n');
@@ -429,7 +429,7 @@ async def root():
                     const items = itemsMatch ? itemsMatch.split(': ')[1] : '0';
                     document.getElementById('knowledge-items').textContent = items;
                 }
-                
+
                 const costResult = await makeRequest('/api/cost-report');
                 if (costResult.success) {
                     const lines = costResult.data.split('\\n');
@@ -450,15 +450,15 @@ async def root():
                 alert('Please enter a question');
                 return;
             }
-            
+
             showLoading('advice-response');
-            
+
             try {
                 const result = await makeRequest('/api/advice', {
                     question: question,
                     context: document.getElementById('advice-context').value || null
                 });
-                
+
                 showResponse('advice-response', result.data, !result.success);
             } catch (error) {
                 showResponse('advice-response', `Error: ${error.message}`, true);
@@ -471,16 +471,16 @@ async def root():
                 alert('Please enter content to share');
                 return;
             }
-            
+
             showLoading('share-response');
-            
+
             try {
                 const result = await makeRequest('/api/share', {
                     content: content,
                     category: document.getElementById('share-category').value,
                     context: document.getElementById('share-context').value || null
                 });
-                
+
                 showResponse('share-response', result.data, !result.success);
                 if (result.success) {
                     document.getElementById('share-content').value = '';
@@ -498,15 +498,15 @@ async def root():
                 alert('Please enter a search query');
                 return;
             }
-            
+
             showLoading('learn-response');
-            
+
             try {
                 const result = await makeRequest('/api/learn', {
                     query: query,
                     focus: document.getElementById('learn-focus').value || null
                 });
-                
+
                 showResponse('learn-response', result.data, !result.success);
             } catch (error) {
                 showResponse('learn-response', `Error: ${error.message}`, true);
@@ -515,12 +515,12 @@ async def root():
 
         async function getAnalytics() {
             showLoading('analytics-response');
-            
+
             try {
                 const result = await makeRequest('/api/analytics', {
                     include_suggestions: true
                 });
-                
+
                 showResponse('analytics-response', result.data, !result.success);
             } catch (error) {
                 showResponse('analytics-response', `Error: ${error.message}`, true);
@@ -529,10 +529,10 @@ async def root():
 
         async function getInsights() {
             showLoading('analytics-response');
-            
+
             try {
                 const result = await makeRequest('/api/insights');
-                
+
                 showResponse('analytics-response', result.data, !result.success);
             } catch (error) {
                 showResponse('analytics-response', `Error: ${error.message}`, true);
@@ -546,14 +546,14 @@ async def root():
                 alert('Please enter a SoundCloud access token');
                 return;
             }
-            
+
             showLoading('soundcloud-config-response');
-            
+
             try {
                 const result = await makeRequest('/api/soundcloud/config', {
                     access_token: token
                 });
-                
+
                 showResponse('soundcloud-config-response', result.data, !result.success);
                 if (result.success) {
                     document.getElementById('soundcloud-token').value = '';
@@ -565,7 +565,7 @@ async def root():
 
         async function checkSoundCloudConfig() {
             showLoading('soundcloud-config-response');
-            
+
             try {
                 const result = await makeRequest('/api/soundcloud/config');
                 const status = result.data.configured ? 'SoundCloud is configured and ready' : 'SoundCloud token not configured';
@@ -581,15 +581,15 @@ async def root():
                 alert('Please enter a search query');
                 return;
             }
-            
+
             showLoading('music-results');
-            
+
             try {
                 const result = await makeRequest('/api/soundcloud/search', {
                     query: query,
                     limit: 10
                 });
-                
+
                 if (result.success && result.data.length > 0) {
                     displayMusicResults(result.data);
                 } else if (result.success && result.data.length === 0) {
@@ -606,7 +606,7 @@ async def root():
             const resultsDiv = document.getElementById('music-results');
             resultsDiv.style.display = 'block';
             resultsDiv.className = 'response';
-            
+
             let html = '<div style="max-height: 300px; overflow-y: auto;">';
             tracks.forEach(track => {
                 const duration = track.duration ? Math.floor(track.duration / 1000 / 60) + ':' + String(Math.floor(track.duration / 1000) % 60).padStart(2, '0') : 'Unknown';
@@ -624,16 +624,16 @@ async def root():
         async function playTrack(trackId, title, artist) {
             try {
                 const result = await makeRequest(`/api/soundcloud/stream/${trackId}`);
-                
+
                 if (result.success && result.data.stream_url) {
                     const audioPlayer = document.getElementById('audio-player');
                     const trackInfo = document.getElementById('current-track-info');
                     const playerDiv = document.getElementById('music-player');
-                    
+
                     audioPlayer.src = result.data.stream_url;
                     trackInfo.textContent = `Now playing: ${title} by ${artist}`;
                     playerDiv.style.display = 'block';
-                    
+
                     audioPlayer.play().catch(error => {
                         console.error('Error playing audio:', error);
                         alert('Unable to play track. The stream may not be available.');

@@ -18,7 +18,7 @@ RUN pip3 install anthropic requests fastapi uvicorn
 WORKDIR /workspace
 
 # Setup git configuration
-RUN git config --global user.name "Summit AI" && \
+RUN git config --global user.name "summit.ai" && \
     git config --global user.email "summit@ai.dev"
 
 # Copy task startup script

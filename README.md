@@ -1,10 +1,10 @@
-# Summit: The Learning AI System
+# summit.ai
 
 [![CI/CD Pipeline](https://github.com/mjfuentes/summit/actions/workflows/summit-autodeploy.yml/badge.svg)](https://github.com/mjfuentes/summit/actions)
 [![Coverage](https://img.shields.io/badge/coverage-71.9%25-brightgreen)](https://github.com/mjfuentes/summit)
 [![Code Quality](https://img.shields.io/badge/code%20quality-passing-brightgreen)](https://github.com/mjfuentes/summit)
 
-Summit is a learning AI system that can **learn to do anything you tell it to do** through autonomous self-modification and iterative improvement. When Summit doesn't know how to perform a task, it learns how to do it by modifying its own code, testing the changes, and validating the results.
+summit.ai is a learning AI system that can **learn to do anything you tell it to do** through autonomous self-modification and iterative improvement. When summit.ai doesn't know how to perform a task, it learns how to do it by modifying its own code, testing the changes, and validating the results.
 
 ## Quick Start
 
@@ -33,7 +33,7 @@ summit_advice "Best practices for database optimization"
 
 ## CI/CD Pipeline
 
-Summit features a robust CI/CD pipeline that ensures code quality and reliability:
+summit.ai features a robust CI/CD pipeline that ensures code quality and reliability:
 
 ### Automated Quality Checks
 - **Test Coverage**: Minimum 70% coverage required (currently 71.9%)
@@ -116,7 +116,7 @@ summit/
 ## Development Standards
 
 ### Mandatory Development Process
-Summit enforces a strict 5-phase development workflow:
+summit.ai enforces a strict 5-phase development workflow:
 
 1. **Analysis Phase**: Understand requirements and examine codebase
 2. **Implementation Phase**: Write clean, tested code
@@ -245,4 +245,4 @@ This project is proprietary software. All rights reserved.
 
 ---
 
-**Summit doesn't just answer questions - it learns to do whatever you need, permanently expanding its capabilities to serve you better.** 
+**summit.ai doesn't just answer questions - it learns to do whatever you need, permanently expanding its capabilities to serve you better.** 
