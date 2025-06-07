@@ -427,6 +427,10 @@ class AgentGitWrapper:
 
         owner, repo = self._get_repo_info()
 
+        # Use provided body or generate a minimal fallback
+        if not body:
+            body = f"Automated PR from branch {branch}"
+
         headers = {
             "Authorization": f"Bearer {self.github_token}",
             "Accept": "application/vnd.github+json",
@@ -434,7 +438,7 @@ class AgentGitWrapper:
 
         data = {
             "title": title,
-            "body": body or f"Automated PR from branch {branch}",
+            "body": body,
             "head": branch,
             "base": "main",
         }

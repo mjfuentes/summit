@@ -205,3 +205,39 @@ Before making any commit, ALWAYS verify:
 - If agent changes break Docker builds, CI/CD, or any existing functionality - agent must fix it
 - No partial fixes or "good enough" solutions when agent breaks working functionality
 - Main branch represents the working baseline - agent changes must maintain or improve that standard
+
+## MANDATORY PR DESCRIPTION TEMPLATE USAGE
+- ALWAYS use the PR_TEMPLATE environment variable when creating PRs
+- The template contains placeholders that MUST be filled with actual context:
+  - {title}: Descriptive title of the work (e.g., "Agent Development Workflow")
+  - {branch}: Current branch name
+  - {commit_sha}: Short commit SHA (7 characters)
+  - {timestamp}: ISO timestamp of creation
+  - {summary}: Clear description of what was accomplished
+  - {changes}: Bulleted list of specific changes made
+  - {files_modified}: List of files that were changed
+  - {quality_assurance}: Description of testing and quality checks performed
+  - {review_process}: Information about review requirements and auto-merge status
+- Example usage:
+  ```python
+  import os
+  from datetime import datetime
+  
+  template = os.environ.get('PR_TEMPLATE', '')
+  description = template.format(
+      title="Agent Development Workflow",
+      branch=current_branch,
+      commit_sha=commit_sha[:7],
+      timestamp=datetime.utcnow().isoformat() + 'Z',
+      summary="Implemented JWT authentication system with comprehensive testing",
+      changes="- Added JWT token generation and validation\n- Created authentication middleware\n- Added login/logout endpoints",
+      files_modified="- `src/auth.py`\n- `src/middleware.py`\n- `tests/test_auth.py`",
+      quality_assurance="All tests passing with >70% coverage. Code formatting and linting completed. Professional development standards enforced.",
+      review_process="This PR follows Summit's quality-first approach with automated quality gates. Will auto-merge upon successful CI completion."
+  )
+  
+  create_pr("Add JWT authentication", "Feature: JWT Authentication System", description)
+  ```
+- NEVER create PRs without using the template
+- ALWAYS provide meaningful content for each placeholder
+- Keep descriptions under 65,536 characters (GitHub limit)
