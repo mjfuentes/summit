@@ -144,50 +144,115 @@ async def shutdown_event():
     print("Database connections closed")
 
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/")
 async def root():
+    import os
+
+    from fastapi import Response
+
+    # Try to read the external HTML file first
+    html_file_path = os.path.join(
+        os.path.dirname(__file__), "..", "templates", "index.html"
+    )
+
+    if os.path.exists(html_file_path):
+        try:
+            with open(html_file_path, "r", encoding="utf-8") as f:
+                external_html = f.read()
+
+            # Check if external HTML has the required functionality
+            if (
+                "createTask()" in external_html
+                and "api/tasks" in external_html
+            ):
+                html_content = external_html
+            else:
+                # External HTML lacks functionality, create hybrid with Y2K styling but full features
+                print(
+                    "External HTML lacks functionality, creating hybrid version..."
+                )
+                html_content = create_hybrid_html()
+        except Exception as e:
+            print(f"Error reading HTML file: {e}")
+            # Fallback to embedded HTML
+            html_content = create_hybrid_html()
+    else:
+        # External file doesn't exist, use embedded HTML with all features
+        html_content = create_hybrid_html()
+
+    # Create response with cache-busting headers
+    response = Response(
+        content=html_content,
+        media_type="text/html",
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+    return response
+
+
+def create_hybrid_html():
+    """Create HTML with Y2K styling but full Summit functionality"""
     return """
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Summit Autonomous AI</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEXUS AI  Y2K AUTONOMOUS INTELLIGENCE </title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
         body { 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; 
+            font-family: 'Courier New', 'Arial Black', monospace; 
             margin: 0; 
-            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%); 
+            background: linear-gradient(45deg, #ff00ff, #00ffff, #ffff00, #ff00ff);
+            background-size: 400% 400%;
+            animation: gradientShift 3s ease infinite;
             min-height: 100vh; 
-            color: #1f2937;
+            color: #000;
+            overflow-x: hidden;
+        }
+        
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
         }
         
         .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
         
         .header { 
             text-align: center; 
-            color: white; 
+            color: #000; 
             margin-bottom: 40px; 
             padding: 30px 0;
+            background: rgba(255, 255, 255, 0.1);
+            border: 3px solid #ff00ff;
+            border-radius: 20px;
+            box-shadow: 0 0 20px #00ffff;
         }
         .header h1 { 
             font-size: 3.5rem; 
             margin: 0; 
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3); 
-            font-weight: 700;
-            background: linear-gradient(45deg, #ffffff, #f1f5f9);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            text-shadow: 3px 3px 0px #ff00ff, 6px 6px 0px #00ffff; 
+            font-weight: 900;
+            color: #ffff00;
+            text-transform: uppercase;
+            letter-spacing: 3px;
         }
         .header p { 
             font-size: 1.3rem; 
-            opacity: 0.95; 
             margin: 15px 0; 
-            font-weight: 300;
+            font-weight: 700;
             max-width: 600px;
             margin-left: auto;
             margin-right: auto;
+            color: #000;
+            text-shadow: 1px 1px 0px #fff;
         }
         
         .voice-input { 
@@ -228,24 +293,28 @@ async def root():
         @media (max-width: 768px) { .main-grid { grid-template-columns: 1fr; gap: 20px; } }
         
         .card { 
-            background: rgba(255, 255, 255, 0.95); 
+            background: rgba(255, 255, 255, 0.9); 
             padding: 30px; 
             border-radius: 20px; 
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1); 
+            box-shadow: 0 0 30px #ff00ff, inset 0 0 30px rgba(0, 255, 255, 0.2); 
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border: 3px solid #00ffff;
+            transition: all 0.3s ease;
         }
         .card:hover { 
-            transform: translateY(-5px); 
-            box-shadow: 0 25px 50px rgba(0,0,0,0.15); 
+            transform: translateY(-5px) scale(1.02); 
+            box-shadow: 0 0 50px #ffff00, inset 0 0 50px rgba(255, 0, 255, 0.3); 
+            border-color: #ff00ff;
         }
         .card h2 { 
-            color: #1f2937; 
+            color: #ff00ff; 
             margin-top: 0; 
             font-size: 1.75rem; 
-            font-weight: 600; 
+            font-weight: 900; 
             margin-bottom: 20px;
+            text-transform: uppercase;
+            text-shadow: 2px 2px 0px #00ffff;
+            letter-spacing: 2px;
         }
         
         .task-form textarea { 
@@ -267,21 +336,27 @@ async def root():
         }
         
         .btn { 
-            background: linear-gradient(135deg, #6366f1, #8b5cf6); 
-            color: white; 
+            background: linear-gradient(45deg, #ff00ff, #00ffff, #ffff00, #ff00ff); 
+            background-size: 300% 300%;
+            animation: gradientShift 2s ease infinite;
+            color: #000; 
             padding: 16px 32px; 
-            border: none; 
+            border: 3px solid #000; 
             border-radius: 12px; 
             cursor: pointer; 
             font-size: 16px; 
-            font-weight: 600; 
+            font-weight: 900; 
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
-            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+            box-shadow: 0 0 20px #ff00ff;
             width: 100%;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-shadow: 1px 1px 0px #fff;
         }
         .btn:hover { 
-            transform: translateY(-2px); 
-            box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4); 
+            transform: translateY(-2px) scale(1.05); 
+            box-shadow: 0 0 30px #00ffff; 
+            border-color: #ff00ff;
         }
         .btn:disabled { 
             opacity: 0.6; 
@@ -436,35 +511,35 @@ async def root():
 <body>
     <div class="container">
         <div class="header">
-            <h1>Summit Autonomous AI</h1>
-            <p>Give me a coding task and I'll complete it autonomously using Claude Code in a secure container</p>
+            <h1> NEXUS AI </h1>
+            <p>YO! NEXUS AI is the DOPEST autonomous intelligence that learns NEW SKILLS and codes itself UP to handle WHATEVER you throw at it! This ain't your basic chatbot - we're talking NEXT LEVEL AI! </p>
         </div>
         
         <div id="connection-status" class="connection-status disconnected">Connecting...</div>
         
         <div class="main-grid">
             <div class="card">
-                <h2>Create Learning Task</h2>
+                <h2> CREATE TASK </h2>
                 <div class="task-form">
                     <div class="voice-input">
-                        <button class="voice-btn" id="voice-btn" onclick="toggleVoiceInput()">MIC</button>
-                        <span class="voice-status" id="voice-status">Click to speak</span>
+                        <button class="voice-btn" id="voice-btn" onclick="toggleVoiceInput()"></button>
+                        <span class="voice-status" id="voice-status">SPEAK TO THE AI!</span>
                     </div>
                     <textarea id="task-description" placeholder="What are we building today?"></textarea>
                     
                     <!-- All backend configuration is now hardcoded -->
                     
-                    <button class="btn" onclick="createTask()" id="create-btn">Start Autonomous Learning</button>
+                    <button class="btn" onclick="createTask()" id="create-btn"> START AUTONOMOUS LEARNING </button>
                 </div>
             </div>
             
             <div class="card">
-                <h2>Active Tasks</h2>
+                <h2> ACTIVE TASKS </h2>
                 <div id="active-tasks">
                     <div class="empty-state">
                         <div style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></div>
-                        <p>No active tasks</p>
-                        <p style="font-size: 14px; margin-top: 8px;">Create a task to get started</p>
+                        <p>NO ACTIVE TASKS</p>
+                        <p style="font-size: 14px; margin-top: 8px;">CREATE A TASK TO GET THIS PARTY STARTED! </p>
                     </div>
                 </div>
             </div>
@@ -930,12 +1005,13 @@ async def create_task(request: TaskRequest):
     task_id = str(uuid.uuid4())
 
     # Hardcode all the backend configuration
+    feature_branch = f"feature/task-{task_id}"
     task_data = {
         "task_id": task_id,
         "task_description": request.task_description,
         "repository_url": "https://github.com/mjfuentes/summit.git",  # Hardcoded
         "github_token": "***REMOVED***",
-        "target_branch": "main",  # Hardcoded
+        "target_branch": feature_branch,  # Use feature branch for proper PR workflow
         "timeout_minutes": 15,  # Hardcoded reasonable timeout
         "save_word": "SUMMIT_TASK_COMPLETE",  # Hardcoded
         "status": "initializing",
@@ -1038,17 +1114,41 @@ async def run_autonomous_task(task_id: str):
                 await update_task_status(task_id, "failed", error=error_msg)
                 return
 
-            # Build the container with proper Claude Code support
-            build_cmd = (
-                f"docker build -f {dockerfile_path} -t claude-code-task ."
-            )
-            build_process = subprocess.run(
-                build_cmd,
-                shell=True,
-                capture_output=True,
-                text=True,
-                timeout=600,  # 10 minute timeout for build
-            )
+            # Copy requirements.txt to web directory for build context
+            requirements_src = "../requirements.txt"
+            requirements_dest = "requirements.txt"
+
+            if os.path.exists(requirements_src):
+                import shutil
+
+                shutil.copy2(requirements_src, requirements_dest)
+                print("[TASK] Copied requirements.txt to build context")
+            else:
+                error_msg = "Critical error: requirements.txt not found in root directory"
+                print(f"[ERROR] {error_msg}")
+                await add_task_log(task_id, f"Error: {error_msg}")
+                await update_task_status(task_id, "failed", error=error_msg)
+                return
+
+            try:
+                # Build the container with proper Claude Code support
+                build_cmd = (
+                    f"docker build -f {dockerfile_path} -t claude-code-task ."
+                )
+                build_process = subprocess.run(
+                    build_cmd,
+                    shell=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=600,  # 10 minute timeout for build
+                )
+            finally:
+                # Clean up copied requirements.txt
+                if os.path.exists(requirements_dest):
+                    os.remove(requirements_dest)
+                    print(
+                        "[TASK] Cleaned up requirements.txt from build context"
+                    )
 
             if build_process.returncode != 0:
                 print(f"[ERROR] Docker build failed: {build_process.stderr}")
@@ -1338,7 +1438,7 @@ The PR will auto-merge upon successful CI completion and positive reviews.
                                             owner=owner,
                                             repo=repo,
                                             title=pr_title,
-                                            head=task.target_branch,
+                                            head=feature_branch,
                                             base="main",
                                             body=pr_body,
                                         )
@@ -1879,17 +1979,15 @@ async def retrigger_all_failed_tasks():
     Retrigger all failed tasks at once.
     Useful for batch recovery after fixing infrastructure issues.
     """
+    from sqlalchemy import delete, select
+
     from database import Task  # Import Task model for the query
 
     db = await get_database()
 
     try:
         # Get all tasks with failed status
-        from database import Task
-
         async with db.get_session() as session:
-            from sqlalchemy import select
-
             result = await session.execute(
                 select(Task).where(
                     Task.status.in_(["failed", "stopped", "timeout"])
@@ -1908,9 +2006,12 @@ async def retrigger_all_failed_tasks():
         retriggered_tasks = []
         errors = []
 
+        # Prepare all new tasks first (without database operations)
+        new_tasks_to_create = []
+        tasks_to_delete = []
+
         for failed_task in failed_tasks:
             try:
-                # Create new task for each failed task
                 new_task_id = str(uuid.uuid4())
 
                 new_task_data = {
@@ -1933,32 +2034,74 @@ async def retrigger_all_failed_tasks():
                     "is_active": True,
                 }
 
-                # Create the new task
-                new_task = await db.create_task(new_task_data)
-
-                # Start the task
-                asyncio.create_task(run_autonomous_task(new_task_id))
-
-                # Delete the original failed task to avoid duplicates
-                delete_success = await db.delete_task(failed_task.task_id)
-
-                retriggered_tasks.append(
-                    {
-                        "original_task_id": failed_task.task_id,
-                        "new_task_id": new_task_id,
-                        "description": (
-                            failed_task.task_description[:100] + "..."
-                            if len(failed_task.task_description) > 100
-                            else failed_task.task_description
-                        ),
-                        "original_deleted": delete_success,
-                    }
+                new_tasks_to_create.append(
+                    (new_task_id, new_task_data, failed_task)
                 )
+                tasks_to_delete.append(failed_task.task_id)
 
             except Exception as e:
                 errors.append(
                     {"task_id": failed_task.task_id, "error": str(e)}
                 )
+
+        # Batch create all new tasks in a single session
+        async with db.get_session() as session:
+            try:
+                for (
+                    new_task_id,
+                    new_task_data,
+                    failed_task,
+                ) in new_tasks_to_create:
+                    try:
+                        # Create new task
+                        new_task = Task(**new_task_data)
+                        session.add(new_task)
+
+                        retriggered_tasks.append(
+                            {
+                                "original_task_id": failed_task.task_id,
+                                "new_task_id": new_task_id,
+                                "description": (
+                                    failed_task.task_description[:100] + "..."
+                                    if len(failed_task.task_description) > 100
+                                    else failed_task.task_description
+                                ),
+                                "original_deleted": True,  # Will be deleted below
+                            }
+                        )
+
+                    except Exception as e:
+                        errors.append(
+                            {"task_id": failed_task.task_id, "error": str(e)}
+                        )
+
+                # Delete original failed tasks in the same session
+                if tasks_to_delete:
+                    await session.execute(
+                        delete(Task).where(Task.task_id.in_(tasks_to_delete))
+                    )
+
+                # Commit all changes at once
+                await session.commit()
+
+            except Exception as e:
+                await session.rollback()
+                # If batch operation fails, add error for all tasks
+                for _, _, failed_task in new_tasks_to_create:
+                    errors.append(
+                        {
+                            "task_id": failed_task.task_id,
+                            "error": f"Batch operation failed: {str(e)}",
+                        }
+                    )
+                retriggered_tasks = (
+                    []
+                )  # Clear since nothing was actually created
+
+        # Start all tasks after successful database operations
+        for new_task_id, _, _ in new_tasks_to_create:
+            if any(t["new_task_id"] == new_task_id for t in retriggered_tasks):
+                asyncio.create_task(run_autonomous_task(new_task_id))
 
         return {
             "success": True,
@@ -2022,6 +2165,122 @@ async def get_failed_tasks():
         return {
             "success": False,
             "message": f"Failed to get failed tasks: {str(e)}",
+        }
+
+
+@app.post("/api/tasks/cleanup")
+async def cleanup_old_tasks(days_old: int = 7):
+    """
+    Clean up old completed and failed tasks.
+    Default: Remove tasks older than 7 days that are inactive.
+    """
+    db = await get_database()
+
+    try:
+        from datetime import datetime, timedelta
+
+        from sqlalchemy import delete, select
+
+        from database import Task
+
+        # Get count of tasks to be deleted before deletion
+        cutoff_date = datetime.utcnow() - timedelta(days=days_old)
+
+        async with db.get_session() as session:
+            # Count tasks that will be deleted
+            count_result = await session.execute(
+                select(Task)
+                .where(Task.created_at < cutoff_date)
+                .where(Task.is_active.is_(False))
+            )
+            tasks_to_delete = count_result.scalars().all()
+
+            # Get some info about what we're deleting
+            deleted_info = []
+            for task in tasks_to_delete:
+                deleted_info.append(
+                    {
+                        "task_id": task.task_id[:8],
+                        "status": task.status,
+                        "created_at": (
+                            task.created_at.isoformat()
+                            if task.created_at
+                            else None
+                        ),
+                        "description": (
+                            task.task_description[:50] + "..."
+                            if len(task.task_description) > 50
+                            else task.task_description
+                        ),
+                    }
+                )
+
+            # Perform the deletion
+            delete_result = await session.execute(
+                delete(Task)
+                .where(Task.created_at < cutoff_date)
+                .where(Task.is_active.is_(False))
+            )
+
+            deleted_count = delete_result.rowcount
+
+        return {
+            "success": True,
+            "message": f"Cleaned up {deleted_count} old tasks (older than {days_old} days)",
+            "deleted_count": deleted_count,
+            "cutoff_date": cutoff_date.isoformat(),
+            "deleted_tasks": deleted_info[:10],  # Show first 10 for reference
+            "total_deleted_tasks": len(deleted_info),
+        }
+
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Failed to cleanup old tasks: {str(e)}",
+        }
+
+
+@app.delete("/api/tasks/{task_id}")
+async def delete_specific_task(task_id: str):
+    """
+    Delete a specific task by ID.
+    Use with caution - this permanently removes the task.
+    """
+    db = await get_database()
+
+    try:
+        # Get task info before deletion
+        task = await db.get_task(task_id)
+        if not task:
+            return {"success": False, "message": "Task not found"}
+
+        # Delete the task
+        delete_success = await db.delete_task(task_id)
+
+        if delete_success:
+            return {
+                "success": True,
+                "message": f"Task {task_id} deleted successfully",
+                "deleted_task": {
+                    "task_id": task.task_id,
+                    "status": task.status,
+                    "description": (
+                        task.task_description[:100] + "..."
+                        if len(task.task_description) > 100
+                        else task.task_description
+                    ),
+                },
+            }
+        else:
+            return {
+                "success": False,
+                "message": f"Failed to delete task {task_id}",
+            }
+
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Error deleting task: {str(e)}",
         }
 
 
