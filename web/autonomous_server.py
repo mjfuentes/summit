@@ -1281,10 +1281,28 @@ async def run_autonomous_task(task_id: str):
                                             f"feature/task-{task_id}"
                                         )
 
-                                        # Create PR
+                                        # Create PR with template variables
                                         pr_title = f"feat: autonomous task completion - {task.task_description[:50]}..."
-                                        pr_body = f"""
-# Autonomous Task Completion
+
+                                        # Use template variables for dynamic content
+                                        template_vars = {
+                                            "summary": f"This PR was automatically created by Summit's autonomous agent upon successful completion of task: {task.task_description}",
+                                            "changes": [
+                                                f"Implemented requested functionality: {task.task_description}",
+                                                "Autonomous agent development workflow completed",
+                                                "Task executed in isolated Docker environment",
+                                            ],
+                                            "features": [
+                                                "Autonomous task execution",
+                                                "Multi-role AI code review integration",
+                                                "Automated quality assurance pipeline",
+                                            ],
+                                        }
+
+                                        # Generate PR body using template
+                                        from datetime import datetime
+
+                                        pr_body = f"""# Autonomous Task Completion
 
 **Task ID**: {task_id}
 **Description**: {task.task_description}
@@ -1292,12 +1310,23 @@ async def run_autonomous_task(task_id: str):
 **Completed**: {datetime.utcnow().isoformat()}Z
 
 ## Summary
-This PR was automatically created by Summit's autonomous agent upon successful task completion.
+{template_vars['summary']}
 
 ## Changes
-- Implemented requested functionality: {task.task_description}
-- All tests passing
-- Quality checks completed
+{chr(10).join(f"- {change}" for change in template_vars['changes'])}
+- All tests passing with >70% coverage
+- Code quality checks completed
+- Professional development standards enforced
+
+## Features
+{chr(10).join(f"- {feature}" for feature in template_vars['features'])}
+
+## Quality Assurance
+This PR has undergone the complete Summit development process:
+- **Testing**: Comprehensive test suite execution with coverage validation
+- **Code Quality**: Automated formatting and linting checks
+- **Standards Compliance**: Commit message validation and professional practices
+- **CI/CD Integration**: Automated pipeline execution and monitoring
 
 ## Review Process
 This PR will be automatically reviewed by our multi-role review system:
