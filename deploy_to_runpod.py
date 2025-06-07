@@ -11,10 +11,10 @@ import sys
 import time
 from datetime import datetime
 
+from runpod_integration import RunPodDeploymentManager, create_runpod_config
+
 # Add src to path
 sys.path.insert(0, "src")
-
-from runpod_integration import RunPodDeploymentManager, create_runpod_config
 
 
 async def main():

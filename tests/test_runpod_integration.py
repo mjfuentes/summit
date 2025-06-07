@@ -14,8 +14,6 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
 from runpod_integration import (
     DeploymentInfo,
     RunPodClient,
@@ -23,6 +21,8 @@ from runpod_integration import (
     RunPodDeploymentManager,
     create_runpod_config,
 )
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 
 class TestRunPodConfig:

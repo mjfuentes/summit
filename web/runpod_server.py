@@ -21,15 +21,16 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-# Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
 from runpod_integration import (
     DeploymentInfo,
     RunPodConfig,
     RunPodDeploymentManager,
     create_runpod_config,
 )
+
+# Add src to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

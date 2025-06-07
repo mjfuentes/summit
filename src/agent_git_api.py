@@ -280,19 +280,21 @@ def save_work(message: str, files: list = None) -> bool:
 
     This function will:
 
-    1. Validate the commit message
+    1. Check if on main branch and create feature branch if needed
 
-    2. Run all tests (must pass)
+    2. Validate the commit message
 
-    3. Check coverage (must be >70%)
+    3. Run all tests (must pass)
 
-    4. Run linting
+    4. Check coverage (must be >70%)
 
-    5. Run pre-commit hooks
+    5. Run linting
 
-    6. Commit if everything passes
+    6. Run pre-commit hooks
 
-    7. Push to remote
+    7. Commit if everything passes
+
+    8. Push to feature branch (not main, since main is protected)
 
 
 
@@ -310,6 +312,30 @@ def save_work(message: str, files: list = None) -> bool:
 
     """
 
+    current_branch = agent_git.get_current_branch()
+
+    # If on main branch, create a feature branch first
+    if current_branch == "main":
+        import re
+        import time
+
+        # Create a safe branch name from commit message
+        safe_name = re.sub(r"[^a-zA-Z0-9\-]", "-", message.lower())
+        safe_name = re.sub(r"-+", "-", safe_name)  # Remove multiple dashes
+        safe_name = safe_name.strip("-")[
+            :50
+        ]  # Limit length and remove edge dashes
+
+        branch_name = f"feature/{safe_name}-{int(time.time())}"
+
+        print(
+            f" Main branch is protected. Creating feature branch: {branch_name}"
+        )
+        if not agent_git.create_feature_branch(branch_name):
+            print(" Failed to create feature branch")
+            return False
+
+    # Now commit to the current (feature) branch
     return agent_git.git.quick_commit_push(message, files)
 
 

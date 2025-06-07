@@ -5,9 +5,10 @@ import subprocess
 import sys
 from datetime import datetime
 
+from agent_git_api import create_pr
+
 # Add src to path
 sys.path.append("src")
-from agent_git_api import create_pr
 
 
 def main():

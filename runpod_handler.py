@@ -20,12 +20,13 @@ import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-# Add src to path
-sys.path.insert(0, "/workspace/src")
-
 from cost_tracker import CostTracker
 from database import DatabaseManager
 from summit import Summit
+
+# Add src to path
+sys.path.insert(0, "/workspace/src")
+
 
 # Configure logging
 logging.basicConfig(
@@ -166,7 +167,7 @@ async def summit_handler(job: Dict[str, Any]) -> Dict[str, Any]:
             2. Potential bugs or issues
             3. Performance improvements
             4. Best practices recommendations
-            
+
             Code:
             ```{language}
             {code}
