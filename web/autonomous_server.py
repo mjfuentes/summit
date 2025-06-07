@@ -13,7 +13,7 @@ import json
 import uuid
 from datetime import datetime
 from typing import Optional, Dict, List
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
@@ -53,7 +53,6 @@ app.add_middleware(
 # Global task management
 active_tasks: Dict[str, Dict] = {}
 task_history: List[Dict] = []
-connected_clients: List[WebSocket] = []
 
 # Log directory for task logs
 log_dir = "task_logs"
@@ -262,25 +261,7 @@ Examples:
             }
         }
         
-        function connectWebSocket() {
-            ws = new WebSocket(`ws://${window.location.host}/ws`);
-            
-            ws.onopen = function() {
-                document.getElementById('connection-status').textContent = 'Connected';
-                document.getElementById('connection-status').className = 'connection-status connected';
-            };
-            
-            ws.onmessage = function(event) {
-                const data = JSON.parse(event.data);
-                handleTaskUpdate(data);
-            };
-            
-            ws.onclose = function() {
-                document.getElementById('connection-status').textContent = 'Disconnected';
-                document.getElementById('connection-status').className = 'connection-status disconnected';
-                setTimeout(connectWebSocket, 3000);
-            };
-        }
+        // WebSocket removed - using simple HTTP polling instead
         
         function handleTaskUpdate(data) {
             if (data.type === 'task_update') {
@@ -463,56 +444,33 @@ Examples:
         }
         
         // Initialize
-        connectWebSocket();
+        document.getElementById('connection-status').textContent = 'Connected';
+        document.getElementById('connection-status').className = 'connection-status connected';
         initSpeechRecognition();
-        setInterval(() => {
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({type: 'get_tasks'}));
+        
+        // Simple HTTP polling instead of WebSocket
+        async function pollTasks() {
+            try {
+                const response = await fetch('/api/tasks');
+                const data = await response.json();
+                if (data.success) {
+                    updateActiveTasksList(data.tasks);
+                }
+            } catch (error) {
+                console.error('Polling error:', error);
             }
-        }, 5000);
+        }
+        
+        setInterval(pollTasks, 5000);
+        pollTasks(); // Initial load
     </script>
 </body>
 </html>
     """
 
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    await websocket.accept()
-    connected_clients.append(websocket)
-    
-    try:
-        # Send current tasks on connection
-        await websocket.send_text(json.dumps({
-            "type": "task_list",
-            "tasks": list(active_tasks.values())
-        }))
-        
-        while True:
-            data = await websocket.receive_text()
-            message = json.loads(data)
-            
-            if message.get("type") == "get_tasks":
-                await websocket.send_text(json.dumps({
-                    "type": "task_list", 
-                    "tasks": list(active_tasks.values())
-                }))
-                
-    except WebSocketDisconnect:
-        connected_clients.remove(websocket)
+# WebSocket endpoint removed - using simple HTTP polling instead
 
-async def broadcast_task_update(task_data):
-    """Broadcast task updates to all connected clients"""
-    message = json.dumps({"type": "task_update", "task": task_data})
-    disconnected = []
-    
-    for client in connected_clients:
-        try:
-            await client.send_text(message)
-        except:
-            disconnected.append(client)
-    
-    for client in disconnected:
-        connected_clients.remove(client)
+# Broadcast function removed - using simple HTTP polling instead
 
 @app.post("/api/tasks")
 async def create_task(request: TaskRequest):
@@ -538,8 +496,6 @@ async def create_task(request: TaskRequest):
     # Start the autonomous task in background
     asyncio.create_task(run_autonomous_task(task_id, task_data))
     
-    await broadcast_task_update(task_data)
-    
     return {"success": True, "task_id": task_id, "message": "Task created successfully"}
 
 async def run_autonomous_task(task_id: str, task_data: Dict):
@@ -551,7 +507,6 @@ async def run_autonomous_task(task_id: str, task_data: Dict):
         task_data["status"] = "running"
         task_data["progress"] = "Building Docker container..."
         task_data["logs"].append("Creating isolated development environment")
-        await broadcast_task_update(task_data)
         
         # Build and run Claude Code container
         print("[TASK] Starting Claude Code environment...")
@@ -627,7 +582,6 @@ async def run_autonomous_task(task_id: str, task_data: Dict):
             ]
             
             task_data["logs"].append("Starting Claude Code container...")
-            await broadcast_task_update(task_data)
             
             container_process = await asyncio.create_subprocess_exec(
                 *run_cmd,
@@ -641,7 +595,6 @@ async def run_autonomous_task(task_id: str, task_data: Dict):
             task_data["claude_code_url"] = f"http://localhost:{terminal_port}"
             task_data["logs"].append(f"Web terminal with Claude Code access: http://localhost:{terminal_port}")
             task_data["logs"].append("Claude Code CLI environment ready for interactive development")
-            await broadcast_task_update(task_data)
             
             # Get container ID (command runs in detached mode)
             container_id = f"claude-task-{task_id}"
@@ -669,7 +622,6 @@ async def run_autonomous_task(task_id: str, task_data: Dict):
             
             task_data["logs"].append("Container started successfully, monitoring Claude Code environment...")
             task_data["log_file"] = log_file_path
-            await broadcast_task_update(task_data)
             
             while True:
                 try:
@@ -745,19 +697,17 @@ async def run_autonomous_task(task_id: str, task_data: Dict):
                                         except Exception as e:
                                             print(f"[ERROR] Failed to write completion to log file: {e}")
                                         
-                                        await broadcast_task_update(task_data)
                                         return
                         
                         # Update if we added new logs
                         if new_logs_added:
-                            await broadcast_task_update(task_data)
+                            pass  # Task data updated in memory, will be available via HTTP polling
                     
                     # Wait before next check
                     await asyncio.sleep(3)
                     
                 except Exception as e:
                     task_data["logs"].append(f"Monitoring error: {str(e)}")
-                    await broadcast_task_update(task_data)
                     await asyncio.sleep(5)
             
             if task_data["status"] != "completed":
@@ -787,7 +737,7 @@ async def run_autonomous_task(task_id: str, task_data: Dict):
             except Exception as e:
                 print(f"[ERROR] Failed to write final log entry: {e}")
         
-        await broadcast_task_update(task_data)
+        # Task data updated in memory, available via HTTP polling
         
         # Ensure container cleanup
         if task_id in active_tasks:
@@ -801,6 +751,12 @@ async def run_autonomous_task(task_id: str, task_data: Dict):
                           capture_output=True)
         except:
             pass
+
+@app.get("/api/tasks")
+async def get_all_tasks():
+    """Get all active and recent tasks"""
+    all_tasks = list(active_tasks.values()) + task_history[-10:]  # Last 10 from history
+    return {"success": True, "tasks": all_tasks}
 
 @app.get("/api/tasks/{task_id}")
 async def get_task(task_id: str):
@@ -835,7 +791,6 @@ async def stop_task(task_id: str):
     task_data["status"] = "stopped"
     task_data["progress"] = "Task stopped by user"
     task_data["logs"].append("Task stopped by user")
-    await broadcast_task_update(task_data)
     
     return {"success": True, "message": "Task stopped"}
 
