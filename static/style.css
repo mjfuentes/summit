@@ -179,6 +179,95 @@ nav a:hover::before {
     opacity: 1;
 }
 
+.effects-toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    color: var(--primary);
+    font-weight: 700;
+    font-size: 1.1rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    font-family: 'Audiowide', 'Orbitron', monospace;
+}
+
+.toggle-switch {
+    position: relative;
+    width: 60px;
+    height: 30px;
+    appearance: none;
+    background: var(--bg-tertiary);
+    border: 2px solid var(--primary);
+    border-radius: 15px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.toggle-switch::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 22px;
+    height: 22px;
+    background: var(--primary);
+    border-radius: 50%;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 10px var(--primary);
+}
+
+.toggle-switch:checked {
+    background: var(--bling-gold);
+    border-color: var(--bling-gold);
+    box-shadow: 0 0 20px var(--bling-gold);
+}
+
+.toggle-switch:checked::before {
+    transform: translateX(30px);
+    background: var(--bg-primary);
+    box-shadow: 0 0 15px var(--bling-gold);
+}
+
+body.effects-disabled * {
+    animation: none !important;
+    transform: none !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+    background: var(--bg-primary) !important;
+    border: 1px solid var(--text-tertiary) !important;
+    filter: none !important;
+}
+
+body.effects-disabled {
+    background: var(--bg-primary) !important;
+    background-image: none !important;
+}
+
+body.effects-disabled header h1 {
+    color: var(--text-primary) !important;
+    font-family: Arial, sans-serif !important;
+}
+
+body.effects-disabled .hero h2 {
+    color: var(--text-primary) !important;
+    font-family: Arial, sans-serif !important;
+}
+
+body.effects-disabled .feature-card h3 {
+    color: var(--text-primary) !important;
+    font-family: Arial, sans-serif !important;
+}
+
+body.effects-disabled nav a {
+    background: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+}
+
+body.effects-disabled .cta-button {
+    background: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+}
+
 main {
     max-width: 1280px;
     margin: 0 auto;
