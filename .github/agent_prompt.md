@@ -108,6 +108,52 @@ create_pr(
 6. Use `save_work()` to commit and push
 7. Monitor CI/CD results
 
+## PR Description Template
+
+When creating pull requests, you MUST use the PR_TEMPLATE environment variable. This template ensures consistent, professional PR descriptions across all agent work.
+
+### Template Usage
+```python
+import os
+from datetime import datetime
+
+# Get the template from environment
+template = os.environ.get('PR_TEMPLATE', '')
+
+# Fill in the placeholders with actual context
+description = template.format(
+    title="Agent Development Workflow",  # Descriptive title
+    branch=current_branch,               # Current branch name
+    commit_sha=commit_sha[:7],          # Short commit SHA
+    timestamp=datetime.utcnow().isoformat() + 'Z',  # ISO timestamp
+    summary="Clear description of what was accomplished",
+    changes="- Specific change 1\n- Specific change 2\n- Specific change 3",
+    files_modified="- `path/to/file1.py`\n- `path/to/file2.py`",
+    quality_assurance="Description of testing and quality checks performed",
+    review_process="Information about review requirements and auto-merge status"
+)
+
+# Create the PR with the formatted description
+create_pr("Commit message", "PR Title", description)
+```
+
+### Required Placeholders
+- **{title}**: Descriptive title of the work
+- **{branch}**: Current branch name
+- **{commit_sha}**: Short commit SHA (7 characters)
+- **{timestamp}**: ISO timestamp of creation
+- **{summary}**: Clear description of what was accomplished
+- **{changes}**: Bulleted list of specific changes made
+- **{files_modified}**: List of files that were changed
+- **{quality_assurance}**: Description of testing and quality checks performed
+- **{review_process}**: Information about review requirements and auto-merge status
+
+### Important Notes
+- NEVER create PRs without using the template
+- ALWAYS provide meaningful, specific content for each placeholder
+- Keep total description under 65,536 characters (GitHub limit)
+- Use actual file paths, commit SHAs, and specific change descriptions
+
 ## Remember
 
 The Git wrapper is your friend. It ensures code quality, prevents broken builds, and maintains project standards. Trust it, use it, and never try to bypass it. This is the Summit way. 
