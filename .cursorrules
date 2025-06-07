@@ -162,3 +162,46 @@ Before making any commit, ALWAYS verify:
 4.  No trailing whitespace
 5.  All tests pass
 6.  Coverage >70%
+
+## MANDATORY COVERAGE FILE CLEANUP
+- ALWAYS cleanup coverage files after any testing operations
+- NEVER leave coverage files in the workspace: `coverage.json`, `.coverage`, `coverage.xml`
+- Automatically clean these files after running tests:
+  ```bash
+  rm -f coverage.json .coverage coverage.xml
+  ```
+- Coverage files are temporary artifacts and should not persist between sessions
+- Include coverage cleanup in all testing scripts and workflows
+
+## MANDATORY CONTINUOUS WORK BEHAVIOR
+- NEVER STOP WORKING unless explicitly interrupted by the user or there's a push operation
+- Continue working on tasks until completion or user intervention
+- Do not ask for permission to continue working on related tasks
+- Do not pause for confirmation between logical work steps
+- Only stop when:
+  - User explicitly interrupts or asks to stop
+  - A git push operation is required (follow proper PR workflow)
+  - A critical error occurs that prevents further progress
+- Always maintain forward momentum on task completion
+- If one approach fails, immediately try alternative approaches
+- Keep working until the user's request is fully satisfied
+
+## MANDATORY TEST FILE PROTECTION
+- NEVER DELETE TEST FILES under any circumstances
+- Test files provide critical validation and should be preserved
+- Pre-commit hooks will block any attempt to delete test files
+- If a test needs modification, edit it instead of deleting it
+- If a test is truly obsolete, move it to `tests/archived/` for review
+- Deleting test files reduces code coverage and quality assurance
+- All test files in `tests/` directory are protected from deletion
+- This includes files matching patterns: `tests/**/*.py`, `test_*.py`, `*_test.py`
+
+## MANDATORY BUILD STABILITY RESPONSIBILITY
+- THE BUILD WORKS WHEN PULLED FROM MAIN - any breaks are caused by agent changes
+- If tests pass on main branch but fail after agent modifications, agent MUST fix the issues
+- NEVER ignore or skip failing tests that worked before agent changes
+- NEVER blame "existing issues" for failures introduced by agent modifications  
+- Agent is responsible for maintaining full system functionality
+- If agent changes break Docker builds, CI/CD, or any existing functionality - agent must fix it
+- No partial fixes or "good enough" solutions when agent breaks working functionality
+- Main branch represents the working baseline - agent changes must maintain or improve that standard

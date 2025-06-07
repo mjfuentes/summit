@@ -155,6 +155,25 @@ class AgentGitWrapper:
         except Exception as e:
             print(f" Error checking coverage: {e}")
             return False
+        finally:
+            # Clean up coverage files per cursor rules
+            print("\n Cleaning up coverage files...")
+            try:
+                import os
+
+                coverage_files = [
+                    self.repo_root / "coverage.json",
+                    self.repo_root / ".coverage",
+                    self.repo_root / "coverage.xml",
+                ]
+                for coverage_file in coverage_files:
+                    if coverage_file.exists():
+                        os.remove(coverage_file)
+                        print(f" Removed {coverage_file.name}")
+            except Exception as cleanup_error:
+                print(
+                    f" Warning: Could not clean up coverage files: {cleanup_error}"
+                )
 
     def _run_linting(self) -> bool:
         """Run linting checks"""
@@ -402,8 +421,8 @@ class AgentGitWrapper:
             print(" Cannot create PR from main branch")
             return False
 
-        # Push firs
-        if not self.push(wait_for_ci=False):
+        # Push first
+        if not self.push():
             return False
 
         owner, repo = self._get_repo_info()
