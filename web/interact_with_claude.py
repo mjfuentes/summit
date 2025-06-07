@@ -195,7 +195,7 @@ Please analyze the current repository state and complete the requested task foll
         # Clean up temporary file
         try:
             os.unlink(prompt_file)
-        except:
+        except BaseException:
             pass
 
 

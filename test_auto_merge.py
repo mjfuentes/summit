@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from agent_git_api import create_pr
 import os
 import subprocess
 import sys
@@ -7,7 +8,6 @@ from datetime import datetime
 
 # Add src to path
 sys.path.append("src")
-from agent_git_api import create_pr
 
 
 def main():

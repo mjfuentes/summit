@@ -5,6 +5,7 @@ Deploy Summit AI to RunPod
 This script deploys Summit AI to RunPod infrastructure using your RTX 4090 deployment.
 """
 
+from runpod_integration import RunPodDeploymentManager, create_runpod_config
 import asyncio
 import os
 import sys
@@ -13,8 +14,6 @@ from datetime import datetime
 
 # Add src to path
 sys.path.insert(0, "src")
-
-from runpod_integration import RunPodDeploymentManager, create_runpod_config
 
 
 async def main():
