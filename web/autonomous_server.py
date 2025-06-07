@@ -4,6 +4,16 @@ Summit Autonomous Learning Server
 Advanced AI task management with container orchestration
 """
 
+from task_manager import (
+    add_task_log,
+    get_task_data,
+    mark_task_completed,
+    update_task_container_info,
+    update_task_log_file,
+    update_task_status,
+)
+from database import close_database, get_database, init_database
+from pr_reviewers import review_pr_with_multiple_roles
 import asyncio
 import json
 import os
@@ -38,7 +48,6 @@ except ImportError:
 
 # Add this import with the other imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-from pr_reviewers import review_pr_with_multiple_roles
 
 
 def kill_existing_server():
@@ -89,15 +98,6 @@ def bootstrap_dependencies():
 # Bootstrap will be called only when running the server directly
 
 # Import database functionality
-from database import close_database, get_database, init_database
-from task_manager import (
-    add_task_log,
-    get_task_data,
-    mark_task_completed,
-    update_task_container_info,
-    update_task_log_file,
-    update_task_status,
-)
 
 app = FastAPI(title="Summit Autonomous AI", version="2.0.0")
 
@@ -167,7 +167,8 @@ async def root():
             ):
                 html_content = external_html
             else:
-                # External HTML lacks functionality, create hybrid with Y2K styling but full features
+                # External HTML lacks functionality, create hybrid with Y2K
+                # styling but full features
                 print(
                     "External HTML lacks functionality, creating hybrid version..."
                 )
@@ -205,48 +206,48 @@ def create_hybrid_html():
     <title>NEXUS AI  Y2K AUTONOMOUS INTELLIGENCE </title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        body { 
-            font-family: 'Courier New', 'Arial Black', monospace; 
-            margin: 0; 
+
+        body {
+            font-family: 'Courier New', 'Arial Black', monospace;
+            margin: 0;
             background: linear-gradient(45deg, #ff00ff, #00ffff, #ffff00, #ff00ff);
             background-size: 400% 400%;
             animation: gradientShift 3s ease infinite;
-            min-height: 100vh; 
+            min-height: 100vh;
             color: #000;
             overflow-x: hidden;
         }
-        
+
         @keyframes gradientShift {
             0% { background-position: 0% 50%; }
             50% { background-position: 100% 50%; }
             100% { background-position: 0% 50%; }
         }
-        
+
         .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-        
-        .header { 
-            text-align: center; 
-            color: #000; 
-            margin-bottom: 40px; 
+
+        .header {
+            text-align: center;
+            color: #000;
+            margin-bottom: 40px;
             padding: 30px 0;
             background: rgba(255, 255, 255, 0.1);
             border: 3px solid #ff00ff;
             border-radius: 20px;
             box-shadow: 0 0 20px #00ffff;
         }
-        .header h1 { 
-            font-size: 3.5rem; 
-            margin: 0; 
-            text-shadow: 3px 3px 0px #ff00ff, 6px 6px 0px #00ffff; 
+        .header h1 {
+            font-size: 3.5rem;
+            margin: 0;
+            text-shadow: 3px 3px 0px #ff00ff, 6px 6px 0px #00ffff;
             font-weight: 900;
             color: #ffff00;
             text-transform: uppercase;
             letter-spacing: 3px;
         }
-        .header p { 
-            font-size: 1.3rem; 
-            margin: 15px 0; 
+        .header p {
+            font-size: 1.3rem;
+            margin: 15px 0;
             font-weight: 700;
             max-width: 600px;
             margin-left: auto;
@@ -254,222 +255,222 @@ def create_hybrid_html():
             color: #000;
             text-shadow: 1px 1px 0px #fff;
         }
-        
-        .voice-input { 
-            position: relative; 
-            margin: 15px 0; 
-            display: flex; 
-            align-items: center; 
+
+        .voice-input {
+            position: relative;
+            margin: 15px 0;
+            display: flex;
+            align-items: center;
             gap: 12px;
         }
-        .voice-btn { 
-            background: linear-gradient(135deg, #10b981, #059669); 
-            border: none; 
-            border-radius: 50%; 
-            width: 56px; 
-            height: 56px; 
-            color: white; 
-            font-size: 11px; 
+        .voice-btn {
+            background: linear-gradient(135deg, #10b981, #059669);
+            border: none;
+            border-radius: 50%;
+            width: 56px;
+            height: 56px;
+            color: white;
+            font-size: 11px;
             font-weight: 600;
-            cursor: pointer; 
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
         }
         .voice-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4); }
-        .voice-btn.recording { 
-            background: linear-gradient(135deg, #ef4444, #dc2626); 
-            animation: pulse 1s infinite; 
+        .voice-btn.recording {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            animation: pulse 1s infinite;
             box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
         }
         .voice-status { font-size: 14px; color: #6b7280; font-weight: 500; }
-        
+
         @keyframes pulse {
             0% { transform: scale(1); }
             50% { transform: scale(1.05); }
             100% { transform: scale(1); }
         }
-        
+
         .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px; }
         @media (max-width: 768px) { .main-grid { grid-template-columns: 1fr; gap: 20px; } }
-        
-        .card { 
-            background: rgba(255, 255, 255, 0.9); 
-            padding: 30px; 
-            border-radius: 20px; 
-            box-shadow: 0 0 30px #ff00ff, inset 0 0 30px rgba(0, 255, 255, 0.2); 
+
+        .card {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 0 30px #ff00ff, inset 0 0 30px rgba(0, 255, 255, 0.2);
             backdrop-filter: blur(10px);
             border: 3px solid #00ffff;
             transition: all 0.3s ease;
         }
-        .card:hover { 
-            transform: translateY(-5px) scale(1.02); 
-            box-shadow: 0 0 50px #ffff00, inset 0 0 50px rgba(255, 0, 255, 0.3); 
+        .card:hover {
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 0 50px #ffff00, inset 0 0 50px rgba(255, 0, 255, 0.3);
             border-color: #ff00ff;
         }
-        .card h2 { 
-            color: #ff00ff; 
-            margin-top: 0; 
-            font-size: 1.75rem; 
-            font-weight: 900; 
+        .card h2 {
+            color: #ff00ff;
+            margin-top: 0;
+            font-size: 1.75rem;
+            font-weight: 900;
             margin-bottom: 20px;
             text-transform: uppercase;
             text-shadow: 2px 2px 0px #00ffff;
             letter-spacing: 2px;
         }
-        
-        .task-form textarea { 
-            width: 100%; 
-            min-height: 140px; 
-            padding: 18px; 
-            border: 2px solid #e5e7eb; 
-            border-radius: 12px; 
-            font-size: 15px; 
-            resize: vertical; 
+
+        .task-form textarea {
+            width: 100%;
+            min-height: 140px;
+            padding: 18px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 15px;
+            resize: vertical;
             font-family: inherit;
             transition: border-color 0.3s ease, box-shadow 0.3s ease;
             line-height: 1.6;
         }
-        .task-form textarea:focus { 
-            outline: none; 
-            border-color: #6366f1; 
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1); 
+        .task-form textarea:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
         }
-        
-        .btn { 
-            background: linear-gradient(45deg, #ff00ff, #00ffff, #ffff00, #ff00ff); 
+
+        .btn {
+            background: linear-gradient(45deg, #ff00ff, #00ffff, #ffff00, #ff00ff);
             background-size: 300% 300%;
             animation: gradientShift 2s ease infinite;
-            color: #000; 
-            padding: 16px 32px; 
-            border: 3px solid #000; 
-            border-radius: 12px; 
-            cursor: pointer; 
-            font-size: 16px; 
-            font-weight: 900; 
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+            color: #000;
+            padding: 16px 32px;
+            border: 3px solid #000;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 900;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             box-shadow: 0 0 20px #ff00ff;
             width: 100%;
             text-transform: uppercase;
             letter-spacing: 1px;
             text-shadow: 1px 1px 0px #fff;
         }
-        .btn:hover { 
-            transform: translateY(-2px) scale(1.05); 
-            box-shadow: 0 0 30px #00ffff; 
+        .btn:hover {
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 0 30px #00ffff;
             border-color: #ff00ff;
         }
-        .btn:disabled { 
-            opacity: 0.6; 
-            cursor: not-allowed; 
-            transform: none; 
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
             box-shadow: none;
         }
-        
-        .task-item { 
-            background: linear-gradient(135deg, #f8fafc, #f1f5f9); 
-            padding: 20px; 
-            margin: 15px 0; 
-            border-radius: 12px; 
-            border-left: 4px solid #6366f1; 
-            cursor: pointer; 
+
+        .task-item {
+            background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 12px;
+            border-left: 4px solid #6366f1;
+            cursor: pointer;
             transition: all 0.3s ease;
             box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         }
-        .task-item:hover { 
-            transform: translateX(5px); 
-            box-shadow: 0 4px 16px rgba(0,0,0,0.1); 
+        .task-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
             background: linear-gradient(135deg, #ffffff, #f8fafc);
         }
-        
-        .task-status { 
-            display: inline-block; 
-            padding: 6px 14px; 
-            border-radius: 20px; 
-            font-size: 12px; 
-            font-weight: 600; 
-            text-transform: uppercase; 
+
+        .task-status {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
             letter-spacing: 0.5px;
         }
         .status-running { background: linear-gradient(135deg, #fbbf24, #f59e0b); color: white; }
         .status-completed { background: linear-gradient(135deg, #10b981, #059669); color: white; }
         .status-failed { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
-        
-        .logs { 
-            background: #0f172a; 
-            color: #10b981; 
-            padding: 20px; 
-            border-radius: 12px; 
-            font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace; 
-            font-size: 13px; 
-            max-height: 350px; 
-            overflow-y: auto; 
-            margin: 15px 0; 
+
+        .logs {
+            background: #0f172a;
+            color: #10b981;
+            padding: 20px;
+            border-radius: 12px;
+            font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
+            font-size: 13px;
+            max-height: 350px;
+            overflow-y: auto;
+            margin: 15px 0;
             border: 1px solid #1e293b;
             line-height: 1.5;
         }
-        
-        .progress-bar { 
-            background: #e5e7eb; 
-            height: 6px; 
-            border-radius: 3px; 
-            overflow: hidden; 
-            margin: 15px 0; 
+
+        .progress-bar {
+            background: #e5e7eb;
+            height: 6px;
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 15px 0;
         }
-        .progress-fill { 
-            background: linear-gradient(90deg, #6366f1, #8b5cf6); 
-            height: 100%; 
-            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); 
+        .progress-fill {
+            background: linear-gradient(90deg, #6366f1, #8b5cf6);
+            height: 100%;
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        
-        .connection-status { 
-            position: fixed; 
-            top: 20px; 
-            right: 20px; 
-            padding: 10px 18px; 
-            border-radius: 25px; 
-            font-size: 12px; 
-            font-weight: 600; 
+
+        .connection-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 18px;
+            border-radius: 25px;
+            font-size: 12px;
+            font-weight: 600;
             backdrop-filter: blur(10px);
             z-index: 1000;
         }
         .connected { background: rgba(16, 185, 129, 0.9); color: white; }
         .disconnected { background: rgba(239, 68, 68, 0.9); color: white; }
-        
-        .task-monitor { 
-            opacity: 0; 
-            transform: translateY(20px); 
-            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); 
+
+        .task-monitor {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
             pointer-events: none;
         }
-        .task-monitor.visible { 
-            opacity: 1; 
-            transform: translateY(0); 
+        .task-monitor.visible {
+            opacity: 1;
+            transform: translateY(0);
             pointer-events: auto;
         }
-        
-        .empty-state { 
-            text-align: center; 
-            color: #6b7280; 
-            padding: 40px 20px; 
+
+        .empty-state {
+            text-align: center;
+            color: #6b7280;
+            padding: 40px 20px;
             font-style: italic;
         }
         .empty-state i { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
-        
-        @keyframes fadeIn { 
-            from { opacity: 0; transform: translateY(10px); } 
-            to { opacity: 1; transform: translateY(0); } 
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         .loading { animation: pulse 1.5s infinite; }
-        
+
         /* Smooth scrolling */
         html { scroll-behavior: smooth; }
-        
+
         /* Custom scrollbar */
         .logs::-webkit-scrollbar { width: 6px; }
         .logs::-webkit-scrollbar-track { background: #1e293b; }
         .logs::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
         .logs::-webkit-scrollbar-thumb:hover { background: #64748b; }
-        
+
         .retrigger-btn {
             background: linear-gradient(135deg, #8b5cf6, #7c3aed);
             color: white;
@@ -492,7 +493,7 @@ def create_hybrid_html():
             cursor: not-allowed;
             transform: none;
         }
-        
+
         .batch-retrigger-section {
             background: rgba(139, 92, 246, 0.1);
             border: 2px solid rgba(139, 92, 246, 0.3);
@@ -501,7 +502,7 @@ def create_hybrid_html():
             margin: 20px 0;
             text-align: center;
         }
-        
+
         .failed-tasks-card {
             background: rgba(239, 68, 68, 0.1);
             border-left: 4px solid #ef4444;
@@ -514,9 +515,9 @@ def create_hybrid_html():
             <h1> NEXUS AI </h1>
             <p>YO! NEXUS AI is the DOPEST autonomous intelligence that learns NEW SKILLS and codes itself UP to handle WHATEVER you throw at it! This ain't your basic chatbot - we're talking NEXT LEVEL AI! </p>
         </div>
-        
+
         <div id="connection-status" class="connection-status disconnected">Connecting...</div>
-        
+
         <div class="main-grid">
             <div class="card">
                 <h2> CREATE TASK </h2>
@@ -526,13 +527,13 @@ def create_hybrid_html():
                         <span class="voice-status" id="voice-status">SPEAK TO THE AI!</span>
                     </div>
                     <textarea id="task-description" placeholder="What are we building today?"></textarea>
-                    
+
                     <!-- All backend configuration is now hardcoded -->
-                    
+
                     <button class="btn" onclick="createTask()" id="create-btn"> START AUTONOMOUS LEARNING </button>
                 </div>
             </div>
-            
+
             <div class="card">
                 <h2> ACTIVE TASKS </h2>
                 <div id="active-tasks">
@@ -544,7 +545,7 @@ def create_hybrid_html():
                 </div>
             </div>
         </div>
-        
+
         <!-- Failed Tasks Management Section -->
         <div class="card failed-tasks-card" id="failed-tasks-section" style="display: none;">
             <h2 style="color: #ef4444;">Failed Tasks Management</h2>
@@ -561,7 +562,7 @@ def create_hybrid_html():
                 </div>
             </div>
         </div>
-        
+
         <div class="task-monitor" id="task-monitor">
             <div class="card">
                 <h2>Task Monitor</h2>
@@ -582,7 +583,7 @@ def create_hybrid_html():
         let selectedTaskId = null;
         let recognition = null;
         let isRecording = false;
-        
+
         // Initialize speech recognition
         function initSpeechRecognition() {
             if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
@@ -591,17 +592,17 @@ def create_hybrid_html():
                 recognition.continuous = true;
                 recognition.interimResults = true;
                 recognition.lang = 'en-US';
-                
+
                 recognition.onstart = function() {
                     isRecording = true;
                     document.getElementById('voice-btn').classList.add('recording');
                     document.getElementById('voice-status').textContent = 'Listening...';
                 };
-                
+
                 recognition.onresult = function(event) {
                     let finalTranscript = '';
                     let interimTranscript = '';
-                    
+
                     for (let i = event.resultIndex; i < event.results.length; i++) {
                         const transcript = event.results[i][0].transcript;
                         if (event.results[i].isFinal) {
@@ -610,23 +611,23 @@ def create_hybrid_html():
                             interimTranscript += transcript;
                         }
                     }
-                    
+
                     const currentText = document.getElementById('task-description').value;
                     if (finalTranscript) {
                         document.getElementById('task-description').value = currentText + finalTranscript + ' ';
                     }
-                    
+
                     if (interimTranscript) {
                         document.getElementById('voice-status').textContent = 'Hearing: ' + interimTranscript;
                     }
                 };
-                
+
                 recognition.onend = function() {
                     isRecording = false;
                     document.getElementById('voice-btn').classList.remove('recording');
                     document.getElementById('voice-status').textContent = 'Click to speak';
                 };
-                
+
                 recognition.onerror = function(event) {
                     console.error('Speech recognition error:', event.error);
                     document.getElementById('voice-status').textContent = 'Error: ' + event.error;
@@ -635,21 +636,21 @@ def create_hybrid_html():
                 document.getElementById('voice-status').textContent = 'Speech recognition not supported';
             }
         }
-        
+
         function toggleVoiceInput() {
             if (!recognition) {
                 initSpeechRecognition();
             }
-            
+
             if (isRecording) {
                 recognition.stop();
             } else {
                 recognition.start();
             }
         }
-        
+
         // WebSocket removed - using simple HTTP polling instead
-        
+
         function handleTaskUpdate(data) {
             if (data.type === 'task_update') {
                 if (selectedTaskId === data.task.task_id) {
@@ -659,7 +660,7 @@ def create_hybrid_html():
                 updateActiveTasksList(data.tasks);
             }
         }
-        
+
         function updateActiveTasksList(tasks) {
             const container = document.getElementById('active-tasks');
             if (tasks.length === 0) {
@@ -673,7 +674,7 @@ def create_hybrid_html():
                 hideTaskMonitor();
                 return;
             }
-            
+
             container.innerHTML = tasks.map(task => `
                 <div class="task-item" onclick="selectTask('${task.task_id}')">
                     <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
@@ -686,19 +687,19 @@ def create_hybrid_html():
                 </div>
             `).join('');
         }
-        
+
         function updateTaskDetails(task) {
             document.getElementById('task-title').textContent = task.task_description.substring(0, 100);
-            
+
             // Show Claude Code link if available
-            let logsHtml = task.logs.map(log => 
+            let logsHtml = task.logs.map(log =>
                 `<div>${new Date().toLocaleTimeString()} - ${log}</div>`
             ).join('');
-            
+
             if (task.claude_code_url && task.status === 'running') {
                 logsHtml = `
                     <div style="background: #28a745; color: white; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
-                        <strong>Web Terminal with Claude Code Ready:</strong> 
+                        <strong>Web Terminal with Claude Code Ready:</strong>
                         <a href="${task.claude_code_url}" target="_blank" style="color: white; text-decoration: underline;">
                             Open Terminal (${task.claude_code_url})
                         </a>
@@ -706,7 +707,7 @@ def create_hybrid_html():
                     </div>
                 ` + logsHtml;
             }
-            
+
             // Add log file download button if log file exists
             if (task.log_file) {
                 logsHtml = `
@@ -721,43 +722,43 @@ def create_hybrid_html():
                     </div>
                 ` + logsHtml;
             }
-            
+
             document.getElementById('task-logs').innerHTML = logsHtml;
-            
+
             const progress = task.status === 'completed' ? 100 : task.status === 'running' ? 50 : 0;
             document.getElementById('progress-fill').style.width = progress + '%';
         }
-        
+
         function showTaskMonitor() {
             const monitor = document.getElementById('task-monitor');
             monitor.classList.add('visible');
             monitor.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
-        
+
         function hideTaskMonitor() {
             const monitor = document.getElementById('task-monitor');
             monitor.classList.remove('visible');
             selectedTaskId = null;
         }
-        
+
         function selectTask(taskId) {
             selectedTaskId = taskId;
             showTaskMonitor();
             fetchTaskDetails(taskId);
         }
-        
+
         async function createTask() {
             const description = document.getElementById('task-description').value.trim();
             if (!description) {
                 alert('Please enter a task description');
                 return;
             }
-            
+
             const btn = document.getElementById('create-btn');
             btn.disabled = true;
             btn.textContent = 'Creating Task...';
             btn.classList.add('loading');
-            
+
             try {
                 const response = await fetch('/api/tasks', {
                     method: 'POST',
@@ -766,12 +767,12 @@ def create_hybrid_html():
                         task_description: description
                     })
                 });
-                
+
                 const result = await response.json();
                 if (result.success) {
                     document.getElementById('task-description').value = '';
                     selectTask(result.task_id);
-                    
+
                     // Show success notification
                     const notification = document.createElement('div');
                     notification.innerHTML = ' Task created successfully! Monitor below.';
@@ -795,17 +796,17 @@ def create_hybrid_html():
                 btn.classList.remove('loading');
             }
         }
-        
+
         async function stopTask() {
             if (!selectedTaskId) return;
-            
+
             const response = await fetch(`/api/tasks/${selectedTaskId}/stop`, { method: 'POST' });
             const result = await response.json();
             if (result.success) {
                 alert('Task stopped successfully');
             }
         }
-        
+
         async function fetchTaskDetails(taskId) {
             const response = await fetch(`/api/tasks/${taskId}`);
             const result = await response.json();
@@ -813,7 +814,7 @@ def create_hybrid_html():
                 updateTaskDetails(result.task);
             }
         }
-        
+
         async function downloadLogs(taskId) {
             try {
                 const response = await fetch(`/api/tasks/${taskId}/logs`);
@@ -835,7 +836,7 @@ def create_hybrid_html():
                 alert('Error downloading logs: ' + error.message);
             }
         }
-        
+
         async function viewLogs(taskId) {
             try {
                 const response = await fetch(`/api/tasks/${taskId}/logs`);
@@ -858,12 +859,12 @@ def create_hybrid_html():
                 alert('Error viewing logs: ' + error.message);
             }
         }
-        
+
         // Initialize
         document.getElementById('connection-status').textContent = 'Connected';
         document.getElementById('connection-status').className = 'connection-status connected';
         initSpeechRecognition();
-        
+
         // Simple HTTP polling instead of WebSocket
         async function pollTasks() {
             try {
@@ -876,10 +877,10 @@ def create_hybrid_html():
                 console.error('Polling error:', error);
             }
         }
-        
+
         setInterval(pollTasks, 5000);
         pollTasks(); // Initial load
-        
+
         // Failed tasks management functions
         async function retriggerTask(taskId) {
             try {
@@ -887,7 +888,7 @@ def create_hybrid_html():
                     method: 'POST'
                 });
                 const result = await response.json();
-                
+
                 if (result.success) {
                     alert(`Task retriggered successfully!\nNew task ID: ${result.new_task_id}`);
                     // Refresh task lists
@@ -900,18 +901,18 @@ def create_hybrid_html():
                 alert('Error retriggering task: ' + error.message);
             }
         }
-        
+
         async function retriggerAllFailed() {
             const btn = document.getElementById('batch-retrigger-btn');
             btn.disabled = true;
             btn.textContent = 'Retriggering...';
-            
+
             try {
                 const response = await fetch('/api/tasks/retrigger-all-failed', {
                     method: 'POST'
                 });
                 const result = await response.json();
-                
+
                 if (result.success) {
                     alert(`Batch retrigger completed!\n${result.retriggered_count} tasks retriggered\n${result.errors.length} errors`);
                     // Refresh task lists
@@ -927,15 +928,15 @@ def create_hybrid_html():
                 btn.textContent = 'Retrigger All Failed Tasks';
             }
         }
-        
+
         async function loadFailedTasks() {
             try {
                 const response = await fetch('/api/tasks/failed');
                 const result = await response.json();
-                
+
                 if (result.success) {
                     displayFailedTasks(result.failed_tasks);
-                    
+
                     // Show/hide failed tasks section based on whether there are failed tasks
                     const section = document.getElementById('failed-tasks-section');
                     if (result.failed_tasks.length > 0) {
@@ -948,10 +949,10 @@ def create_hybrid_html():
                 console.error('Error loading failed tasks:', error);
             }
         }
-        
+
         function displayFailedTasks(failedTasks) {
             const container = document.getElementById('failed-tasks-list');
-            
+
             if (failedTasks.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
@@ -960,7 +961,7 @@ def create_hybrid_html():
                 `;
                 return;
             }
-            
+
             container.innerHTML = failedTasks.map(task => `
                 <div class="task-item" style="border-left-color: #ef4444;">
                     <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
@@ -984,7 +985,7 @@ def create_hybrid_html():
                 </div>
             `).join('');
         }
-        
+
         // Load failed tasks on initial load and set up periodic refresh
         loadFailedTasks();
         setInterval(loadFailedTasks, 10000); // Check for failed tasks every 10 seconds
@@ -1195,7 +1196,8 @@ async def run_autonomous_task(task_id: str):
                 "--name",
                 f"claude-task-{task_id}",
                 "-p",
-                f"{terminal_port}:7681",  # Map random host port to container port 7681
+                f"{terminal_port}:7681",
+                # Map random host port to container port 7681
                 "-e",
                 f"TASK_DESCRIPTION={task.task_description}",
                 "-e",
@@ -1341,7 +1343,8 @@ async def run_autonomous_task(task_id: str):
                     )
 
                     if not status_check.stdout.strip():
-                        # Container stopped - check exit code to determine if it completed successfully
+                        # Container stopped - check exit code to determine if
+                        # it completed successfully
                         inspect_result = subprocess.run(
                             [
                                 "docker",
@@ -1363,13 +1366,15 @@ async def run_autonomous_task(task_id: str):
                                     "Claude Code finished successfully"
                                 )
 
-                                # Try to create pull request if this was a feature branch workflow
+                                # Try to create pull request if this was a
+                                # feature branch workflow
                                 pr_created = False
                                 try:
                                     # Get repository info
                                     owner, repo = get_github_repo_info()
                                     if owner and repo and task.repository_url:
-                                        # Assume the container created a feature branch following our workflow
+                                        # Assume the container created a
+                                        # feature branch following our workflow
                                         feature_branch = (
                                             f"feature/task-{task_id}"
                                         )
@@ -1377,7 +1382,8 @@ async def run_autonomous_task(task_id: str):
                                         # Create PR with template variables
                                         pr_title = f"feat: autonomous task completion - {task.task_description[:50]}..."
 
-                                        # Use template variables for dynamic content
+                                        # Use template variables for dynamic
+                                        # content
                                         template_vars = {
                                             "summary": f"This PR was automatically created by Summit's autonomous agent upon successful completion of task: {task.task_description}",
                                             "changes": [
@@ -1424,7 +1430,7 @@ This PR has undergone the complete Summit development process:
 ## Review Process
 This PR will be automatically reviewed by our multi-role review system:
 - **Engineering Review**: Code quality, testing, architecture
-- **Infrastructure Review**: Security, deployment, performance  
+- **Infrastructure Review**: Security, deployment, performance
 - **Product Review**: User experience, business alignment
 - **Domain Expert Review**: AI/ML best practices, technical depth
 
@@ -1454,7 +1460,8 @@ The PR will auto-merge upon successful CI completion and positive reviews.
                                                 f"Task completed, PR created: {pr_url}",
                                             )
 
-                                            # Trigger multi-role reviews (internal quality gate)
+                                            # Trigger multi-role reviews
+                                            # (internal quality gate)
                                             print(
                                                 f"Running internal multi-role review for PR #{pr_number}..."
                                             )
@@ -1638,7 +1645,8 @@ The PR will auto-merge upon successful CI completion and positive reviews.
                                     new_logs_added = True
 
                                     # Note: We'll detect completion when the container/process naturally exits
-                                    # No need to look for magic completion signals
+                                    # No need to look for magic completion
+                                    # signals
 
                         # Update if we added new logs
                         if new_logs_added:
@@ -1697,7 +1705,7 @@ The PR will auto-merge upon successful CI completion and positive reviews.
                     "logs": logs,
                 },
             )
-        except:
+        except BaseException:
             print(f"[ERROR] Failed to update task {task_id}: {e}")
 
     finally:
@@ -1741,7 +1749,7 @@ The PR will auto-merge upon successful CI completion and positive reviews.
             subprocess.run(
                 ["docker", "rm", f"claude-task-{task_id}"], capture_output=True
             )
-        except:
+        except BaseException:
             pass
 
 

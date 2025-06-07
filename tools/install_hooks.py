@@ -181,7 +181,7 @@ def update_run_coverage():
         result = subprocess.run([
             sys.executable, "tools/emoji_linter.py", "--fix"
         ], capture_output=True, text=True)
-        
+
         if result.returncode != 0:
             print("Emoji violations found and fixed:")
             print(result.stdout)
