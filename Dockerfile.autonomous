@@ -1,0 +1,39 @@
+FROM python:3.12-slim
+
+# Set working directory
+WORKDIR /workspace
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    wget \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy source code
+COPY src/ ./src/
+COPY scripts/ ./scripts/
+COPY web/ ./web/
+COPY tests/ ./tests/
+
+# Copy task execution script
+COPY claude_code_task.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/claude_code_task.sh
+
+# Set environment variables
+ENV PYTHONPATH=/workspace/src:/workspace
+ENV SUMMIT_AUTONOMOUS_MODE=true
+ENV SUMMIT_CONTAINER_MODE=true
+
+# Create non-root user for security
+RUN useradd -m -u 1000 summit && \
+    chown -R summit:summit /workspace
+USER summit
+
+# Default command
+CMD ["/usr/local/bin/claude_code_task.sh"] 
