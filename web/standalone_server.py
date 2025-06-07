@@ -4,52 +4,57 @@ Summit Standalone Web Server
 A simplified web interface that doesn't require MCP dependencies
 """
 
-import sys
 import os
 import subprocess
+import sys
 import time
 from typing import Optional
+
+import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
-import uvicorn
+
 
 def kill_existing_server():
     """Kill any existing processes using port 8000"""
     try:
         # Find processes using port 8000
-        result = subprocess.run(['lsof', '-ti:8000'], 
-                              capture_output=True, text=True)
-        
+        result = subprocess.run(
+            ["lsof", "-ti:8000"], capture_output=True, text=True
+        )
+
         if result.returncode == 0 and result.stdout.strip():
-            pids = result.stdout.strip().split('\n')
+            pids = result.stdout.strip().split("\n")
             for pid in pids:
                 if pid:
                     print(f"Killing existing server process (PID: {pid})")
-                    subprocess.run(['kill', pid], capture_output=True)
+                    subprocess.run(["kill", pid], capture_output=True)
             time.sleep(1)  # Give processes time to shut down
             print("Cleared port 8000")
-        
+
     except (subprocess.CalledProcessError, FileNotFoundError):
         # lsof command might not be available on all systems
         pass
 
+
 # Add src to path for basic imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 try:
+    from config import SUMMIT_CONFIG, setup_environment
     from cost_tracker import CostTracker
-    from config import setup_environment, SUMMIT_CONFIG
+
     setup_environment()
-    
+
     # Initialize components
     cost_tracker = CostTracker(
         daily_budget=SUMMIT_CONFIG["daily_budget"],
         hourly_budget=SUMMIT_CONFIG["hourly_budget"],
-        max_recursion_depth=SUMMIT_CONFIG["max_recursion_depth"]
+        max_recursion_depth=SUMMIT_CONFIG["max_recursion_depth"],
     )
-    
+
     COMPONENTS_AVAILABLE = True
 except ImportError as e:
     print(f"Warning: Some components unavailable: {e}")
@@ -65,7 +70,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -154,11 +158,10 @@ async def root():
     """
 
 
-
 @app.get("/api/status")
 async def get_status():
     status_info = "Summit Standalone Web Interface\n\n"
-    
+
     if COMPONENTS_AVAILABLE:
         status_info += "Components Status:\n"
         status_info += f"- Cost Tracker: Available\n"
@@ -166,19 +169,26 @@ async def get_status():
     else:
         status_info += "Components Status:\n"
         status_info += "- Limited functionality (some dependencies missing)\n"
-    
+
     return {"success": True, "data": status_info}
+
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "message": "Summit standalone web interface is running"}
+    return {
+        "status": "healthy",
+        "message": "Summit standalone web interface is running",
+    }
+
 
 if __name__ == "__main__":
     # Kill any existing processes on port 8000
     kill_existing_server()
-    
+
     print("Starting Summit Standalone Web Interface...")
     print("Web interface: http://localhost:8000")
     print("API documentation: http://localhost:8000/docs")
-    
-    uvicorn.run("standalone_server:app", host="0.0.0.0", port=8000, reload=True) 
+
+    uvicorn.run(
+        "standalone_server:app", host="0.0.0.0", port=8000, reload=True
+    )

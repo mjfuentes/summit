@@ -9,15 +9,14 @@ Provides automated PR reviews from different perspectives:
 - Domain Expert: Specific area expertise
 """
 
-import os
-import json
-import time
-from typing import Dict, List, Optional, Any, Tuple
 import asyncio
-import requests
+import json
+import os
+import time
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
+import requests
 from anthropic import Anthropic
 
 

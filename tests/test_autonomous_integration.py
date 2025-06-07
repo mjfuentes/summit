@@ -37,16 +37,17 @@ If tests fail, check:
 4. Container doesn't exit immediately after startup
 """
 
-import pytest
 import asyncio
-import time
-import os
-import subprocess
 import json
-from unittest.mock import patch, MagicMock
-import tempfile
+import os
 import shutil
+import subprocess
 import sys
+import tempfile
+import time
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
@@ -66,7 +67,7 @@ def event_loop():
 @pytest.fixture(scope="module")
 async def db_session(event_loop):
     """Fixture to initialize and clean up the database for tests."""
-    from src.database import init_database, close_database, db_manager
+    from src.database import close_database, db_manager, init_database
 
     await init_database()
     yield db_manager
@@ -92,8 +93,8 @@ class TestAutonomousIntegration:
 
     async def create_test_db_manager(self):
         """Create a test database manager"""
-        import sys
         import os
+        import sys
 
         # Add src directory to path for imports
         repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -190,8 +191,8 @@ class TestAutonomousIntegration:
 
     def test_autonomous_server_startup(self):
         """Test that autonomous server can start without errors"""
-        import tempfile
         import signal
+        import tempfile
         import time
         from threading import Timer
 
