@@ -115,7 +115,7 @@ class CostTracker:
         if recursion_depth >= self.max_recursion_depth:
             return (
                 False,
-                f"Maximum recursion depth ({
+                f"Maximum recursion depth({
                     self.max_recursion_depth}) exceeded",
             )
 
@@ -125,8 +125,8 @@ class CostTracker:
             return (
                 False,
                 f"Daily budget exceeded: ${
-                    daily_spent:.4f} + ${
-                    estimated_cost:.4f} > ${
+                    daily_spent: .4f} + ${
+                    estimated_cost: .4f} > ${
                     self.daily_budget}",
             )
 
@@ -136,8 +136,8 @@ class CostTracker:
             return (
                 False,
                 f"Hourly budget exceeded: ${
-                    hourly_spent:.4f} + ${
-                    estimated_cost:.4f} > ${
+                    hourly_spent: .4f} + ${
+                    estimated_cost: .4f} > ${
                     self.hourly_budget}",
             )
 
