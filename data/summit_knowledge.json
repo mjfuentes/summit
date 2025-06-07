@@ -1311,28 +1311,156 @@
       "context": null,
       "timestamp": "2025-06-07T09:15:43.650303",
       "processed": false
+    },
+    {
+      "id": 165,
+      "content": "AI pair programming works best when developers maintain control and AI provides suggestions",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-07T09:32:45.899839",
+      "processed": false
+    },
+    {
+      "id": 166,
+      "content": "I've noticed that developers are increasingly using AI for debugging rather than just code generation",
+      "category": "observation",
+      "context": "Based on conversations this week",
+      "timestamp": "2025-06-07T09:33:04.238442",
+      "processed": false
+    },
+    {
+      "id": 167,
+      "content": "The most effective AI collaborations happen when humans focus on high-level strategy while AI handles implementation details",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-07T09:33:12.938836",
+      "processed": false
+    },
+    {
+      "id": 168,
+      "content": "AI debugging tools are becoming more sophisticated and can now identify complex logical errors",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-07T09:35:44.867324",
+      "processed": false
+    },
+    {
+      "id": 169,
+      "content": "Machine learning models perform better when trained on diverse, high-quality datasets",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-07T09:35:53.645094",
+      "processed": false
+    },
+    {
+      "id": 170,
+      "content": "Test insight for web API",
+      "category": "test",
+      "context": "API testing",
+      "timestamp": "2025-06-07T09:46:29.059080",
+      "processed": false
+    },
+    {
+      "id": 171,
+      "content": "AI pair programming works best when developers maintain control and AI provides suggestions",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-07T09:47:02.009900",
+      "processed": false
+    },
+    {
+      "id": 172,
+      "content": "I've noticed that developers are increasingly using AI for debugging rather than just code generation",
+      "category": "observation",
+      "context": "Based on conversations this week",
+      "timestamp": "2025-06-07T09:47:20.178171",
+      "processed": false
+    },
+    {
+      "id": 173,
+      "content": "The most effective AI collaborations happen when humans focus on high-level strategy while AI handles implementation details",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-07T09:47:30.431663",
+      "processed": false
+    },
+    {
+      "id": 174,
+      "content": "AI pair programming works best when developers maintain control and AI provides suggestions",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-07T09:48:13.281627",
+      "processed": false
+    },
+    {
+      "id": 175,
+      "content": "I've noticed that developers are increasingly using AI for debugging rather than just code generation",
+      "category": "observation",
+      "context": "Based on conversations this week",
+      "timestamp": "2025-06-07T09:48:31.360046",
+      "processed": false
+    },
+    {
+      "id": 176,
+      "content": "The most effective AI collaborations happen when humans focus on high-level strategy while AI handles implementation details",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-07T09:48:39.823367",
+      "processed": false
+    },
+    {
+      "id": 177,
+      "content": "AI pair programming works best when developers maintain control and AI provides suggestions",
+      "category": "observation",
+      "context": null,
+      "timestamp": "2025-06-07T09:58:03.756273",
+      "processed": false
+    },
+    {
+      "id": 178,
+      "content": "I've noticed that developers are increasingly using AI for debugging rather than just code generation",
+      "category": "observation",
+      "context": "Based on conversations this week",
+      "timestamp": "2025-06-07T09:58:20.969833",
+      "processed": false
+    },
+    {
+      "id": 179,
+      "content": "The most effective AI collaborations happen when humans focus on high-level strategy while AI handles implementation details",
+      "category": "insight",
+      "context": null,
+      "timestamp": "2025-06-07T09:58:30.959089",
+      "processed": false
+    },
+    {
+      "id": 180,
+      "content": "Test insight for web API",
+      "category": "test",
+      "context": "API testing",
+      "timestamp": "2025-06-07T10:20:18.247851",
+      "processed": false
     }
   ],
   "synthesized_insights": [],
   "categories": {
-    "observation": 63,
-    "insight": 42,
-    "test": 8,
+    "observation": 72,
+    "insight": 47,
+    "test": 10,
     "challenge": 17,
     "best_practice": 17,
     "trend": 17
   },
   "search_analytics": {
-    "total_searches": 221,
+    "total_searches": 245,
     "empty_results": 0,
     "query_types": {
       "question": 20,
       "general": 6
     },
     "popular_categories": {
-      "observation": 1237,
-      "insight": 410
+      "observation": 1457,
+      "insight": 430
     }
   },
-  "last_updated": "2025-06-07T09:15:43.650347"
+  "last_updated": "2025-06-07T10:20:18.247896"
 }

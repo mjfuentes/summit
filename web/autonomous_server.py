@@ -568,29 +568,79 @@ async def run_autonomous_task(task_id: str, task_data: Dict):
             
             print("[TASK] Container built successfully, starting Claude Code...")
             
+            # Get API key with validation
+            api_key = os.getenv('ANTHROPIC_API_KEY')
+            if not api_key:
+                error_msg = "ANTHROPIC_API_KEY not found in server environment"
+                print(f"[ERROR] {error_msg}")
+                task_data["status"] = "failed"
+                task_data["error"] = error_msg
+                task_data["logs"].append(f"Error: {error_msg}")
+                return
+            
+            print(f"[DEBUG] API key loaded: {api_key[:20]}...")
+            
+            # Find available port for this container
+            import socket
+            def find_free_port():
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                    s.bind(('', 0))
+                    s.listen(1)
+                    port = s.getsockname()[1]
+                return port
+            
+            terminal_port = find_free_port()
+            print(f"[DEBUG] Allocated port {terminal_port} for task {task_id}")
+            
             # Run the container with proper Claude Code integration
             run_cmd = [
                 "docker", "run", "-d",
                 "--name", f"claude-task-{task_id}",
-                "-p", "7681:7681",
+                "-p", f"{terminal_port}:7681",  # Map random host port to container port 7681
                 "-e", f"TASK_DESCRIPTION={task_data['task_description']}",
                 "-e", f"SAVE_WORD={task_data['save_word']}",
-                "-e", f"ANTHROPIC_API_KEY={os.getenv('ANTHROPIC_API_KEY')}",
+                "-e", f"ANTHROPIC_API_KEY={api_key}",
                 "-e", f"GITHUB_TOKEN={task_data.get('github_token', '')}",
                 "-e", f"REPOSITORY_URL={task_data.get('repository_url', '')}",
                 "claude-code-task"
             ]
             
+            print(f"[DEBUG] Using dynamic port mapping: {terminal_port}:7681")
+            print(f"[DEBUG] Docker command: {' '.join(run_cmd[:8])}... (env vars hidden)")  # Don't log full command with API key
+            
             task_data["logs"].append("Starting Claude Code container...")
             
-            container_process = await asyncio.create_subprocess_exec(
-                *run_cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.STDOUT
-            )
+            # Run docker command directly since we're using detached mode (-d)
+            try:
+                result = subprocess.run(run_cmd, capture_output=True, text=True, timeout=30)
+                if result.returncode != 0:
+                    error_msg = f"Failed to start container: {result.stderr}"
+                    print(f"[ERROR] {error_msg}")
+                    task_data["status"] = "failed"
+                    task_data["error"] = error_msg
+                    task_data["logs"].append(f"Error: {error_msg}")
+                    return
+                    
+                # Container started successfully
+                print(f"[TASK] Container started: {result.stdout.strip()}")
+                task_data["logs"].append(f"Container started successfully: {result.stdout.strip()}")
+                
+            except subprocess.TimeoutExpired:
+                error_msg = "Container startup timed out"
+                print(f"[ERROR] {error_msg}")
+                task_data["status"] = "failed"
+                task_data["error"] = error_msg
+                task_data["logs"].append(f"Error: {error_msg}")
+                return
+            except Exception as e:
+                error_msg = f"Container startup failed: {str(e)}"
+                print(f"[ERROR] {error_msg}")
+                task_data["status"] = "failed"
+                task_data["error"] = error_msg
+                task_data["logs"].append(f"Error: {error_msg}")
+                return
             
-            # Calculate the web terminal port
-            terminal_port = 7681
+            # Use the dynamically allocated terminal port
             task_data["container_id"] = f"claude-task-{task_id}"
             task_data["claude_code_url"] = f"http://localhost:{terminal_port}"
             task_data["logs"].append(f"Web terminal with Claude Code access: http://localhost:{terminal_port}")
