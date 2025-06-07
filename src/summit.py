@@ -18,14 +18,24 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'config'))
 
-from config import setup_environment, SUMMIT_CONFIG
+# Configuration with fallback for CI/testing environments
+try:
+    from config import setup_environment, SUMMIT_CONFIG  # type: ignore
+    setup_environment()
+except ImportError:
+    # Fallback configuration for CI/testing environments
+    SUMMIT_CONFIG = {
+        "daily_budget": 10.0,
+        "hourly_budget": 2.0,
+        "max_recursion_depth": 3,
+        "embedding_model": "text-embedding-3-small",
+        "chat_model": "claude-sonnet-4-20250514"
+    }
+
 from cost_tracker import CostTracker
 
-# Set up environment variables from config
-setup_environment()
-
 # Initialize the MCP server
-server = Server("summit")
+server: Server = Server("summit")
 
 # Initialize cost tracker using config values
 cost_tracker = CostTracker(
@@ -196,7 +206,7 @@ async def handle_list_tools() -> list[types.Tool]:
         ),
     ]
 
-async def get_advice_from_claude(question: str, context: str = None, recursion_depth: int = 0) -> str:
+async def get_advice_from_claude(question: str, context: Optional[str] = None, recursion_depth: int = 0) -> str:
     """Get advice from Claude API with cost tracking"""
     client = get_anthropic_client()
     
@@ -678,7 +688,7 @@ async def create_pull_request(owner: str, repo: str, title: str, head: str, base
     except Exception as e:
         raise Exception(f"Failed to create pull request: {e}")
 
-async def plan_capability_implementation(capability_description: str, requirements: str = None) -> str:
+async def plan_capability_implementation(capability_description: str, requirements: Optional[str] = None) -> str:
     """Use Claude to plan the implementation of a new capability"""
     client = get_anthropic_client()
     

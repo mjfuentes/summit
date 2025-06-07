@@ -16,9 +16,10 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy import select, update, delete
 from contextlib import asynccontextmanager
 
-Base = declarative_base()
+# Create base class for SQLAlchemy models
+Base = declarative_base()  # type: ignore
 
-class Task(Base):
+class Task(Base):  # type: ignore
     """SQLAlchemy model for tasks"""
     __tablename__ = 'tasks'
     
@@ -69,7 +70,7 @@ class Task(Base):
 class DatabaseManager:
     """Manages database connections and operations"""
     
-    def __init__(self, database_url: str = None):
+    def __init__(self, database_url: Optional[str] = None):
         if database_url is None:
             # Default to SQLite database in data directory
             db_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')

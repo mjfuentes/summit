@@ -18,7 +18,7 @@ class CostTracker:
                  daily_budget: float = 10.0,
                  hourly_budget: float = 2.0,
                  max_recursion_depth: int = 3,
-                 data_file: str = None):
+                 data_file: Optional[str] = None):
         
         # Set default path to data directory
         if data_file is None:

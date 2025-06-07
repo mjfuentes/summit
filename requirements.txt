@@ -5,6 +5,7 @@ openai>=1.0.0
 
 # Web requests for GitHub API
 requests>=2.31.0
+types-requests>=2.31.0
 
 # Data processing and utilities
 numpy>=1.24.0
