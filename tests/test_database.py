@@ -3,20 +3,18 @@
 Tests for the database functionality.
 """
 
-# Import database components
 import os
 import sys
-import unittest
 import tempfile
-from unittest.mock import patch
-import sqlite3
+
 import pytest
 import pytest_asyncio
 
+# Import database components
+from src.database import DatabaseManager
+
 # Add source to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-
-from src.database import DatabaseManager, Task
 
 
 @pytest_asyncio.fixture

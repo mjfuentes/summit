@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Test SoundCloud integration functionality"""
 
-import unittest
 import os
 import sys
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 from fastapi.testclient import TestClient
 
 # Add the web directory to the path
@@ -105,7 +105,8 @@ class TestSoundCloudIntegration:
             "/api/soundcloud/search", json={"query": "test music", "limit": 5}
         )
 
-        # HTTPException gets wrapped by the general exception handler, resulting in 500
+        # HTTPException gets wrapped by the general exception handler,
+        # resulting in 500
 
         assert response.status_code == 500
 
@@ -141,7 +142,8 @@ class TestSoundCloudIntegration:
 
         response = client.get("/api/soundcloud/stream/123456")
 
-        # HTTPException gets wrapped by the general exception handler, resulting in 500
+        # HTTPException gets wrapped by the general exception handler,
+        # resulting in 500
 
         assert response.status_code == 500
 

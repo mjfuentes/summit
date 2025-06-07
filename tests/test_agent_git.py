@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """Tests for the agent git wrapper"""
 
-import pytest
 import sys
-from unittest.mock import Mock, patch, MagicMock
 from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
+
+from src.agent_git_api import AgentGitWrapper
 
 # Add src and scripts to path
 repo_root = Path(__file__).parent.parent
@@ -12,8 +15,6 @@ src_path = repo_root / "src"
 scripts_path = repo_root / "scripts"
 sys.path.insert(0, str(src_path))
 sys.path.insert(0, str(scripts_path))
-
-from agent_git import AgentGitWrapper
 
 
 class TestAgentGitWrapper:
@@ -211,7 +212,7 @@ class TestAgentGitAPI:
     def test_api_imports(self):
         """Test API convenience functions can be imported"""
         with patch("agent_git_api.AgentGitWrapper"):
-            from agent_git_api import save_work, create_pr, status, pull
+            from agent_git_api import create_pr, pull, save_work, status
 
             # Test imports work
             assert callable(save_work)

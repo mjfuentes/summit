@@ -5,13 +5,6 @@ import sys
 from unittest.mock import Mock, patch
 
 import pytest
-from anthropic import Anthropic
-
-# Add src to path for imports
-repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-src_path = os.path.join(repo_root, "src")
-if src_path not in sys.path:
-    sys.path.insert(0, src_path)
 
 import summit
 from summit import (
@@ -29,6 +22,12 @@ from summit import (
     stop_codespace,
 )
 
+# Add src to path for imports
+repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+src_path = os.path.join(repo_root, "src")
+if src_path not in sys.path:
+    sys.path.insert(0, src_path)
+
 
 class TestSummit:
     """Test Summit MCP server functionality"""
@@ -37,7 +36,7 @@ class TestSummit:
         """Test getting Anthropic client with API key"""
         with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}):
             with patch("summit.Anthropic") as mock_anthropic:
-                client = get_anthropic_client()
+                get_anthropic_client()
                 mock_anthropic.assert_called_once_with(api_key="test-key")
 
     def test_get_anthropic_client_without_key(self):
@@ -327,7 +326,8 @@ class TestSummit:
 
 def test_summit_basic_functionality():
     """Test Summit basic module functionality without making API calls"""
-    # This test verifies that the summit module can be imported and basic functions work
+    # This test verifies that the summit module can be imported and basic
+    # functions work
     assert hasattr(summit, "server")
     assert hasattr(summit, "cost_tracker")
     assert callable(get_anthropic_client)

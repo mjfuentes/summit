@@ -4,7 +4,8 @@ Task management utilities for database operations.
 Provides helper functions to update tasks in the database consistently.
 """
 
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
+
 from database import get_database
 
 

@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
 
-import unittest
 import os
 import sys
-from unittest.mock import patch, MagicMock, Mock
-import json
+from unittest.mock import Mock, patch
+
 import pytest
 
-# Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-
-# Import modules to test
 from src.pr_reviewers import (
     PRReviewSystem,
     ReviewerPersona,
     review_pr_with_multiple_roles,
 )
+
+# Add src to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+# Import modules to test
 
 # Add src to path for imports
 repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

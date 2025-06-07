@@ -7,13 +7,14 @@ This is the ONLY approved way for the agent to interact with Gi
 import sys
 from pathlib import Path
 
+from scripts.agent_git import AgentGitWrapper
+
 # Add scripts to path
 repo_root = Path(__file__).parent.parent
 scripts_path = repo_root / "scripts"
 sys.path.insert(0, str(scripts_path))
 
 # Import the wrapper - this will be defined in scripts
-from scripts.agent_git import AgentGitWrapper
 
 
 class AgentGitAPI:

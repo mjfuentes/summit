@@ -5,20 +5,29 @@ Provides SQLite-based storage for tasks to survive pod restarts.
 """
 
 import os
-import json
-import asyncio
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional
+
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Column,
+    DateTime,
+    Integer,
+    String,
+    Text,
+    delete,
+    func,
+    select,
+    update,
+)
 from sqlalchemy.ext.asyncio import (
-    create_async_engine,
     AsyncSession,
     async_sessionmaker,
+    create_async_engine,
 )
 from sqlalchemy.orm import declarative_base
-from sqlalchemy import Column, String, Text, DateTime, Integer, JSON, Boolean
-from sqlalchemy.orm import selectinload
-from sqlalchemy import select, update, delete
-from contextlib import asynccontextmanager
 
 # Create base class for SQLAlchemy models
 Base = declarative_base()  # type: ignore
@@ -176,7 +185,7 @@ class DatabaseManager:
         async with self.get_session() as session:
             result = await session.execute(
                 select(Task)
-                .where(Task.is_active == True)
+                .where(Task.is_active.is_(True))
                 .order_by(Task.created_at.desc())
             )
             return result.scalars().all()
@@ -186,7 +195,7 @@ class DatabaseManager:
         async with self.get_session() as session:
             result = await session.execute(
                 select(Task)
-                .where(Task.is_active == False)
+                .where(Task.is_active.is_(False))
                 .order_by(Task.completed_at.desc())
                 .limit(limit)
             )
@@ -211,15 +220,13 @@ class DatabaseManager:
             await session.execute(
                 delete(Task)
                 .where(Task.created_at < cutoff_date)
-                .where(Task.is_active == False)
+                .where(Task.is_active.is_(False))
             )
 
     async def get_task_statistics(self) -> Dict[str, Any]:
         """Get task statistics"""
         async with self.get_session() as session:
             # Count by status
-            from sqlalchemy import func
-
             result = await session.execute(
                 select(
                     Task.status, func.count(Task.task_id).label("count")
@@ -229,7 +236,9 @@ class DatabaseManager:
 
             # Count active vs inactive
             active_result = await session.execute(
-                select(func.count(Task.task_id)).where(Task.is_active == True)
+                select(func.count(Task.task_id)).where(
+                    Task.is_active.is_(True)
+                )
             )
             active_count = active_result.scalar()
 

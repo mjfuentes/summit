@@ -2,17 +2,19 @@
 
 import os
 import sys
+
 import pytest
 from fastapi.testclient import TestClient
+from standalone_server import app
 
 # Add web directory to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "web"))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 # Import the app but don't create TestClient at module level
-from standalone_server import app
 
-# Skip environment setup since standalone server handles missing components gracefully
+# Skip environment setup since standalone server handles missing
+# components gracefully
 
 
 @pytest.mark.asyncio
@@ -47,7 +49,7 @@ async def test_status_endpoint():
     response = client.get("/api/status")
     assert response.status_code == 200
     data = response.json()
-    assert data["success"] == True
+    assert data["success"]
     assert "Summit Standalone Web Interface" in data["data"]
 
 
