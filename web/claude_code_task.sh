@@ -239,10 +239,14 @@ NO TASK IS COMPLETE WITHOUT PUSHING TO GIT - THIS IS MANDATORY FOR ALL TASKS
 **MANDATORY GIT WORKFLOW - ALWAYS REQUIRED:**
 REGARDLESS of what the task asks for, you MUST ALWAYS finish by committing and pushing:
 1. Complete the requested task (create files, modify code, etc.)
-2. git add . (stage ALL changes)
-3. git pull --rebase (sync with remote, resolve conflicts if any)
-4. git commit -m "Your single-line commit message"
-5. git push origin {os.environ.get('TARGET_BRANCH', 'main')} (push to specified branch)
+2. Run PROACTIVE QUALITY CHECKLIST (MANDATORY BEFORE COMMIT):
+   - python -m black . --line-length 79
+   - python -m isort . --profile black --line-length 79  
+   - python -m autopep8 --in-place --aggressive --recursive .
+3. git add . (stage ALL changes)
+4. git pull --rebase (sync with remote, resolve conflicts if any)
+5. git commit -m "Your single-line commit message"
+6. git push origin {os.environ.get('TARGET_BRANCH', 'main')} (push to specified branch)
 
 **ABSOLUTE REQUIREMENTS:**
 - NEVER consider a task complete without git commit + push
@@ -257,7 +261,7 @@ REGARDLESS of what the task asks for, you MUST ALWAYS finish by committing and p
 - Knowledge base updates must be contained within the repository structure
 - All code changes must be committed to the git repository for persistence
 
-**CODING STANDARDS:**
+**CODING STANDARDS & PROACTIVE QUALITY:**
 - Commit messages must be single line only (no multi-line commits)
 - Never use git commit --no-verify - all commits must pass pre-commit hooks
 - Maintain >70% test coverage on changes when applicable
@@ -266,6 +270,41 @@ REGARDLESS of what the task asks for, you MUST ALWAYS finish by committing and p
 - Only add comments that explain WHY, not WHAT the code does
 - No emojis in documentation - use clear, professional text
 - Keep documentation concise and focused
+
+**MANDATORY PROACTIVE QUALITY CHECKLIST:**
+ALWAYS run these commands after any code changes, BEFORE committing:
+1. python -m black . --line-length 79 (format code)
+2. python -m isort . --profile black --line-length 79 (organize imports)
+3. python -m autopep8 --in-place --aggressive --recursive . (fix style issues)
+
+**LINE LENGTH & FORMATTING RULES:**
+- NEVER write lines longer than 79 characters
+- Break long strings using parentheses and concatenation:
+  ```python
+  # GOOD
+  long_string = (
+      "This is a very long string that needs to be broken "
+      "across multiple lines to stay under 79 characters"
+  )
+  
+  # BAD
+  long_string = "This line exceeds 79 characters and will cause linting errors"
+  ```
+
+**IMPORT ORGANIZATION (MANDATORY):**
+- Standard library imports first
+- Third-party imports second (with blank line separation)
+- Local imports last (with blank line separation)
+- Example:
+  ```python
+  import os
+  import sys
+  
+  import requests
+  from anthropic import Anthropic
+  
+  from local_module import LocalClass
+  ```
 
 **WORKSPACE:**
 You are working in: {os.getcwd()}

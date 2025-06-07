@@ -1,61 +1,32 @@
 #!/usr/bin/env python3
 
-import asyncio
 import os
 import sys
 from unittest.mock import Mock, patch
 
 import pytest
-from anthropic import Anthropic
+
+import summit
+from summit import (
+    create_codespace,
+    create_pull_request,
+    delete_codespace,
+    get_advice_from_claude,
+    get_anthropic_client,
+    get_codespace_status,
+    get_github_headers,
+    get_github_repo_info,
+    list_user_codespaces,
+    plan_capability_implementation,
+    start_codespace,
+    stop_codespace,
+)
 
 # Add src to path for imports
 repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 src_path = os.path.join(repo_root, "src")
 if src_path not in sys.path:
     sys.path.insert(0, src_path)
-
-import summit
-from summit import (create_codespace, create_pull_request, delete_codespace,
-                    get_advice_from_claude, get_anthropic_client,
-                    get_codespace_status, get_github_headers,
-                    get_github_repo_info, list_user_codespaces,
-                    plan_capability_implementation, start_codespace,
-                    stop_codespace)
-
-
-@pytest.mark.asyncio
-async def test_summit_ai():
-    """Test Summit's AI capabilities directly"""
-
-    # Check if API key is set
-    api_key = os.getenv("ANTHROPIC_API_KEY")
-    if not api_key:
-        print("ERROR: ANTHROPIC_API_KEY not set")
-        return
-
-    print(f"API key found: {api_key[:20]}...")
-
-    # Test Claude API directly
-    try:
-        client = Anthropic(api_key=api_key)
-
-        message = client.messages.create(
-            model="claude-3-5-sonnet-20241022",
-            max_tokens=100,
-            messages=[
-                {
-                    "role": "user",
-                    "content": "You are Summit, an autonomous AI. Say hello and describe your purpose in one sentence.",
-                }
-            ],
-        )
-
-        print("Summit AI Response:")
-        print(message.content[0].text)
-        print("\nSummit AI is working correctly.")
-
-    except Exception as e:
-        print(f"ERROR: Summit AI test failed: {e}")
 
 
 class TestSummit:
@@ -65,7 +36,7 @@ class TestSummit:
         """Test getting Anthropic client with API key"""
         with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}):
             with patch("summit.Anthropic") as mock_anthropic:
-                client = get_anthropic_client()
+                get_anthropic_client()
                 mock_anthropic.assert_called_once_with(api_key="test-key")
 
     def test_get_anthropic_client_without_key(self):
@@ -353,9 +324,10 @@ class TestSummit:
             assert "ANTHROPIC_API_KEY" in result
 
 
-def test_summit_ai():
-    """Test Summit AI basic functionality"""
-    # This test verifies that the summit module can be imported and basic functions work
+def test_summit_basic_functionality():
+    """Test Summit basic module functionality without making API calls"""
+    # This test verifies that the summit module can be imported and basic
+    # functions work
     assert hasattr(summit, "server")
     assert hasattr(summit, "cost_tracker")
     assert callable(get_anthropic_client)
@@ -364,4 +336,4 @@ def test_summit_ai():
 
 
 if __name__ == "__main__":
-    asyncio.run(test_summit_ai())
+    test_summit_basic_functionality()

@@ -2,24 +2,26 @@
 
 import os
 import sys
+
 import pytest
 from fastapi.testclient import TestClient
+from standalone_server import app
 
 # Add web directory to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "web"))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from standalone_server import app
+# Import the app but don't create TestClient at module level
 
-# Skip environment setup since standalone server handles missing components gracefully
-
-# Create test client
-client = TestClient(app)
+# Skip environment setup since standalone server handles missing
+# components gracefully
 
 
 @pytest.mark.asyncio
 async def test_health_endpoint():
     """Test health check endpoint"""
+    # Create test client inside the test function
+    client = TestClient(app)
     response = client.get("/health")
     assert response.status_code == 200
     data = response.json()
@@ -30,6 +32,8 @@ async def test_health_endpoint():
 @pytest.mark.asyncio
 async def test_root_endpoint():
     """Test root endpoint returns HTML"""
+    # Create test client inside the test function
+    client = TestClient(app)
     response = client.get("/")
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
@@ -40,16 +44,20 @@ async def test_root_endpoint():
 @pytest.mark.asyncio
 async def test_status_endpoint():
     """Test status endpoint"""
+    # Create test client inside the test function
+    client = TestClient(app)
     response = client.get("/api/status")
     assert response.status_code == 200
     data = response.json()
-    assert data["success"] == True
+    assert data["success"]
     assert "Summit Standalone Web Interface" in data["data"]
 
 
 @pytest.mark.asyncio
 async def test_api_error_handling():
     """Test API error handling with malformed requests"""
+    # Create test client inside the test function
+    client = TestClient(app)
     # Test with invalid JSON to status endpoint
     response = client.post(
         "/api/status",
@@ -62,6 +70,8 @@ async def test_api_error_handling():
 
 def test_cors_headers():
     """Test CORS headers are present"""
+    # Create test client inside the test function
+    client = TestClient(app)
     response = client.get("/")
     # CORS headers should be present for browser access
     assert response.status_code == 200
