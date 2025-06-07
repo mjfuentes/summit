@@ -1,0 +1,206 @@
+version: '3.8'
+
+services:
+  # Summit AI Web Server
+  summit-web:
+    image: ghcr.io/mjfuentes/summit:latest
+    container_name: summit-web
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - SUMMIT_ENV=${SUMMIT_ENV:-production}
+      - SUMMIT_LOG_LEVEL=${SUMMIT_LOG_LEVEL:-info}
+      - SUMMIT_READONLY_MODE=${SUMMIT_READONLY_MODE:-false}
+    volumes:
+      - summit-data:/app/data
+      - summit-logs:/app/logs
+      - /var/run/docker.sock:/var/run/docker.sock  # For autonomous containers
+    networks:
+      - summit-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.summit.rule=Host(`summit.ai`)"
+      - "traefik.http.services.summit.loadbalancer.server.port=8000"
+
+  # Redis for caching and task queues
+  redis:
+    image: redis:7-alpine
+    container_name: summit-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - summit-redis:/data
+    networks:
+      - summit-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "2"
+
+  # PostgreSQL for persistent data (optional)
+  postgres:
+    image: postgres:15-alpine
+    container_name: summit-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-summit}
+      - POSTGRES_USER=${POSTGRES_USER:-summit}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - summit-postgres:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - summit-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-summit}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
+
+  # Monitoring with Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: summit-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - summit-prometheus:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    networks:
+      - summit-network
+    depends_on:
+      - summit-web
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: summit-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+    volumes:
+      - summit-grafana:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    networks:
+      - summit-network
+    depends_on:
+      - prometheus
+
+  # Log aggregation with Loki
+  loki:
+    image: grafana/loki:latest
+    container_name: summit-loki
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    volumes:
+      - summit-loki:/loki
+      - ./monitoring/loki.yml:/etc/loki/local-config.yaml
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - summit-network
+
+  # Reverse proxy and load balancer
+  traefik:
+    image: traefik:v3.0
+    container_name: summit-traefik
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"  # Traefik dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml
+      - ./traefik/dynamic:/etc/traefik/dynamic
+      - summit-certs:/certs
+    networks:
+      - summit-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`traefik.summit.ai`)"
+      - "traefik.http.services.traefik.loadbalancer.server.port=8080"
+
+  # Task queue worker for autonomous tasks
+  summit-worker:
+    image: ghcr.io/mjfuentes/summit:latest
+    container_name: summit-worker
+    restart: unless-stopped
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - SUMMIT_ENV=${SUMMIT_ENV:-production}
+      - SUMMIT_WORKER_MODE=true
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - summit-data:/app/data
+      - summit-logs:/app/logs
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - summit-network
+    depends_on:
+      - redis
+      - summit-web
+    command: ["python", "-m", "summit.worker"]
+
+networks:
+  summit-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  summit-data:
+    driver: local
+  summit-logs:
+    driver: local
+  summit-redis:
+    driver: local
+  summit-postgres:
+    driver: local
+  summit-prometheus:
+    driver: local
+  summit-grafana:
+    driver: local
+  summit-loki:
+    driver: local
+  summit-certs:
+    driver: local 
