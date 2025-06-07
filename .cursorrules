@@ -1,9 +1,25 @@
 # Summit Project - Cursor Rules
 
-## Git Operations
-- FOR THIS PROJECT ONLY: You are allowed to commit and push changes to the summit repository
-- NEVER use git commit --no-verify - all commits must pass pre-commit hooks
-- COMMIT MESSAGES MUST BE SINGLE LINE ONLY - no multi-line commits or line breaks
+## MANDATORY Git Operations - USE AGENT GIT WRAPPER ONLY
+- YOU MUST USE THE AGENT GIT WRAPPER FOR ALL GIT OPERATIONS
+- NEVER use direct git commands (git add, git commit, git push, etc.)
+- ALWAYS use the agent_git_api module: `from src.agent_git_api import save_work, create_pr, status, pull`
+- Primary function: `save_work("commit message")` - automatically validates, tests, and pushes
+- For PRs: `create_pr("commit message", "PR title", "PR description")`
+- The wrapper enforces all Summit standards automatically:
+  - Single-line commit messages (no line breaks)
+  - No emojis in commit messages
+  - Runs tests and ensures >70% coverage
+  - Runs linting and pre-commit hooks
+  - Monitors CI/CD status after push
+- Example usage:
+  ```python
+  from src.agent_git_api import save_work
+  # Save all changes
+  save_work("Fix PR reviewer tests and improve coverage")
+  # Or save specific files
+  save_work("Update test configuration", ["tests/test_pr_reviewers.py", "pytest.ini"])
+  ```
 
 ## Documentation Standards
 - NO EMOJIS in documentation files - use clear, professional text only

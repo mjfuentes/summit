@@ -25,20 +25,42 @@ python -m pylint src/           # Code linting (if available)
 python -m black src/ tests/     # Code formatting (if available)
 ```
 
-### 4. Git Operations Phase
-```bash
-# REQUIRED: Complete Git workflow
-git add .                       # Stage all changes
-git status                      # Verify what's being committed
-git commit -m "descriptive message"  # Commit with clear message
-git push origin main           # Push to repository
+### 4. Git Operations Phase - MANDATORY USE OF AGENT GIT WRAPPER
+```python
+# REQUIRED: Use the Agent Git Wrapper ONLY - NO DIRECT GIT COMMANDS
+from src.agent_git_api import save_work, create_pr, status, pull
+
+# Check current status
+status()
+
+# Save your work (replaces git add/commit/push)
+save_work("Clear, descriptive single-line commit message")
+
+# Or save specific files
+save_work("Update specific functionality", ["file1.py", "file2.py"])
+
+# Create a pull request
+create_pr("Implement feature X", "Feature: Add X functionality", "Detailed PR description...")
 ```
+
+**CRITICAL: NEVER USE DIRECT GIT COMMANDS**
+- The agent MUST use the `agent_git_api` module for ALL Git operations
+- Direct `git` commands are FORBIDDEN and will be rejected
+- The wrapper automatically:
+  - Validates commit messages (single line, no emojis)
+  - Runs all tests and ensures they pass
+  - Checks coverage is >70%
+  - Runs linting and pre-commit hooks
+  - Pushes changes
+  - Monitors CI/CD status
 
 **COMMIT MESSAGE REQUIREMENTS:**
 - **SINGLE LINE ONLY** - Commit messages must be one line maximum
 - **NO MULTI-LINE COMMITS** - Do not use line breaks or multiple paragraphs
 - **DESCRIPTIVE BUT CONCISE** - Include essential information in one clear line
 - **PROFESSIONAL TONE** - Use clear, technical language without emojis
+- **Use proper Git workflow: analyze → implement → test → lint → commit → push**
+- **Maintain >70% test coverage on all changes**
 
 **CRITICAL GIT RULE: NEVER USE --no-verify**
 - NEVER bypass pre-commit hooks with `git commit --no-verify`
@@ -145,5 +167,9 @@ The agent must demonstrate:
 - **ALWAYS VERIFY BEFORE COMMIT** - No shortcuts allowed
 - **NEVER USE EMOJIS** - Professional code and documentation only
 - **NO AD-HOC TESTING** - Never use sleep and curl commands for testing, use formal test suite only
+- **NEVER SKIP OR DISABLE FAILING TESTS** - Fix the root cause instead of hiding problems
+- **NEVER USE @pytest.mark.skip ON FAILING TESTS** - Skipping tests masks real issues and reduces code quality
+- **FIX TESTS, DON'T HIDE THEM** - When tests fail, investigate and fix the underlying problem
+- **MAINTAIN TEST INTEGRITY** - All tests must be meaningful and passing to ensure code reliability
 
 This ensures Summit maintains high code quality and reliability across all development sessions. 

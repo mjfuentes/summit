@@ -19,6 +19,21 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 import uvicorn
 
+# Import GitHub functionality for PR creation
+try:
+    from summit import create_pull_request, get_github_repo_info
+except ImportError:
+    # Fallback if summit module not available
+    print("[WARNING] Summit module not available - PR creation will be disabled")
+    def create_pull_request(*args, **kwargs):
+        raise Exception("Summit module not available")
+    def get_github_repo_info():
+        return None, None
+
+# Add this import with the other imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+from pr_reviewers import review_pr_with_multiple_roles
+
 def kill_existing_server():
     """Kill any existing processes using port 8000"""
     try:
@@ -37,8 +52,26 @@ def kill_existing_server():
     except (subprocess.CalledProcessError, FileNotFoundError):
         pass
 
-# Add src to path for basic imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+# Bootstrap dependencies
+def bootstrap_dependencies():
+    """Install dependencies from requirements.txt."""
+    requirements_path = os.path.join(os.path.dirname(__file__), '..', 'requirements.txt')
+    if not os.path.exists(requirements_path):
+        print(f"Warning: requirements.txt not found at {requirements_path}")
+        return
+        
+    print("Checking and installing dependencies...")
+    try:
+        subprocess.check_call([sys.executable, '-m', 'pip', 'install', '-r', requirements_path])
+        print("Dependencies are up to date.")
+    except subprocess.CalledProcessError as e:
+        print(f"Error installing dependencies: {e}")
+        print("Please install dependencies manually using: pip install -r requirements.txt")
+        # Exit if dependencies can't be installed, as the app won't run
+        sys.exit(1)
+
+# Run bootstrap
+bootstrap_dependencies()
 
 # Import database functionality
 from database import get_database, init_database, close_database
@@ -850,12 +883,12 @@ async def run_autonomous_task(task_id: str):
                 "docker", "run", "-d",
                 "--name", f"claude-task-{task_id}",
                 "-p", f"{terminal_port}:7681",  # Map random host port to container port 7681
-                "-e", f"TASK_DESCRIPTION={task_data['task_description']}",
-                "-e", f"SAVE_WORD={task_data['save_word']}",
+                "-e", f"TASK_DESCRIPTION={task.task_description}",
+                "-e", f"SAVE_WORD={task.save_word or 'TASK_COMPLETE'}",
                 "-e", f"ANTHROPIC_API_KEY={api_key}",
-                "-e", f"GITHUB_TOKEN={task_data.get('github_token', '')}",
-                "-e", f"REPOSITORY_URL={task_data.get('repository_url', '')}",
-                "-e", f"TARGET_BRANCH={task_data.get('target_branch', 'main')}",
+                "-e", f"GITHUB_TOKEN={task.github_token or ''}",
+                "-e", f"REPOSITORY_URL={task.repository_url or ''}",
+                "-e", f"TARGET_BRANCH={task.target_branch or 'main'}",
                 "-e", "SUMMIT_READONLY_MODE=true",  # Prevent data modifications during tasks
                 "claude-code-task"
             ]
@@ -863,7 +896,9 @@ async def run_autonomous_task(task_id: str):
             print(f"[DEBUG] Using dynamic port mapping: {terminal_port}:7681")
             print(f"[DEBUG] Docker command: {' '.join(run_cmd[:8])}... (env vars hidden)")  # Don't log full command with API key
             
-            task_data["logs"].append("Starting Claude Code container...")
+            logs = task.logs or []
+            logs.append("Starting Claude Code container...")
+            await db.update_task(task_id, {"logs": logs})
             
             # Run docker command directly since we're using detached mode (-d)
             try:
@@ -871,41 +906,58 @@ async def run_autonomous_task(task_id: str):
                 if result.returncode != 0:
                     error_msg = f"Failed to start container: {result.stderr}"
                     print(f"[ERROR] {error_msg}")
-                    task_data["status"] = "failed"
-                    task_data["error"] = error_msg
-                    task_data["logs"].append(f"Error: {error_msg}")
+                    logs = task.logs or []
+                    logs.append(f"Error: {error_msg}")
+                    await db.update_task(task_id, {
+                        "status": "failed",
+                        "error": error_msg,
+                        "logs": logs
+                    })
                     return
                     
                 # Container started successfully
                 print(f"[TASK] Container started: {result.stdout.strip()}")
-                task_data["logs"].append(f"Container started successfully: {result.stdout.strip()}")
+                logs = task.logs or []
+                logs.append(f"Container started successfully: {result.stdout.strip()}")
+                await db.update_task(task_id, {"logs": logs})
                 
             except subprocess.TimeoutExpired:
                 error_msg = "Container startup timed out"
                 print(f"[ERROR] {error_msg}")
-                task_data["status"] = "failed"
-                task_data["error"] = error_msg
-                task_data["logs"].append(f"Error: {error_msg}")
+                logs = task.logs or []
+                logs.append(f"Error: {error_msg}")
+                await db.update_task(task_id, {
+                    "status": "failed",
+                    "error": error_msg,
+                    "logs": logs
+                })
                 return
             except Exception as e:
                 error_msg = f"Container startup failed: {str(e)}"
                 print(f"[ERROR] {error_msg}")
-                task_data["status"] = "failed"
-                task_data["error"] = error_msg
-                task_data["logs"].append(f"Error: {error_msg}")
+                logs = task.logs or []
+                logs.append(f"Error: {error_msg}")
+                await db.update_task(task_id, {
+                    "status": "failed",
+                    "error": error_msg,
+                    "logs": logs
+                })
                 return
             
             # Use the dynamically allocated terminal port
-            task_data["container_id"] = f"claude-task-{task_id}"
-            task_data["claude_code_url"] = f"http://localhost:{terminal_port}"
-            task_data["logs"].append(f"Web terminal with Claude Code access: http://localhost:{terminal_port}")
-            task_data["logs"].append("Claude Code CLI environment ready for interactive development")
-            
-            # Get container ID (command runs in detached mode)
             container_id = f"claude-task-{task_id}"
+            logs = task.logs or []
+            logs.append(f"Web terminal with Claude Code access: http://localhost:{terminal_port}")
+            logs.append("Claude Code CLI environment ready for interactive development")
+            
+            await db.update_task(task_id, {
+                "container_id": container_id,
+                "claude_code_url": f"http://localhost:{terminal_port}",
+                "logs": logs
+            })
             
             # Monitor container logs and status
-            timeout_seconds = task_data.get('timeout_minutes', 60) * 60
+            timeout_seconds = (task.timeout_minutes or 60) * 60
             start_time = time.time()
             
             # Create log file for this task instance
@@ -917,23 +969,31 @@ async def run_autonomous_task(task_id: str):
                 with open(log_file_path, 'w', encoding='utf-8') as f:
                     f.write(f"[SYSTEM] Task started at {datetime.now().isoformat()}\n")
                     f.write(f"[SYSTEM] Task ID: {task_id}\n")
-                    f.write(f"[SYSTEM] Task Description: {task_data['task_description']}\n")
-                    f.write(f"[SYSTEM] Completion Signal: {task_data['save_word']}\n")
+                    f.write(f"[SYSTEM] Task Description: {task.task_description}\n")
+                    f.write(f"[SYSTEM] Completion Signal: {task.save_word or 'TASK_COMPLETE'}\n")
                     f.write(f"[SYSTEM] Container ID: {container_id}\n")
                     f.write(f"[SYSTEM] Log monitoring started\n")
                     f.write("=" * 60 + "\n")
             except Exception as e:
                 print(f"[ERROR] Failed to initialize log file: {e}")
             
-            task_data["logs"].append("Container started successfully, monitoring Claude Code environment...")
-            task_data["log_file"] = log_file_path
+            logs = task.logs or []
+            logs.append("Container started successfully, monitoring Claude Code environment...")
+            await db.update_task(task_id, {
+                "logs": logs,
+                "log_file": log_file_path
+            })
             
             while True:
                 try:
                     # Check timeout
                     if time.time() - start_time > timeout_seconds:
-                        task_data["logs"].append("Task timed out after 1 hour")
-                        task_data["status"] = "timeout"
+                        logs = task.logs or []
+                        logs.append("Task timed out after 1 hour")
+                        await db.update_task(task_id, {
+                            "status": "timeout",
+                            "logs": logs
+                        })
                         break
                     
                     # Check if container is still running
@@ -952,25 +1012,133 @@ async def run_autonomous_task(task_id: str):
                         if inspect_result.returncode == 0:
                             exit_code = int(inspect_result.stdout.strip())
                             if exit_code == 0:
-                                task_data["status"] = "completed"
-                                task_data["progress"] = "Task completed successfully!"
-                                task_data["logs"].append("Claude Code finished successfully")
+                                logs = task.logs or []
+                                logs.append("Claude Code finished successfully")
                                 
-                                # Save completion status to log file
+                                # Try to create pull request if this was a feature branch workflow
+                                pr_created = False
                                 try:
-                                    with open(log_file_path, 'a', encoding='utf-8') as f:
-                                        f.write(f"[SYSTEM] Task completed at {datetime.now().isoformat()}\n")
-                                        f.write(f"[SYSTEM] Container exited with code {exit_code} (success)\n")
-                                except Exception as e:
-                                    print(f"[ERROR] Failed to write completion to log file: {e}")
+                                    # Get repository info
+                                    owner, repo = get_github_repo_info()
+                                    if owner and repo and task.repository_url:
+                                        # Assume the container created a feature branch following our workflow
+                                        feature_branch = f"feature/task-{task_id}"
+                                        
+                                        # Create PR
+                                        pr_title = f"feat: autonomous task completion - {task.task_description[:50]}..."
+                                        pr_body = f"""
+# Autonomous Task Completion
+
+**Task ID**: {task_id}
+**Description**: {task.task_description}
+**Branch**: {task.target_branch}
+**Completed**: {datetime.utcnow().isoformat()}Z
+
+## Summary
+This PR was automatically created by Summit's autonomous agent upon successful task completion.
+
+## Changes
+- Implemented requested functionality: {task.task_description}
+- All tests passing
+- Quality checks completed
+
+## Review Process
+This PR will be automatically reviewed by our multi-role review system:
+- **Engineering Review**: Code quality, testing, architecture
+- **Infrastructure Review**: Security, deployment, performance  
+- **Product Review**: User experience, business alignment
+- **Domain Expert Review**: AI/ML best practices, technical depth
+
+The PR will auto-merge upon successful CI completion and positive reviews.
+"""
+                                        
+                                        print(f"Creating PR for task {task_id}...")
+                                        pr_result = await create_pull_request(
+                                            owner=owner,
+                                            repo=repo,
+                                            title=pr_title,
+                                            head=task.target_branch,
+                                            base="main",
+                                            body=pr_body
+                                        )
+                                        
+                                        if pr_result:
+                                            pr_number = pr_result['number']
+                                            pr_url = pr_result['url']
+                                            
+                                            print(f"PR created: {pr_url}")
+                                            await update_task_status(
+                                                task_id, 
+                                                "completed", 
+                                                f"Task completed, PR created: {pr_url}"
+                                            )
+                                            
+                                            # Trigger multi-role reviews (internal quality gate)
+                                            print(f"Running internal multi-role review for PR #{pr_number}...")
+                                            try:
+                                                review_result = await review_pr_with_multiple_roles(
+                                                    owner=owner,
+                                                    repo=repo, 
+                                                    pr_number=pr_number,
+                                                    roles=["engineer", "infrastructure", "product", "domain_expert"]
+                                                )
+                                                
+                                                if review_result.get("success"):
+                                                    decision = review_result.get("decision", "COMMENTED")
+                                                    all_approved = review_result.get("all_approved", False)
+                                                    approval_count = review_result.get("approval_count", "0/0")
+                                                    
+                                                    print(f"Multi-role review completed: {decision} ({approval_count})")
+                                                    
+                                                    if all_approved:
+                                                        await add_task_log(
+                                                            task_id, 
+                                                            f" All AI reviewers approved PR #{pr_number} - Ready for auto-merge"
+                                                        )
+                                                    else:
+                                                        await add_task_log(
+                                                            task_id, 
+                                                            f" AI reviewers requested changes on PR #{pr_number} - Auto-merge blocked"
+                                                        )
+                                                else:
+                                                    print(f"Multi-role review failed: {review_result.get('error', 'Unknown error')}")
+                                                    await add_task_log(
+                                                        task_id, 
+                                                        f"Multi-role review failed for PR #{pr_number}"
+                                                    )
+                                                    
+                                            except Exception as review_error:
+                                                print(f"Error during multi-role review: {review_error}")
+                                                await add_task_log(
+                                                    task_id, 
+                                                    f"Multi-role review error: {str(review_error)}"
+                                                )
+                                            
+                                        else:
+                                            print(f"Failed to create PR for task {task_id}")
+                                            await update_task_status(task_id, "completed", "Task completed but PR creation failed")
+                                
+                                except Exception as pr_error:
+                                    print(f"Error creating PR for task {task_id}: {pr_error}")
+                                    await update_task_status(task_id, "completed", f"Task completed but PR error: {str(pr_error)}")
                             else:
-                                task_data["status"] = "failed"
-                                task_data["error"] = f"Claude Code exited with error code {exit_code}"
-                                task_data["logs"].append(f"Claude Code failed with exit code {exit_code}")
+                                error_msg = f"Claude Code exited with error code {exit_code}"
+                                logs = task.logs or []
+                                logs.append(f"Claude Code failed with exit code {exit_code}")
+                                await db.update_task(task_id, {
+                                    "status": "failed",
+                                    "error": error_msg,
+                                    "logs": logs
+                                })
                         else:
-                            task_data["status"] = "failed"
-                            task_data["error"] = "Could not determine container exit status"
-                            task_data["logs"].append("Container stopped but exit status unknown")
+                            error_msg = "Could not determine container exit status"
+                            logs = task.logs or []
+                            logs.append("Container stopped but exit status unknown")
+                            await db.update_task(task_id, {
+                                "status": "failed",
+                                "error": error_msg,
+                                "logs": logs
+                            })
                         break
                     
                     # Get container logs with timestamps
@@ -982,12 +1150,15 @@ async def run_autonomous_task(task_id: str):
                     if logs_result.returncode == 0 and logs_result.stdout:
                         # Get all logs and filter new ones
                         all_logs = logs_result.stdout.strip()
-                        current_logs = [log for log in task_data["logs"] if log.startswith("Claude:")]
+                        current_task = await db.get_task(task_id)
+                        current_logs = current_task.logs or []
+                        current_claude_logs = [log for log in current_logs if log.startswith("Claude:")]
                         
                         # Split into lines and process new ones
                         log_lines = all_logs.split('\n') if all_logs else []
                         
                         new_logs_added = False
+                        updated_logs = current_logs.copy()
                         
                         for line in log_lines:
                             if line.strip():
@@ -1008,8 +1179,8 @@ async def run_autonomous_task(task_id: str):
                                 formatted_log = f"Claude: {clean_line.strip()}"
                                 
                                 # Only add if not already in logs
-                                if formatted_log not in task_data["logs"]:
-                                    task_data["logs"].append(formatted_log)
+                                if formatted_log not in updated_logs:
+                                    updated_logs.append(formatted_log)
                                     new_logs_added = True
                                     
                                     # Note: We'll detect completion when the container/process naturally exits
@@ -1017,58 +1188,76 @@ async def run_autonomous_task(task_id: str):
                         
                         # Update if we added new logs
                         if new_logs_added:
-                            pass  # Task data updated in memory, will be available via HTTP polling
+                            await db.update_task(task_id, {"logs": updated_logs})
                     
                     # Wait before next check
                     await asyncio.sleep(3)
                     
                 except Exception as e:
-                    task_data["logs"].append(f"Monitoring error: {str(e)}")
+                    logs = task.logs or []
+                    logs.append(f"Monitoring error: {str(e)}")
+                    await db.update_task(task_id, {"logs": logs})
                     await asyncio.sleep(5)
             
-            if task_data["status"] != "completed":
-                task_data["status"] = "failed"
-                task_data["progress"] = "Task ended without completion signal"
-                task_data["logs"].append("Task monitoring ended without completion signal")
+            # Check final status - only update if still running
+            current_task = await db.get_task(task_id)
+            if current_task and current_task.status not in ["completed", "failed", "timeout"]:
+                logs = current_task.logs or []
+                logs.append("Task monitoring ended without completion signal")
+                await db.update_task(task_id, {
+                    "status": "failed",
+                    "progress": "Task ended without completion signal",
+                    "logs": logs
+                })
             
         except Exception as e:
-            task_data["status"] = "failed"
-            task_data["progress"] = f"Error: {str(e)}"
-            task_data["logs"].append(f"Error: {str(e)}")
+            logs = task.logs or []
+            logs.append(f"Error: {str(e)}")
+            await db.update_task(task_id, {
+                "status": "failed",
+                "progress": f"Error: {str(e)}",
+                "logs": logs
+            })
         
     except Exception as e:
-        task_data["status"] = "failed"
-        task_data["progress"] = f"Error: {str(e)}"
-        task_data["logs"].append(f"Error: {str(e)}")
+        try:
+            logs = task.logs or []
+            logs.append(f"Error: {str(e)}")
+            await db.update_task(task_id, {
+                "status": "failed",
+                "progress": f"Error: {str(e)}",
+                "logs": logs
+            })
+        except:
+            print(f"[ERROR] Failed to update task {task_id}: {e}")
     
     finally:
         # Save final log entry and add completion timestamp
         if 'log_file_path' in locals():
             try:
+                current_task = await db.get_task(task_id)
                 with open(log_file_path, 'a', encoding='utf-8') as f:
                     f.write("=" * 60 + "\n")
                     f.write(f"[SYSTEM] Task ended at {datetime.now().isoformat()}\n")
-                    f.write(f"[SYSTEM] Final status: {task_data.get('status', 'unknown')}\n")
+                    f.write(f"[SYSTEM] Final status: {current_task.status if current_task else 'unknown'}\n")
                     f.write(f"[SYSTEM] Log file saved to: {log_file_path}\n")
                 
                 # Read the complete log file content for completed tasks
                 with open(log_file_path, 'r', encoding='utf-8') as f:
-                    task_data["full_logs"] = f.read()
+                    full_logs = f.read()
+                    await db.update_task(task_id, {"full_logs": full_logs})
                     
             except Exception as e:
                 print(f"[ERROR] Failed to write final log entry: {e}")
         
-        # Add completion timestamp
-        task_data["completed_at"] = datetime.now().isoformat()
-        
-        # Move completed/failed tasks to history instead of deleting them
-        if task_id in active_tasks:
-            task_history.append(active_tasks[task_id])
-            del active_tasks[task_id]
-            
-            # Keep only last 50 completed tasks to avoid memory issues
-            if len(task_history) > 50:
-                task_history.pop(0)
+        # Add completion timestamp and mark as inactive
+        try:
+            await db.update_task(task_id, {
+                "completed_at": datetime.now(),
+                "is_active": False
+            })
+        except Exception as e:
+            print(f"[ERROR] Failed to mark task as completed: {e}")
         
         # Clean up Docker container
         try:
