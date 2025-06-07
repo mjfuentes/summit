@@ -525,16 +525,7 @@ def create_hybrid_html():
                         <button class="voice-btn" id="voice-btn" onclick="toggleVoiceInput()"></button>
                         <span class="voice-status" id="voice-status">SPEAK TO THE AI!</span>
                     </div>
-                    <textarea id="task-description" placeholder="YO! Tell NEXUS AI what DOPE coding task you want it to MASTER...
-
-Examples:
-- Build a REST API for a todo application using FastAPI
-- Create a React component for user authentication  
-- Write a Python script to analyze CSV data and generate charts
-- Fix bugs in the payment processing module
-- Implement a caching layer using Redis
-
-NEXUS AI will learn it, code it, and make it LEGENDARY! "></textarea>
+                    <textarea id="task-description" placeholder="What are we building today?"></textarea>
                     
                     <!-- All backend configuration is now hardcoded -->
                     
