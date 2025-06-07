@@ -127,8 +127,9 @@ fi
 git config user.name "Claude AI Assistant" 2>/dev/null || true
 git config user.email "claude.ai@anthropic.com" 2>/dev/null || true
 
-# Create the Claude Code interaction script
-cat > interact_with_claude.py << 'CLAUDE_SCRIPT'
+# Create the Claude Code interaction script outside the repository
+mkdir -p /tmp/claude_tools
+cat > /tmp/claude_tools/interact_with_claude.py << 'CLAUDE_SCRIPT'
 #!/usr/bin/env python3
 """
 Claude Code CLI interaction script for autonomous development
@@ -449,10 +450,10 @@ if __name__ == '__main__':
     main()
 CLAUDE_SCRIPT
 
-chmod +x interact_with_claude.py
+chmod +x /tmp/claude_tools/interact_with_claude.py
 
 echo "[$(date '+%H:%M:%S')] Running Claude Code interaction..."
-python3 interact_with_claude.py
+python3 /tmp/claude_tools/interact_with_claude.py
 
 # Start web terminal for monitoring
 cat > welcome.sh << 'WELCOME'
