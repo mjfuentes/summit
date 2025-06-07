@@ -51,38 +51,76 @@ fi
 if [ ! -z "$REPOSITORY_URL" ]; then
     echo "[$(date '+%H:%M:%S')] Setting up git repository..."
     
-    # Clone the repository to a temporary directory
+    # Clone the repository to a subdirectory
     REPO_DIR="/workspace/repo"
     if [ -d "$REPO_DIR" ]; then
         rm -rf "$REPO_DIR"
     fi
     
-    git clone "$REPOSITORY_URL" "$REPO_DIR"
+    # Set up authentication if GitHub token is provided
+    if [ ! -z "$GITHUB_TOKEN" ]; then
+        echo "[$(date '+%H:%M:%S')] Using GitHub token for authentication"
+        
+        # Set up git credential store
+        git config --global credential.helper store
+        git config --global user.name "Claude AI Assistant"
+        git config --global user.email "claude.ai@anthropic.com"
+        
+        # Create credentials file with token
+        mkdir -p ~/.config/git
+        echo "https://mjfuentes:$GITHUB_TOKEN@github.com" > ~/.git-credentials
+        chmod 600 ~/.git-credentials
+        
+        # Try different authentication methods
+        echo "[$(date '+%H:%M:%S')] Attempting clone with stored credentials..."
+        git clone "$REPOSITORY_URL" "$REPO_DIR" || {
+            echo "[$(date '+%H:%M:%S')] Stored credentials failed, trying token in URL..."
+            AUTH_URL=$(echo "$REPOSITORY_URL" | sed "s|https://github.com/|https://$GITHUB_TOKEN@github.com/|")
+            git clone "$AUTH_URL" "$REPO_DIR" || {
+                echo "[$(date '+%H:%M:%S')] All authentication methods failed, trying public clone..."
+                git clone "$REPOSITORY_URL" "$REPO_DIR"
+            }
+        }
+    else
+        echo "[$(date '+%H:%M:%S')] No GitHub token provided, attempting public clone"
+        git clone "$REPOSITORY_URL" "$REPO_DIR"
+    fi
     cd "$REPO_DIR"
     
-    # Get the test branch name from environment or use default
-    TEST_BRANCH="${TEST_BRANCH:-test/autonomous-claude-tracking}"
+    # Get the target branch name from environment or use main by default
+    TARGET_BRANCH="${TARGET_BRANCH:-main}"
+    export TARGET_BRANCH="$TARGET_BRANCH"
     
-    # Check if test branch exists on remote, if not create it
-    if git ls-remote --heads origin "$TEST_BRANCH" | grep -q "$TEST_BRANCH"; then
-        echo "[$(date '+%H:%M:%S')] Checking out existing test branch: $TEST_BRANCH"
-        git checkout "$TEST_BRANCH"
-        git pull origin "$TEST_BRANCH"
+    # Check if target branch exists on remote, if not create it (if not main)
+    if [ "$TARGET_BRANCH" = "main" ]; then
+        echo "[$(date '+%H:%M:%S')] Checking out main branch"
+        git checkout main
+        git pull origin main
+    elif git ls-remote --heads origin "$TARGET_BRANCH" | grep -q "$TARGET_BRANCH"; then
+        echo "[$(date '+%H:%M:%S')] Checking out existing branch: $TARGET_BRANCH"
+        git checkout "$TARGET_BRANCH"
+        git pull origin "$TARGET_BRANCH"
     else
-        echo "[$(date '+%H:%M:%S')] Creating new test branch: $TEST_BRANCH"
-        git checkout -b "$TEST_BRANCH"
-        git push -u origin "$TEST_BRANCH"
+        echo "[$(date '+%H:%M:%S')] Creating new branch: $TARGET_BRANCH"
+        git checkout -b "$TARGET_BRANCH"
+        # Try to push the new branch, but don't fail if it doesn't work initially
+        git push -u origin "$TARGET_BRANCH" || echo "[$(date '+%H:%M:%S')] Initial branch push failed, will retry after commits"
     fi
+    
+    # Ensure remote origin is properly configured
+    git remote set-url origin "$REPOSITORY_URL"
     
     echo "[$(date '+%H:%M:%S')] Working in git repository: $(pwd)"
     echo "[$(date '+%H:%M:%S')] Current branch: $(git branch --show-current)"
     echo "[$(date '+%H:%M:%S')] Remote URL: $(git remote get-url origin)"
+    echo "[$(date '+%H:%M:%S')] Target branch for pushing: $TARGET_BRANCH"
 else
     echo "[$(date '+%H:%M:%S')] Working in clean workspace (no repository specified)"
     # Initialize a basic git repo for testing
     git init
     git config user.name "Claude AI Assistant"
     git config user.email "claude.ai@anthropic.com"
+    export TARGET_BRANCH="main"
 fi
 
 # Configure git for Claude
@@ -219,14 +257,12 @@ REGARDLESS of what the task asks for, you MUST ALWAYS finish by committing and p
 - No emojis in documentation - use clear, professional text
 - Keep documentation concise and focused
 
-**COMPLETION SIGNAL:**
-Only after successfully pushing to git, create a file called 'completion.txt' containing exactly: {save_word}
-
 **WORKSPACE:**
 You are working in: {os.getcwd()}
 
 **REMEMBER: NO TASK IS COMPLETE WITHOUT GIT COMMIT AND PUSH**
 Analyze the repository, complete the task, then ALWAYS commit and push your changes.
+When you're completely finished with everything, you can simply end your session.
 """
     
     # Create a temporary file for the prompt
@@ -392,27 +428,9 @@ Analyze the repository, complete the task, then ALWAYS commit and push your chan
         
         if return_code == 0:
             log("Claude Code completed successfully")
-            
-            # Check if completion signal was created
-            if os.path.exists('completion.txt'):
-                with open('completion.txt', 'r') as f:
-                    content = f.read().strip()
-                    if save_word in content:
-                        log(f"Task completed! Found completion signal: {save_word}")
-                        return
-            
-            # If no completion signal, create one
-            log("Claude Code finished but no completion signal found. Creating completion signal...")
-            with open('completion.txt', 'w') as f:
-                f.write(save_word)
-            log(f"Task completed! Created completion signal: {save_word}")
-            
         else:
             log(f"Claude Code exited with error code: {return_code}")
-            log("Creating completion signal anyway...")
-            with open('completion.txt', 'w') as f:
-                f.write(save_word)
-            log(f"Task marked complete: {save_word}")
+            log("Task finished with errors")
     
     finally:
         # Clean up temporary file
@@ -462,29 +480,6 @@ TTYD_PID=$!
 
 echo "[$(date '+%H:%M:%S')] Web terminal started on port 7681"
 
-# Monitor for completion signal
-LOOP_COUNT=0
-while true; do
-    sleep 10
-    LOOP_COUNT=$((LOOP_COUNT + 1))
-    
-    # Check for completion
-    if [ -f completion.txt ] && grep -q "$SAVE_WORD" completion.txt; then
-        echo "[$(date '+%H:%M:%S')] Completion signal detected!"
-        echo "$SAVE_WORD"
-        exit 0
-    fi
-    
-    # Status updates
-    if [ $((LOOP_COUNT % 6)) -eq 0 ]; then
-        echo "[$(date '+%H:%M:%S')] Monitoring: ${LOOP_COUNT}0 seconds elapsed"
-    fi
-    
-    # Optional timeout
-    if [ ! -z "$TIMEOUT_MINUTES" ] && [ $LOOP_COUNT -gt $((TIMEOUT_MINUTES * 6)) ]; then
-        echo "[$(date '+%H:%M:%S')] Timeout reached"
-        break
-    fi
-done
-
+# Claude Code has finished - the session will now end naturally
+echo "[$(date '+%H:%M:%S')] Claude Code execution completed"
 echo "[$(date '+%H:%M:%S')] Session ended" 

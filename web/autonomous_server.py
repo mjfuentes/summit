@@ -58,11 +58,7 @@ task_history: List[Dict] = []
 log_dir = "task_logs"
 
 class TaskRequest(BaseModel):
-    task_description: str
-    repository_url: Optional[str] = None
-    github_token: Optional[str] = None
-    timeout_minutes: Optional[int] = 60
-    save_word: Optional[str] = "SUMMIT_TASK_COMPLETE"
+    task_description: str  # Only thing the user needs to provide
 
 class TaskStatus(BaseModel):
     task_id: str
@@ -155,13 +151,7 @@ Examples:
 - Fix bugs in the payment processing module
 - Implement a caching layer using Redis"></textarea>
                     
-                    <details class="advanced-options">
-                        <summary>Advanced Options</summary>
-                        <input type="text" id="repository-url" placeholder="GitHub repository URL (optional)">
-                        <input type="password" id="github-token" placeholder="GitHub token for private repos (optional)">
-                        <input type="number" id="timeout" placeholder="Timeout in minutes (default: 60)" value="60" min="5" max="240">
-                        <input type="text" id="save-word" placeholder="Completion safe word (default: SUMMIT_TASK_COMPLETE)" value="SUMMIT_TASK_COMPLETE">
-                    </details>
+                    <!-- All backend configuration is now hardcoded -->
                     
                     <button class="btn" onclick="createTask()" id="create-btn">Start Autonomous Learning</button>
                 </div>
@@ -355,11 +345,7 @@ Examples:
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        task_description: description,
-                        repository_url: document.getElementById('repository-url').value || null,
-                        github_token: document.getElementById('github-token').value || null,
-                        timeout_minutes: parseInt(document.getElementById('timeout').value) || 60,
-                        save_word: document.getElementById('save-word').value || 'SUMMIT_TASK_COMPLETE'
+                        task_description: description
                     })
                 });
                 
@@ -477,13 +463,15 @@ async def create_task(request: TaskRequest):
     """Create a new autonomous learning task"""
     task_id = str(uuid.uuid4())
     
+    # Hardcode all the backend configuration
     task_data = {
         "task_id": task_id,
         "task_description": request.task_description,
-        "repository_url": request.repository_url,
-        "github_token": request.github_token,
-        "timeout_minutes": request.timeout_minutes,
-        "save_word": request.save_word,
+        "repository_url": "https://github.com/mjfuentes/summit.git",  # Hardcoded
+        "github_token": "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",
+        "target_branch": "main",  # Hardcoded
+        "timeout_minutes": 15,  # Hardcoded reasonable timeout
+        "save_word": "SUMMIT_TASK_COMPLETE",  # Hardcoded
         "status": "initializing",
         "progress": "Creating container environment...",
         "logs": ["Task created", "Initializing autonomous learning environment"],
@@ -602,6 +590,7 @@ async def run_autonomous_task(task_id: str, task_data: Dict):
                 "-e", f"ANTHROPIC_API_KEY={api_key}",
                 "-e", f"GITHUB_TOKEN={task_data.get('github_token', '')}",
                 "-e", f"REPOSITORY_URL={task_data.get('repository_url', '')}",
+                "-e", f"TARGET_BRANCH={task_data.get('target_branch', 'main')}",
                 "claude-code-task"
             ]
             
@@ -688,10 +677,34 @@ async def run_autonomous_task(task_id: str, task_data: Dict):
                     )
                     
                     if not status_check.stdout.strip():
-                        # Container stopped
-                        task_data["logs"].append("Container stopped")
-                        task_data["status"] = "failed"
-                        task_data["error"] = "Container stopped unexpectedly"
+                        # Container stopped - check exit code to determine if it completed successfully
+                        inspect_result = subprocess.run(
+                            ["docker", "inspect", container_id, "--format", "{{.State.ExitCode}}"],
+                            capture_output=True, text=True, timeout=5
+                        )
+                        
+                        if inspect_result.returncode == 0:
+                            exit_code = int(inspect_result.stdout.strip())
+                            if exit_code == 0:
+                                task_data["status"] = "completed"
+                                task_data["progress"] = "Task completed successfully!"
+                                task_data["logs"].append("Claude Code finished successfully")
+                                
+                                # Save completion status to log file
+                                try:
+                                    with open(log_file_path, 'a', encoding='utf-8') as f:
+                                        f.write(f"[SYSTEM] Task completed at {datetime.now().isoformat()}\n")
+                                        f.write(f"[SYSTEM] Container exited with code {exit_code} (success)\n")
+                                except Exception as e:
+                                    print(f"[ERROR] Failed to write completion to log file: {e}")
+                            else:
+                                task_data["status"] = "failed"
+                                task_data["error"] = f"Claude Code exited with error code {exit_code}"
+                                task_data["logs"].append(f"Claude Code failed with exit code {exit_code}")
+                        else:
+                            task_data["status"] = "failed"
+                            task_data["error"] = "Could not determine container exit status"
+                            task_data["logs"].append("Container stopped but exit status unknown")
                         break
                     
                     # Get container logs with timestamps
@@ -733,21 +746,8 @@ async def run_autonomous_task(task_id: str, task_data: Dict):
                                     task_data["logs"].append(formatted_log)
                                     new_logs_added = True
                                     
-                                    # Check for completion signal
-                                    if task_data["save_word"] in clean_line:
-                                        task_data["status"] = "completed"
-                                        task_data["progress"] = "Task completed successfully!"
-                                        task_data["logs"].append("Task completed! Completion signal detected.")
-                                        
-                                        # Save completion status to log file
-                                        try:
-                                            with open(log_file_path, 'a', encoding='utf-8') as f:
-                                                f.write(f"[SYSTEM] Task completed at {datetime.now().isoformat()}\n")
-                                                f.write(f"[SYSTEM] Completion signal '{task_data['save_word']}' detected\n")
-                                        except Exception as e:
-                                            print(f"[ERROR] Failed to write completion to log file: {e}")
-                                        
-                                        return
+                                    # Note: We'll detect completion when the container/process naturally exits
+                                    # No need to look for magic completion signals
                         
                         # Update if we added new logs
                         if new_logs_added:
