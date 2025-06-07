@@ -7,6 +7,12 @@ on:
     types: [completed]
   status:
 
+permissions:
+  contents: read
+  pull-requests: write
+  checks: read
+  statuses: read
+
 jobs:
   auto-merge:
     runs-on: ubuntu-latest
@@ -21,10 +27,17 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            // Get PR number from context
+            const prNumber = context.payload.pull_request?.number || context.issue?.number;
+            if (!prNumber) {
+              core.setFailed('No PR number found in context');
+              return;
+            }
+            
             const { data: pr } = await github.rest.pulls.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              pull_number: context.payload.pull_request.number
+              pull_number: prNumber
             });
             
             const { data: checks } = await github.rest.checks.listForRef({
@@ -66,9 +79,12 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            github.rest.issues.createComment({
-              issue_number: ${{ steps.check-status.outputs.pr-number }},
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: ' Auto-merge enabled by Summit autonomous system. PR will merge automatically when all checks pass.'
-            }) 
+            const prNumber = ${{ steps.check-status.outputs.pr-number }};
+            if (prNumber) {
+              github.rest.issues.createComment({
+                issue_number: prNumber,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: 'Auto-merge enabled by Summit autonomous system. PR will merge automatically when all checks pass.'
+              });
+            } 
