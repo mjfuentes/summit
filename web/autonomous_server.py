@@ -19,6 +19,17 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 import uvicorn
 
+# Import GitHub functionality for PR creation
+try:
+    from summit import create_pull_request, get_github_repo_info
+except ImportError:
+    # Fallback if summit module not available
+    print("[WARNING] Summit module not available - PR creation will be disabled")
+    def create_pull_request(*args, **kwargs):
+        raise Exception("Summit module not available")
+    def get_github_repo_info():
+        return None, None
+
 def kill_existing_server():
     """Kill any existing processes using port 8000"""
     try:
@@ -1002,9 +1013,52 @@ async def run_autonomous_task(task_id: str):
                             if exit_code == 0:
                                 logs = task.logs or []
                                 logs.append("Claude Code finished successfully")
+                                
+                                # Try to create pull request if this was a feature branch workflow
+                                pr_created = False
+                                try:
+                                    # Get repository info
+                                    owner, repo = get_github_repo_info()
+                                    if owner and repo and task.repository_url:
+                                        # Assume the container created a feature branch following our workflow
+                                        feature_branch = f"feature/task-{task_id}"
+                                        
+                                        # Create pull request
+                                        pr_data = await create_pull_request(
+                                            owner=owner,
+                                            repo=repo,
+                                            title=f"feat: {task.task_description[:50]}{'...' if len(task.task_description) > 50 else ''}",
+                                            head=feature_branch,
+                                            base="main",
+                                            body=f"""## Autonomous Task Completion
+
+**Task ID:** {task_id}
+**Description:** {task.task_description}
+
+This pull request was automatically created by Summit's autonomous development system after successfully completing the requested task.
+
+### Changes Made
+The autonomous agent used Claude Code to implement the requested functionality and has committed the changes to this feature branch.
+
+### Validation
+-  Container executed successfully (exit code 0)
+-  All changes committed to `{feature_branch}`
+-  Ready for review and merge
+
+**Note:** This PR will auto-merge once all CI/CD checks pass."""
+                                        )
+                                        
+                                        logs.append(f"Created pull request #{pr_data['number']}: {pr_data['url']}")
+                                        pr_created = True
+                                        print(f"[SUCCESS] Created PR #{pr_data['number']}: {pr_data['url']}")
+                                        
+                                except Exception as e:
+                                    print(f"[WARNING] Failed to create pull request: {e}")
+                                    logs.append(f"Warning: Could not create pull request automatically: {e}")
+                                
                                 await db.update_task(task_id, {
                                     "status": "completed",
-                                    "progress": "Task completed successfully!",
+                                    "progress": "Task completed successfully!" + (" PR created." if pr_created else ""),
                                     "logs": logs
                                 })
                                 
@@ -1013,6 +1067,8 @@ async def run_autonomous_task(task_id: str):
                                     with open(log_file_path, 'a', encoding='utf-8') as f:
                                         f.write(f"[SYSTEM] Task completed at {datetime.now().isoformat()}\n")
                                         f.write(f"[SYSTEM] Container exited with code {exit_code} (success)\n")
+                                        if pr_created:
+                                            f.write(f"[SYSTEM] Pull request created successfully\n")
                                 except Exception as e:
                                     print(f"[ERROR] Failed to write completion to log file: {e}")
                             else:

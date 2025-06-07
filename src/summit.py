@@ -631,7 +631,7 @@ async def get_codespace_status(codespace_name: str) -> Dict:
         raise Exception(f"Failed to get codespace status: {e}")
 
 async def list_user_codespaces() -> List[Dict]:
-    """List all user's codespaces"""
+    """List all user codespaces"""
     headers = get_github_headers()
     if not headers:
         raise ValueError("GITHUB_TOKEN environment variable is required")
@@ -639,13 +639,44 @@ async def list_user_codespaces() -> List[Dict]:
     url = "https://api.github.com/user/codespaces"
     
     try:
-        response = requests.get(url, headers=headers, timeout=30)
+        response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
         
-        return response.json()['codespaces']
-        
-    except requests.RequestException as e:
+        return response.json().get('codespaces', [])
+    except Exception as e:
         raise Exception(f"Failed to list codespaces: {e}")
+
+async def create_pull_request(owner: str, repo: str, title: str, head: str, base: str = "main", body: str = "") -> Dict:
+    """Create a new pull request"""
+    headers = get_github_headers()
+    if not headers:
+        raise ValueError("GITHUB_TOKEN environment variable is required for creating pull requests")
+    
+    url = f"https://api.github.com/repos/{owner}/{repo}/pulls"
+    
+    payload = {
+        "title": title,
+        "head": head,
+        "base": base,
+        "body": body,
+        "maintainer_can_modify": True
+    }
+    
+    try:
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        response.raise_for_status()
+        
+        pr_data = response.json()
+        return {
+            'number': pr_data['number'],
+            'url': pr_data['html_url'],
+            'state': pr_data['state'],
+            'title': pr_data['title'],
+            'head': pr_data['head']['ref'],
+            'base': pr_data['base']['ref']
+        }
+    except Exception as e:
+        raise Exception(f"Failed to create pull request: {e}")
 
 async def plan_capability_implementation(capability_description: str, requirements: str = None) -> str:
     """Use Claude to plan the implementation of a new capability"""
