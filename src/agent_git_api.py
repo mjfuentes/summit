@@ -103,12 +103,15 @@ class AgentGitAPI:
             if not self.update_from_remote():
                 print(" Warning: Could not update main branch")
 
-            # Create feature branch name from PR title
+            # Create feature branch name from PR title with timestamp for uniqueness
             import re
+            import time
 
-            branch_name = "feature/" + re.sub(
-                r"[^a-zA-Z0-9]+", "-", pr_title.lower()
-            ).strip("-")
+            base_name = re.sub(r"[^a-zA-Z0-9]+", "-", pr_title.lower()).strip(
+                "-"
+            )
+            timestamp = str(int(time.time()))  # Full timestamp for consistency
+            branch_name = f"feature/{base_name}-{timestamp}"
             branch_name = branch_name[:50]  # Limit length
 
             if not self.create_feature_branch(branch_name):
