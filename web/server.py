@@ -5,21 +5,22 @@
 Summit Web API - FastAPI server that exposes Summit's capabilities via REST endpoints
 """
 
-import sys
 import os
-from typing import Dict, Any, Optional
+import sys
+from typing import Any, Dict, Optional
+
+import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-import uvicorn
 
 # Add the current directory to the path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from summit import handle_call_tool
 from config import setup_environment
+from summit import handle_call_tool
 
 # Set up environment variables
 setup_environment()
@@ -28,7 +29,7 @@ setup_environment()
 app = FastAPI(
     title="Summit AI API",
     description="REST API for Summit AI Advisor with self-modification capabilities",
-    version="1.0.0"
+    version="1.0.0",
 )
 
 # Add CORS middleware for web browser access
@@ -40,55 +41,71 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # Pydantic models for request/response validation
 class AdviceRequest(BaseModel):
     question: str
     context: Optional[str] = None
+
 
 class ShareRequest(BaseModel):
     content: str
     category: Optional[str] = "general"
     context: Optional[str] = None
 
+
 class LearnRequest(BaseModel):
     query: str
     focus: Optional[str] = None
     max_results: Optional[int] = 5
 
+
 class AnalyticsRequest(BaseModel):
     include_suggestions: Optional[bool] = False
+
 
 class LearnCapabilityRequest(BaseModel):
     capability_description: str
     requirements: Optional[str] = None
     machine_type: Optional[str] = "standardLinux32gb"
 
+
 class DeployRequest(BaseModel):
     codespace_name: str
     commit_message: str
 
+
 class CleanupRequest(BaseModel):
     codespace_name: str
+
 
 class SoundCloudConfigRequest(BaseModel):
     access_token: str
 
+
 class SoundCloudSearchRequest(BaseModel):
     query: str
     limit: Optional[int] = 10
+
 
 class ApiResponse(BaseModel):
     success: bool
     data: Any
     message: Optional[str] = None
 
+
 # Error handler
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
     return JSONResponse(
         status_code=500,
-        content={"success": False, "data": None, "message": f"Internal error: {str(exc)}"}
+        content={
+            "success": False,
+            "data": None,
+            "message": f"Internal error: {str(exc)}",
+        },
     )
+
 
 # Root endpoint with HTML interface
 @app.get("/", response_class=HTMLResponse)
@@ -638,18 +655,20 @@ async def root():
     """
     return html_content
 
+
 # API endpoints
 @app.post("/api/advice", response_model=ApiResponse)
 async def get_advice(request: AdviceRequest):
     """Get advice from Summit"""
     try:
-        result = await handle_call_tool("summit_advice", {
-            "question": request.question,
-            "context": request.context
-        })
+        result = await handle_call_tool(
+            "summit_advice",
+            {"question": request.question, "context": request.context},
+        )
         return ApiResponse(success=True, data=result[0].text)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/api/status", response_model=ApiResponse)
 async def get_status():
@@ -660,6 +679,7 @@ async def get_status():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.get("/api/cost-report", response_model=ApiResponse)
 async def get_cost_report():
     """Get cost tracking report"""
@@ -669,42 +689,53 @@ async def get_cost_report():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.post("/api/share", response_model=ApiResponse)
 async def share_knowledge(request: ShareRequest):
     """Share knowledge with Summit"""
     try:
-        result = await handle_call_tool("summit_share", {
-            "content": request.content,
-            "category": request.category,
-            "context": request.context
-        })
+        result = await handle_call_tool(
+            "summit_share",
+            {
+                "content": request.content,
+                "category": request.category,
+                "context": request.context,
+            },
+        )
         return ApiResponse(success=True, data=result[0].text)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.post("/api/learn", response_model=ApiResponse)
 async def learn_from_knowledge(request: LearnRequest):
     """Learn from Summit's knowledge base"""
     try:
-        result = await handle_call_tool("summit_learn", {
-            "query": request.query,
-            "focus": request.focus,
-            "max_results": request.max_results
-        })
+        result = await handle_call_tool(
+            "summit_learn",
+            {
+                "query": request.query,
+                "focus": request.focus,
+                "max_results": request.max_results,
+            },
+        )
         return ApiResponse(success=True, data=result[0].text)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.post("/api/analytics", response_model=ApiResponse)
 async def get_analytics(request: AnalyticsRequest):
     """Get search analytics"""
     try:
-        result = await handle_call_tool("summit_analytics", {
-            "include_suggestions": request.include_suggestions
-        })
+        result = await handle_call_tool(
+            "summit_analytics",
+            {"include_suggestions": request.include_suggestions},
+        )
         return ApiResponse(success=True, data=result[0].text)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/api/insights", response_model=ApiResponse)
 async def get_insights():
@@ -715,18 +746,23 @@ async def get_insights():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.post("/api/learn-capability", response_model=ApiResponse)
 async def learn_capability(request: LearnCapabilityRequest):
     """Learn a new capability using Codespaces"""
     try:
-        result = await handle_call_tool("summit_learn_capability", {
-            "capability_description": request.capability_description,
-            "requirements": request.requirements,
-            "machine_type": request.machine_type
-        })
+        result = await handle_call_tool(
+            "summit_learn_capability",
+            {
+                "capability_description": request.capability_description,
+                "requirements": request.requirements,
+                "machine_type": request.machine_type,
+            },
+        )
         return ApiResponse(success=True, data=result[0].text)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/api/codespace-status", response_model=ApiResponse)
 async def get_codespace_status():
@@ -737,128 +773,152 @@ async def get_codespace_status():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.post("/api/deploy", response_model=ApiResponse)
 async def deploy_changes(request: DeployRequest):
     """Deploy changes from codespace"""
     try:
-        result = await handle_call_tool("summit_deploy_changes", {
-            "codespace_name": request.codespace_name,
-            "commit_message": request.commit_message
-        })
+        result = await handle_call_tool(
+            "summit_deploy_changes",
+            {
+                "codespace_name": request.codespace_name,
+                "commit_message": request.commit_message,
+            },
+        )
         return ApiResponse(success=True, data=result[0].text)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.post("/api/cleanup", response_model=ApiResponse)
 async def cleanup_environment(request: CleanupRequest):
     """Clean up development environment"""
     try:
-        result = await handle_call_tool("summit_cleanup_environment", {
-            "codespace_name": request.codespace_name
-        })
+        result = await handle_call_tool(
+            "summit_cleanup_environment",
+            {"codespace_name": request.codespace_name},
+        )
         return ApiResponse(success=True, data=result[0].text)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 # SoundCloud integration endpoints
 settings_store = {}
+
 
 @app.post("/api/soundcloud/config", response_model=ApiResponse)
 async def configure_soundcloud(request: SoundCloudConfigRequest):
     """Configure SoundCloud access token"""
     try:
-        settings_store['soundcloud_token'] = request.access_token
-        return ApiResponse(success=True, data="SoundCloud token configured successfully")
+        settings_store["soundcloud_token"] = request.access_token
+        return ApiResponse(
+            success=True, data="SoundCloud token configured successfully"
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/api/soundcloud/config", response_model=ApiResponse)
 async def get_soundcloud_config():
     """Get SoundCloud configuration status"""
     try:
-        token = settings_store.get('soundcloud_token', '')
+        token = settings_store.get("soundcloud_token", "")
         has_token = token and token.strip()
         return ApiResponse(success=True, data={"configured": bool(has_token)})
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.post("/api/soundcloud/search", response_model=ApiResponse)
 async def search_soundcloud(request: SoundCloudSearchRequest):
     """Search SoundCloud tracks"""
     try:
         import requests
-        
-        token = settings_store.get('soundcloud_token', '')
+
+        token = settings_store.get("soundcloud_token", "")
         if not token or not token.strip():
-            raise HTTPException(status_code=400, detail="SoundCloud token not configured")
-        
+            raise HTTPException(
+                status_code=400, detail="SoundCloud token not configured"
+            )
+
         # SoundCloud API search
         url = "https://api.soundcloud.com/tracks"
         params = {
-            'q': request.query,
-            'limit': request.limit,
-            'oauth_token': token
+            "q": request.query,
+            "limit": request.limit,
+            "oauth_token": token,
         }
-        
+
         response = requests.get(url, params=params, timeout=10)
         if response.status_code == 200:
             tracks = response.json()
             # Format tracks for frontend
             formatted_tracks = []
             for track in tracks:
-                if track.get('streamable'):
-                    formatted_tracks.append({
-                        'id': track.get('id'),
-                        'title': track.get('title'),
-                        'artist': track.get('user', {}).get('username'),
-                        'duration': track.get('duration'),
-                        'artwork_url': track.get('artwork_url'),
-                        'stream_url': track.get('stream_url'),
-                        'permalink_url': track.get('permalink_url')
-                    })
+                if track.get("streamable"):
+                    formatted_tracks.append(
+                        {
+                            "id": track.get("id"),
+                            "title": track.get("title"),
+                            "artist": track.get("user", {}).get("username"),
+                            "duration": track.get("duration"),
+                            "artwork_url": track.get("artwork_url"),
+                            "stream_url": track.get("stream_url"),
+                            "permalink_url": track.get("permalink_url"),
+                        }
+                    )
             return ApiResponse(success=True, data=formatted_tracks)
         else:
-            raise HTTPException(status_code=response.status_code, detail="SoundCloud API error")
+            raise HTTPException(
+                status_code=response.status_code, detail="SoundCloud API error"
+            )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/api/soundcloud/stream/{track_id}")
 async def stream_soundcloud_track(track_id: str):
     """Get SoundCloud track stream URL"""
     try:
         import requests
-        
-        token = settings_store.get('soundcloud_token', '')
+
+        token = settings_store.get("soundcloud_token", "")
         if not token or not token.strip():
-            raise HTTPException(status_code=400, detail="SoundCloud token not configured")
-        
+            raise HTTPException(
+                status_code=400, detail="SoundCloud token not configured"
+            )
+
         # Get track stream URL
         url = f"https://api.soundcloud.com/tracks/{track_id}/stream"
-        params = {'oauth_token': token}
-        
-        response = requests.get(url, params=params, timeout=10, allow_redirects=False)
+        params = {"oauth_token": token}
+
+        response = requests.get(
+            url, params=params, timeout=10, allow_redirects=False
+        )
         if response.status_code == 302:
-            stream_url = response.headers.get('Location')
+            stream_url = response.headers.get("Location")
             return ApiResponse(success=True, data={"stream_url": stream_url})
         else:
-            raise HTTPException(status_code=response.status_code, detail="Track not available for streaming")
+            raise HTTPException(
+                status_code=response.status_code,
+                detail="Track not available for streaming",
+            )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
     return {"status": "healthy", "message": "Summit Web API is running"}
 
+
 if __name__ == "__main__":
     print("Starting Summit Web API Server...")
     print("Access the web interface at: http://localhost:8000")
     print("API documentation at: http://localhost:8000/docs")
-    
+
     uvicorn.run(
-        "web_api:app", 
-        host="0.0.0.0", 
-        port=8000, 
-        reload=True,
-        log_level="info"
-    ) 
+        "web_api:app", host="0.0.0.0", port=8000, reload=True, log_level="info"
+    )
