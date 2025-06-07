@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
+import os
 import subprocess
 import sys
-import os
 import time
 
 
@@ -35,26 +35,44 @@ def test_summit_basic():
             cwd=repo_root,
         )
 
-        # Give it a moment to start
-        time.sleep(2)
+        # Give it a moment to start and wait for it to finish
+        try:
+            # Wait up to 5 seconds for the process to complete
+            stdout, stderr = process.communicate(timeout=5)
+            exit_code = process.returncode
+            killed_by_timeout = False
+        except subprocess.TimeoutExpired:
+            # If process doesn't finish in 5 seconds, kill it
+            process.kill()
+            stdout, stderr = process.communicate()
+            exit_code = process.returncode
+            killed_by_timeout = True
 
-        # Check process result
-        poll_result = process.poll()
+        # Summit is implemented as an MCP server that waits for input/output streams
+        # It may exit cleanly (code 0) or need to be killed if waiting for streams (code -9)
+        # Both cases indicate successful startup
 
-        # Summit is implemented as an MCP server that exits when no input is received
-        # In an actual application, it would be run with input/output streams connected
-        # For testing purposes, we expect it to exit with code 0 (success)
-        if poll_result == 0:
+        success_message = (
+            "Summit AI Advisor is running with cost controls enabled!"
+        )
+        startup_successful = success_message in stderr if stderr else False
+
+        if exit_code == 0:
             print(
                 "SUCCESS: Summit process started and exited successfully with code 0"
             )
+        elif killed_by_timeout and startup_successful:
+            print(
+                "SUCCESS: Summit process started successfully and was running (killed by timeout as expected)"
+            )
         else:
-            stderr_output = process.stderr.read()
-            if stderr_output:
-                print(f"Error output: {stderr_output}")
+            if stderr:
+                print(f"Error output: {stderr}")
+            if stdout:
+                print(f"Stdout output: {stdout}")
             assert (
                 False
-            ), f"Summit process failed with unexpected exit code: {poll_result}"
+            ), f"Summit process failed to start properly. Exit code: {exit_code}, Startup successful: {startup_successful}"
 
         print("\nBasic functionality test PASSED")
 

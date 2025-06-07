@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import asyncio
 import os
 import sys
 from unittest.mock import Mock, patch
@@ -29,41 +28,6 @@ from summit import (
     start_codespace,
     stop_codespace,
 )
-
-
-@pytest.mark.asyncio
-async def test_summit_ai():
-    """Test Summit's AI capabilities directly"""
-
-    # Check if API key is set
-    api_key = os.getenv("ANTHROPIC_API_KEY")
-    if not api_key:
-        print("ERROR: ANTHROPIC_API_KEY not set")
-        return
-
-    print(f"API key found: {api_key[:20]}...")
-
-    # Test Claude API directly
-    try:
-        client = Anthropic(api_key=api_key)
-
-        message = client.messages.create(
-            model="claude-3-5-sonnet-20241022",
-            max_tokens=100,
-            messages=[
-                {
-                    "role": "user",
-                    "content": "You are Summit, an autonomous AI. Say hello and describe your purpose in one sentence.",
-                }
-            ],
-        )
-
-        print("Summit AI Response:")
-        print(message.content[0].text)
-        print("\nSummit AI is working correctly.")
-
-    except Exception as e:
-        print(f"ERROR: Summit AI test failed: {e}")
 
 
 class TestSummit:
@@ -361,8 +325,8 @@ class TestSummit:
             assert "ANTHROPIC_API_KEY" in result
 
 
-def test_summit_ai():
-    """Test Summit AI basic functionality"""
+def test_summit_basic_functionality():
+    """Test Summit basic module functionality without making API calls"""
     # This test verifies that the summit module can be imported and basic functions work
     assert hasattr(summit, "server")
     assert hasattr(summit, "cost_tracker")
@@ -372,4 +336,4 @@ def test_summit_ai():
 
 
 if __name__ == "__main__":
-    asyncio.run(test_summit_ai())
+    test_summit_basic_functionality()
