@@ -1,0 +1,74 @@
+name: Summit Auto-Merge
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  check_suite:
+    types: [completed]
+  status:
+
+jobs:
+  auto-merge:
+    runs-on: ubuntu-latest
+    if: |
+      github.event.pull_request.user.login == 'github-actions[bot]' ||
+      contains(github.event.pull_request.title, 'autonomous task completion') ||
+      contains(github.event.pull_request.labels.*.name, 'summit-auto-merge')
+    
+    steps:
+      - name: Check if all status checks passed
+        id: check-status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number
+            });
+            
+            const { data: checks } = await github.rest.checks.listForRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: pr.head.sha
+            });
+            
+            const { data: statuses } = await github.rest.repos.listCommitStatusesForRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: pr.head.sha
+            });
+            
+            // Check if all required checks passed
+            const allChecksPassed = checks.check_runs.every(check => 
+              check.conclusion === 'success' || check.conclusion === 'neutral'
+            );
+            
+            const allStatusesPassed = statuses.length === 0 || statuses.every(status => 
+              status.state === 'success'
+            );
+            
+            const canMerge = pr.mergeable && !pr.draft && allChecksPassed && allStatusesPassed;
+            
+            core.setOutput('can-merge', canMerge);
+            core.setOutput('pr-number', pr.number);
+
+      - name: Enable auto-merge
+        if: steps.check-status.outputs.can-merge == 'true'
+        uses: peter-evans/enable-pull-request-automerge@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          pull-request-number: ${{ steps.check-status.outputs.pr-number }}
+          merge-method: squash
+          
+      - name: Add auto-merge comment
+        if: steps.check-status.outputs.can-merge == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: ${{ steps.check-status.outputs.pr-number }},
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: ' Auto-merge enabled by Summit autonomous system. PR will merge automatically when all checks pass.'
+            }) 
