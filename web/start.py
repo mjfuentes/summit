@@ -92,7 +92,7 @@ def main():
             try:
                 webbrowser.open("http://localhost:8000")
                 print("Opened web interface in your browser")
-            except:
+            except BaseException:
                 pass
 
         import threading

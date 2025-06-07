@@ -4,10 +4,11 @@
 import sys
 from pathlib import Path
 
+from agent_git_api import save_work
+
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from agent_git_api import save_work
 
 # Save just the git wrapper files we created
 files_to_save = [

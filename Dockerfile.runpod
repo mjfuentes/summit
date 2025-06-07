@@ -1,0 +1,53 @@
+# Summit AI - RunPod Deployment Dockerfile
+# Optimized for GPU inference on RunPod infrastructure
+
+FROM nvidia/cuda:12.1-devel-ubuntu22.04
+
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+ENV CUDA_VISIBLE_DEVICES=0
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    python3-dev \
+    git \
+    curl \
+    wget \
+    build-essential \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create workspace
+WORKDIR /workspace
+
+# Copy requirements and install Python dependencies
+COPY requirements.txt .
+RUN pip3 install --no-cache-dir -r requirements.txt
+
+# Install RunPod SDK
+RUN pip3 install runpod
+
+# Copy Summit AI source code
+COPY src/ ./src/
+COPY web/ ./web/
+COPY templates/ ./templates/
+COPY data/ ./data/
+
+# Set Python path
+ENV PYTHONPATH=/workspace/src:/workspace
+
+# Create RunPod handler script
+COPY runpod_handler.py .
+
+# Expose ports
+EXPOSE 8000 7681
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Default command for RunPod serverless
+CMD ["python3", "runpod_handler.py"] 

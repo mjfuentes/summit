@@ -86,22 +86,22 @@ if command -v python &> /dev/null && [ -d "tests" ]; then
         echo "  -> Starting parallel test execution..."
         start_time=$(date +%s)
         
-        # Try to use parallel execution
+        # Try to use parallel execution (excluding slow and CI-only tests)
         if python -c "import pytest_xdist" 2>/dev/null; then
             echo "  -> Using pytest-xdist for parallel execution"
-            if ! python -m pytest tests/ -n auto --tb=short -q; then
+            if ! python -m pytest tests/ -n auto --tb=short -q -m "not autonomous and not slow and not ci_only"; then
                 echo "Tests failed. Commit aborted."
                 exit 1
             fi
         elif which pytest-xdist 2>/dev/null || pip show pytest-xdist >/dev/null 2>&1; then
             echo "  -> Found pytest-xdist, using parallel execution"
-            if ! python -m pytest tests/ -n auto --tb=short -q; then
+            if ! python -m pytest tests/ -n auto --tb=short -q -m "not autonomous and not slow and not ci_only"; then
                 echo "Tests failed. Commit aborted."
                 exit 1
             fi
         else
             echo "  -> pytest-xdist not available, running sequentially"
-            if ! python -m pytest tests/ --tb=short -q; then
+            if ! python -m pytest tests/ --tb=short -q -m "not autonomous and not slow and not ci_only"; then
                 echo "Tests failed. Commit aborted."
                 exit 1
             fi
@@ -113,6 +113,31 @@ if command -v python &> /dev/null && [ -d "tests" ]; then
         echo "Tests passed"
     else
         echo "pytest not available, skipping tests"
+    fi
+fi
+
+# 4.1. Run browser terminal tests (if Selenium is available)
+if command -v python &> /dev/null && [ -f "tests/test_browser_terminal.py" ]; then
+    echo "Running browser terminal tests..."
+    if python -c "import selenium" 2>/dev/null; then
+        echo "  -> Selenium detected, running browser terminal validation..."
+        start_time=$(date +%s)
+        
+        # Run only the critical browser error detection test
+        if ! python -m pytest tests/test_browser_terminal.py::TestBrowserTerminal::test_browser_loads_without_errors --tb=short -q; then
+            echo "  -> Browser terminal test failed. Web interface has JavaScript errors."
+            echo "  -> This indicates the browser terminal will not work correctly."
+            echo "  -> Please fix JavaScript errors before committing."
+            exit 1
+        fi
+        
+        end_time=$(date +%s)
+        duration=$((end_time - start_time))
+        echo "  -> Browser terminal test completed in ${duration}s"
+        echo "  -> Browser terminal validation passed"
+    else
+        echo "  -> Selenium not available, skipping browser terminal tests"
+        echo "  -> Install selenium>=4.15.0 to enable browser terminal validation"
     fi
 fi
 

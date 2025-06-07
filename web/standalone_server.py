@@ -97,16 +97,16 @@ async def root():
     <div class="container">
         <h1>Summit AI Web Interface</h1>
         <p style="text-align: center; color: #666;">Standalone web interface for Summit AI</p>
-        
+
         <div class="warning">
             <strong>Note:</strong> This is a simplified web interface. Full autonomous capabilities are available through the main API.
         </div>
-        
+
         <div class="card">
             <h3>Autonomous System</h3>
             <p>This standalone interface provides basic system status. For full autonomous Claude Code functionality, use the main API at <code>/api/tasks</code>.</p>
         </div>
-        
+
         <div class="card">
             <h3>System Information</h3>
             <button onclick="getStatus()">Get Status</button>
@@ -121,7 +121,7 @@ async def root():
                 headers: { 'Content-Type': 'application/json' }
             };
             if (data) options.body = JSON.stringify(data);
-            
+
             const response = await fetch(endpoint, options);
             return await response.json();
         }
@@ -144,7 +144,7 @@ async def root():
 
         async function getStatus() {
             showLoading('status-response');
-            
+
             try {
                 const result = await makeRequest('/api/status');
                 showResponse('status-response', result.data || result.message, !result.success);

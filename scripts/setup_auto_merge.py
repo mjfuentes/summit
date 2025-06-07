@@ -41,7 +41,8 @@ def create_branch_protection_rule(
                 "lint",
             ],
         },
-        "enforce_admins": False,  # Allow admins to bypass (useful for emergency fixes)
+        # Allow admins to bypass (useful for emergency fixes)
+        "enforce_admins": False,
         "required_pull_request_reviews": {
             "required_approving_review_count": 0,  # Auto-merge without manual approval
             "dismiss_stale_reviews": True,
