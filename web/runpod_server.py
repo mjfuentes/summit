@@ -6,6 +6,12 @@ This module provides a web interface for managing RunPod deployments,
 monitoring costs, and controlling GPU resources.
 """
 
+from runpod_integration import (
+    DeploymentInfo,
+    RunPodConfig,
+    RunPodDeploymentManager,
+    create_runpod_config,
+)
 import asyncio
 import json
 import logging
@@ -24,12 +30,6 @@ from fastapi.templating import Jinja2Templates
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from runpod_integration import (
-    DeploymentInfo,
-    RunPodConfig,
-    RunPodDeploymentManager,
-    create_runpod_config,
-)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

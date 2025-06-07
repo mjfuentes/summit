@@ -130,7 +130,8 @@ class TestAutonomousIntegration:
 
     def test_dockerfile_exists(self):
         """Test that required Docker files exist"""
-        # Skip if running in parallel mode and files aren't accessible (pytest-xdist issue)
+        # Skip if running in parallel mode and files aren't accessible
+        # (pytest-xdist issue)
         if hasattr(pytest, "main") and os.getenv("PYTEST_XDIST_WORKER"):
             pytest.skip(
                 "Skipping in parallel execution mode due to working directory issues"
@@ -254,7 +255,7 @@ if __name__ == "__main__":
                     if response.status == 200:
                         print(" Autonomous server started successfully")
                         break
-                except:
+                except BaseException:
                     pass
 
                 time.sleep(0.1)
@@ -270,7 +271,7 @@ if __name__ == "__main__":
                 try:
                     process.terminate()
                     process.wait(timeout=5)
-                except:
+                except BaseException:
                     process.kill()
                     process.wait(timeout=2)
 
@@ -398,7 +399,8 @@ if __name__ == "__main__":
 
     def test_container_startup_monitoring(self, mock_env_vars):
         """Test container startup monitoring and health checks"""
-        # This test verifies the monitoring logic without actually starting containers
+        # This test verifies the monitoring logic without actually starting
+        # containers
 
         # Test 1: Successful container detection
         mock_output = b"claude-task-test123\n"
@@ -447,7 +449,8 @@ if __name__ == "__main__":
                     await test_db.create_task(task_data_1)
                     await run_autonomous_task(task_id_1)
 
-                    # Verify failure handling (task should complete even if Docker operations fail)
+                    # Verify failure handling (task should complete even if
+                    # Docker operations fail)
                     task_result = await test_db.get_task(task_id_1)
                     assert task_result is not None
 

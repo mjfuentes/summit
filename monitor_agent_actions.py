@@ -68,7 +68,8 @@ def monitor_agent_actions():
         # Include if:
         # 1. It's on our feature branch
         # 2. It's a PR event for our PR
-        # 3. It was created after our PR (and is main branch - could be auto-merge)
+        # 3. It was created after our PR (and is main branch - could be
+        # auto-merge)
         is_agent_related = (
             run["head_branch"] == pr_branch  # Our feature branch
             or (
