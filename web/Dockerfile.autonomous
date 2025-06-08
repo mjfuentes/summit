@@ -45,20 +45,20 @@ WORKDIR /workspace
 COPY requirements.txt .
 RUN pip3 install --no-cache-dir -r requirements.txt
 
-# Install Claude Code (the official Anthropic CLI tool)
-RUN npm install -g @anthropic-ai/claude-code --unsafe-perm=true --allow-root
+# Install OpenCode (the open-source AI coding assistant)
+RUN curl -fsSL https://raw.githubusercontent.com/opencode-ai/opencode/main/install | bash
 
 # Install web-based terminal for browser access (from official source)
 RUN wget -O /usr/local/bin/ttyd https://github.com/tsl0922/ttyd/releases/download/1.7.3/ttyd.x86_64 \
     && chmod +x /usr/local/bin/ttyd
 
-# Create a non-root user for Claude Code (security requirement)
+# Create a non-root user for OpenCode (security requirement)
 RUN useradd -m -s /bin/bash claude \
     && chown -R claude:claude /workspace
 
 # Copy task script if it exists (optional for testing)
-COPY web/claude_code_task.sh* /workspace/
-RUN if [ -f "/workspace/claude_code_task.sh" ]; then chmod +x /workspace/claude_code_task.sh; fi
+COPY web/opencode_task.sh* /workspace/
+RUN if [ -f "/workspace/opencode_task.sh" ]; then chmod +x /workspace/opencode_task.sh; fi
 
 # Expose ports for web terminal and potential services
 EXPOSE 7681 8080 3000 8000
@@ -67,4 +67,4 @@ EXPOSE 7681 8080 3000 8000
 USER claude
 
 # Set the entrypoint
-ENTRYPOINT ["/workspace/claude_code_task.sh"] 
+ENTRYPOINT ["/workspace/opencode_task.sh"] 
