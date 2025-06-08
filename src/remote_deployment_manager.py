@@ -49,7 +49,7 @@ class RemoteDeploymentManager:
                 "buildCommand": (
                     "pip install -r requirements.txt && "
                     "cp requirements.txt web/ && "
-                    "chmod +x web/claude_code_task.sh"
+                    "chmod +x web/opencode_task.sh"
                 ),
                 "startCommand": "python start_server.py",
                 "envVars": [
