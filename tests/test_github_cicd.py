@@ -3,23 +3,21 @@
 Tests for GitHub CI/CD Integration Module
 """
 
-import json
 import os
 import sys
-from datetime import datetime
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 import requests
-
-# Add src to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from github_cicd import (
     GitHubCICDManager,
     get_task_ci_status,
     get_workflow_runs_for_task,
 )
+
+# Add src to path for imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 
 class TestGitHubCICDManager:
@@ -547,7 +545,8 @@ class TestIntegration:
         assert len(result["workflow_runs"]) == 1
         # PR info should be populated from the mocked API call
         assert "pr_info" in result
-        # Should make multiple API calls (commit status, check runs, PR info, workflow runs)
+        # Should make multiple API calls (commit status, check runs, PR info,
+        # workflow runs)
         assert mock_get.call_count >= 4
 
 

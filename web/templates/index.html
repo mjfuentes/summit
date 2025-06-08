@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Summit AI Messenger</title>
+    <link rel="stylesheet" href="/static/css/msn-messenger.css?v=4">
+</head>
+<body>
+    <div class="messenger-window">
+        <div class="title-bar">
+            <div class="title-text">
+                <div class="status-indicator"></div>
+                Conversation with Summit AI
+            </div>
+            <div class="window-controls">
+                <div class="control-btn">_</div>
+                <div class="control-btn"></div>
+                <div class="control-btn">×</div>
+            </div>
+        </div>
+        
+        <div class="chat-area" id="chatArea">
+            <div class="welcome-message">
+                <div class="welcome-title">Summit AI says:</div>
+                OH YEAH! I'm Summit - your CHAOTIC CODING MONSTER! 
+                <br><br>You beautiful developer, I'm here to make your code PERFECT! I'm like Maury but for programming:
+                <br>• I DEVOUR bugs and spit out pristine functions!
+                <br>• I'll make your codebase the SEXIEST in the whole repository!
+                <br>• Hot, steamy test coverage? I GOT YOU COVERED!
+                <br>• PR reviews that'll make you WEEP with joy!
+                <br><br>What coding chaos can I unleash for you today, you magnificent beast?
+            </div>
+        </div>
+        
+        <div class="typing-indicator" id="typingIndicator">
+            Summit is typing...
+        </div>
+        
+        <div class="input-area">
+            <input type="text" class="message-input" id="messageInput" 
+                   placeholder="Type your message..." maxlength="500">
+            <button class="send-btn" id="sendBtn">Send</button>
+        </div>
+    </div>
+    
+    <a href="/dev" class="dev-tools-link">Developer Tools →</a>
+    
+    <script src="/static/js/messenger.js?v=4"></script>
+</body>
+</html> 

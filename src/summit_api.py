@@ -3,7 +3,6 @@ Summit API - Main interface for task submission and monitoring
 Integrates with Cloud Tasks for agent coordination
 """
 
-import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -11,15 +10,12 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import uvicorn
-from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from cloud_task_manager import (
-    CloudTaskManager,
-    Task,
     TaskPriority,
-    TaskStatus,
     task_manager,
 )
 

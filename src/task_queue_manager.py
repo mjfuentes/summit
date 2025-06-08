@@ -3,14 +3,13 @@ Task Queue Manager for Summit Agent System
 Handles task distribution, status tracking, and agent coordination
 """
 
-import asyncio
 import json
 import logging
 import uuid
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 import redis.asyncio as redis
 

@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 """Tests for open source models integration"""
 
-import asyncio
-import json
-from unittest.mock import AsyncMock, MagicMock, mock_open, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 

@@ -74,6 +74,16 @@ class Task(Base):  # type: ignore
     workflow_runs = Column(JSON, default=list)  # Store workflow run data
     last_ci_check = Column(DateTime)  # Last time CI status was checked
 
+    # Enhanced task metadata fields
+    task_name = Column(String(200))  # Concise task name
+    task_scope = Column(String(20))  # small, medium, large
+    task_priority = Column(String(20))  # low, medium, high
+    task_type = Column(String(50))  # bug_fix, feature, refactor, etc.
+    estimated_duration_minutes = Column(Integer)  # Estimated duration
+    requirements = Column(Text)  # JSON string of requirements
+    acceptance_criteria = Column(Text)  # JSON string of acceptance criteria
+    user_context = Column(Text)  # Additional context from user
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert task to dictionary format"""
         return {
@@ -112,6 +122,15 @@ class Task(Base):  # type: ignore
             "last_ci_check": (
                 self.last_ci_check.isoformat() if self.last_ci_check else None
             ),
+            # Enhanced task metadata
+            "task_name": self.task_name,
+            "task_scope": self.task_scope,
+            "task_priority": self.task_priority,
+            "task_type": self.task_type,
+            "estimated_duration_minutes": self.estimated_duration_minutes,
+            "requirements": self.requirements,
+            "acceptance_criteria": self.acceptance_criteria,
+            "user_context": self.user_context,
         }
 
 
