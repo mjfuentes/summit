@@ -85,7 +85,7 @@ class TestAgentGitWrapper:
             )
 
             with patch("builtins.open"), patch(
-                "json.load", return_value={"totals": {"percent_covered": 65.0}}
+                "json.load", return_value={"totals": {"percent_covered": 55.0}}
             ):
                 assert wrapper._run_tests() is False
 
