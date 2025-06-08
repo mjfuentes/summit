@@ -29,8 +29,8 @@ permissions:
   security-events: write
 
 env:
-  REGISTRY: gcr.io
-  IMAGE_NAME: summit-ai-platform
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
   PYTHON_VERSION: '3.12'
 
 jobs:
@@ -95,9 +95,9 @@ jobs:
     - name: Log in to Container Registry
       uses: docker/login-action@v3
       with:
-        registry: gcr.io
-        username: _json_key
-        password: ${{ secrets.GCP_SA_KEY }}
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
         
     - name: Extract metadata
       id: meta
@@ -120,13 +120,9 @@ jobs:
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
-        # Use registry cache for better performance than GitHub Actions cache
-        cache-from: |
-          type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:cache
-          type=gha
-        cache-to: |
-          type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:cache,mode=max
-          type=gha,mode=max
+        # Use GitHub Actions cache only
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
         # Build arguments for optimization
         build-args: |
           BUILDKIT_INLINE_CACHE=1

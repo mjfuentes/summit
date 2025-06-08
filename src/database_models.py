@@ -224,7 +224,9 @@ class Agent(Base):
     __table_args__ = (
         Index("idx_agents_status", "status"),
         Index("idx_agents_last_heartbeat", "last_heartbeat"),
-        Index("idx_agents_roles", "roles"),  # GIN index for JSON searching
+        Index(
+            "idx_agents_roles", "roles", postgresql_using="gin"
+        ),  # GIN index for JSON searching
     )
 
     def to_dict(self) -> Dict[str, Any]:
