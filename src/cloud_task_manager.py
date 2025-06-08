@@ -459,7 +459,8 @@ class CloudTaskManager:
             logger.error(f"Error cleaning up old tasks: {e}")
 
 
-# Global instance - initialized lazily to avoid credential issues during testing
+# Global instance - initialized lazily to avoid credential issues during
+# testing
 task_manager = None
 
 

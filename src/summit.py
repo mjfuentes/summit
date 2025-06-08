@@ -270,7 +270,10 @@ Question: {question}"""
         response = message.content[0].text
 
         # Add cost info to response for transparency
-        response += f"\n\n[Cost: ${actual_cost:.4f} | Daily spent: ${cost_tracker.get_daily_spent():.4f}/${cost_tracker.daily_budget}]"
+        response += f"\n\n[Cost: ${
+            actual_cost:.4f} | Daily spent: ${
+            cost_tracker.get_daily_spent():.4f}/${
+            cost_tracker.daily_budget}]"
 
         return response
 
@@ -330,8 +333,8 @@ Status: Standing by for your questions!"""
         report = f"""Summit Cost Tracking Report
 
 Budget Status:
-- Daily: ${cost_status['daily_spent']:.4f} / ${cost_status['daily_budget']} ({(cost_status['daily_spent']/cost_status['daily_budget']*100):.1f}% used)
-- Hourly: ${cost_status['hourly_spent']:.4f} / ${cost_status['hourly_budget']} ({(cost_status['hourly_spent']/cost_status['hourly_budget']*100):.1f}% used)
+- Daily: ${cost_status['daily_spent']:.4f} / ${cost_status['daily_budget']} ({(cost_status['daily_spent'] / cost_status['daily_budget'] * 100):.1f}% used)
+- Hourly: ${cost_status['hourly_spent']:.4f} / ${cost_status['hourly_budget']} ({(cost_status['hourly_spent'] / cost_status['hourly_budget'] * 100):.1f}% used)
 
 Safety Controls:
 - Max Recursion Depth: {cost_status['max_recursion_depth']}
@@ -341,7 +344,12 @@ Safety Controls:
 Recent Calls:"""
 
         for call in recent_calls:
-            report += f"\n- {call['timestamp'][:19]}: ${call['cost']:.4f} ({call['input_tokens']}→{call['output_tokens']} tokens)"
+            report += f"\n- {
+                call['timestamp'][
+                    :19]}: ${
+                call['cost']:.4f} ({
+                call['input_tokens']}→{
+                    call['output_tokens']} tokens)"
 
         return [types.TextContent(type="text", text=report)]
 
@@ -777,11 +785,14 @@ async def create_pull_request(
                         print(f"Auto-merge enabled for PR #{pr_number}")
                     else:
                         print(
-                            f"Auto-merge failed: {graphql_data.get('errors', 'Unknown error')}"
+                            f"Auto-merge failed: {
+                                graphql_data.get(
+                                    'errors', 'Unknown error')}"
                         )
                 else:
                     print(
-                        f"Auto-merge request failed with status {graphql_response.status_code}"
+                        f"Auto-merge request failed with status {
+                            graphql_response.status_code}"
                     )
 
             except Exception as e:

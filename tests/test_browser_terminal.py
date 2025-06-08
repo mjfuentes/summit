@@ -19,7 +19,6 @@ Run with: python -m pytest tests/test_browser_terminal.py -v
 import os
 import subprocess
 import sys
-import threading
 import time
 from pathlib import Path
 
@@ -488,8 +487,8 @@ if __name__ == "__main__":
         for i, log_entry in enumerate(logs):
             level = log_entry["level"]
             message = log_entry["message"]
-            timestamp = log_entry["timestamp"]
-            print(f"{i+1}. [{level}] {message}")
+            log_entry["timestamp"]
+            print(f"{i + 1}. [{level}] {message}")
 
         print(f"\n=== TOTAL: {len(logs)} console messages ===")
 
@@ -499,7 +498,7 @@ if __name__ == "__main__":
 
         # Check if there are any external resource references
         external_resources = []
-        if 'src="' in page_source and not 'src="data:' in page_source:
+        if 'src="' in page_source and 'src="data:' not in page_source:
             import re
 
             src_matches = re.findall(r'src="([^"]*)"', page_source)
@@ -507,7 +506,7 @@ if __name__ == "__main__":
                 [src for src in src_matches if not src.startswith("data:")]
             )
 
-        if 'href="' in page_source and not 'href="data:' in page_source:
+        if 'href="' in page_source and 'href="data:' not in page_source:
             import re
 
             href_matches = re.findall(r'href="([^"]*)"', page_source)
@@ -692,7 +691,8 @@ if __name__ == "__main__":
                 if is_critical:
                     critical_errors.append(log_entry)
 
-            # This test should FAIL because we expect to find missing resource errors
+            # This test should FAIL because we expect to find missing resource
+            # errors
             assert len(critical_errors) > 0, (
                 f"Expected to find critical errors for missing resources, but found none. "
                 f"All logs: {[f'{log['level']}: {log['message']}' for log in logs]}"
@@ -710,7 +710,8 @@ if __name__ == "__main__":
             assert missing_js_error, "Should detect missing script.js error"
 
             print(
-                f"\n Successfully detected {len(critical_errors)} critical errors:"
+                f"\n Successfully detected {
+                    len(critical_errors)} critical errors:"
             )
             for error in critical_errors:
                 print(f"  - [{error['level']}] {error['message']}")

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Summit AI - Developer Tools</title>
+    <link rel="stylesheet" href="/static/css/dev_tools.css">
+</head>
+<body>
+    <a href="/" class="back-link">← Back to Chat</a>
+    
+    <div class="header">
+        <div class="logo">Summit AI - Developer Tools</div>
+        <nav class="nav-links">
+            <a href="#" class="nav-link active">Dashboard</a>
+            <a href="#" class="nav-link">Tasks</a>
+            <a href="#" class="nav-link">Monitoring</a>
+            <a href="#" class="nav-link">Settings</a>
+        </nav>
+    </div>
+    
+    <div class="container">
+        <div class="dashboard-grid">
+            <div class="card">
+                <div class="card-title">System Status</div>
+                <div class="metric">
+                    <span class="metric-label">
+                        <span class="status-indicator status-operational"></span>
+                        Summit Agent
+                    </span>
+                    <span class="metric-value">Operational</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">
+                        <span class="status-indicator status-operational"></span>
+                        Cloud Tasks
+                    </span>
+                    <span class="metric-value">Connected</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">
+                        <span class="status-indicator status-operational"></span>
+                        Database
+                    </span>
+                    <span class="metric-value">Online</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Test Coverage</span>
+                    <span class="metric-value">61.9%</span>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">Task Statistics</div>
+                <div class="metric">
+                    <span class="metric-label">Active Tasks</span>
+                    <span class="metric-value">0</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Queued Tasks</span>
+                    <span class="metric-value">0</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Completed Today</span>
+                    <span class="metric-value">3</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Success Rate</span>
+                    <span class="metric-value">94.2%</span>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">Recent Activity</div>
+                <div class="task-list">
+                    <div class="task-item">
+                        <div class="task-info">
+                            <div class="task-title">Fixed GitHub Actions authentication</div>
+                            <div class="task-meta">2 hours ago</div>
+                        </div>
+                        <span class="task-status status-completed">Completed</span>
+                    </div>
+                    <div class="task-item">
+                        <div class="task-info">
+                            <div class="task-title">Updated coverage requirements</div>
+                            <div class="task-meta">3 hours ago</div>
+                        </div>
+                        <span class="task-status status-completed">Completed</span>
+                    </div>
+                    <div class="task-item">
+                        <div class="task-info">
+                            <div class="task-title">Implemented Cloud Tasks infrastructure</div>
+                            <div class="task-meta">1 day ago</div>
+                        </div>
+                        <span class="task-status status-completed">Completed</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-title">Quick Actions</div>
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                <button class="btn">Create New Task</button>
+                <button class="btn btn-secondary">View All Tasks</button>
+                <button class="btn btn-secondary">System Logs</button>
+                <button class="btn btn-secondary">Performance Metrics</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/static/js/dev_tools.js"></script>
+</body>
+</html> 
