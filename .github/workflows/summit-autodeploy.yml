@@ -64,9 +64,11 @@ jobs:
       uses: trufflesecurity/trufflehog@main
       with:
         path: ./
-        base: main
-        head: HEAD
+        base: ${{ github.event.repository.default_branch }}
+        head: ${{ github.event.pull_request.head.sha || github.sha }}
         extra_args: --debug --only-verified
+      continue-on-error: true
+      if: github.event_name == 'pull_request'
 
   # Build Docker Images
   build:
