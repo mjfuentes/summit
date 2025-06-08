@@ -49,31 +49,87 @@ class UnifiedDatabaseManager:
 
     def __init__(self, database_url: Optional[str] = None):
         if database_url is None:
-            # Try PostgreSQL first, fallback to SQLite for development
+            # Check environment variable first
             database_url = os.getenv("DATABASE_URL")
-            if not database_url:
-                try:
-                    # Check if asyncpg is available for PostgreSQL
-                    import asyncpg
 
-                    database_url = "postgresql+asyncpg://postgres:postgres@localhost/summit_unified"
-                except ImportError:
-                    # Fall back to SQLite for development
+            if not database_url:
+                # Detect CI/CD environments and development environments
+                is_ci = any(
+                    os.getenv(var)
+                    for var in [
+                        "CI",
+                        "CONTINUOUS_INTEGRATION",
+                        "GITHUB_ACTIONS",
+                        "TRAVIS",
+                        "CIRCLECI",
+                        "JENKINS_URL",
+                        "BUILDKITE",
+                    ]
+                )
+
+                if is_ci:
+                    # Use SQLite for CI/CD environments
                     db_dir = os.path.join(
                         os.path.dirname(os.path.dirname(__file__)), "data"
                     )
                     os.makedirs(db_dir, exist_ok=True)
-                    database_url = (
-                        f"sqlite+aiosqlite:///{db_dir}/summit_unified.db"
+                    database_url = f"sqlite+aiosqlite:///{db_dir}/summit_ci.db"
+                    print(
+                        f"CI environment detected, using SQLite: {database_url}"
                     )
+                else:
+                    # For local development, try PostgreSQL first, fallback to SQLite
+                    try:
+                        # Check if asyncpg is available for PostgreSQL
+                        import asyncpg
+
+                        database_url = "postgresql+asyncpg://postgres:postgres@localhost/summit_unified"
+                        print(
+                            f"Local development, attempting PostgreSQL: {database_url}"
+                        )
+                    except ImportError:
+                        # Fall back to SQLite for development
+                        db_dir = os.path.join(
+                            os.path.dirname(os.path.dirname(__file__)), "data"
+                        )
+                        os.makedirs(db_dir, exist_ok=True)
+                        database_url = (
+                            f"sqlite+aiosqlite:///{db_dir}/summit_unified.db"
+                        )
+                        print(
+                            f"asyncpg not available, using SQLite: {database_url}"
+                        )
 
         # Initialize the global database manager
+        # If PostgreSQL connection fails, we'll catch it in init_database
         init_database_manager(database_url)
         self.db_manager = get_database_manager()
 
     async def init_database(self):
-        """Initialize all database tables"""
-        await self.db_manager.init_database()
+        """Initialize all database tables with PostgreSQL fallback to SQLite"""
+        try:
+            await self.db_manager.init_database()
+        except Exception as e:
+            # If PostgreSQL connection fails, fallback to SQLite
+            if "postgresql" in self.db_manager.database_url.lower():
+                print(f"PostgreSQL connection failed: {e}")
+                print("Falling back to SQLite for database operations...")
+
+                # Create SQLite fallback
+                db_dir = os.path.join(
+                    os.path.dirname(os.path.dirname(__file__)), "data"
+                )
+                os.makedirs(db_dir, exist_ok=True)
+                sqlite_url = f"sqlite+aiosqlite:///{db_dir}/summit_fallback.db"
+
+                # Reinitialize with SQLite
+                init_database_manager(sqlite_url)
+                self.db_manager = get_database_manager()
+                await self.db_manager.init_database()
+                print(f"Successfully switched to SQLite: {sqlite_url}")
+            else:
+                # Re-raise if it's not a PostgreSQL connection issue
+                raise
 
     @asynccontextmanager
     async def get_session(self):
@@ -428,8 +484,21 @@ _unified_db_manager: Optional[UnifiedDatabaseManager] = None
 async def init_database():
     """Initialize the unified database (compatible with old interface)"""
     global _unified_db_manager
-    _unified_db_manager = UnifiedDatabaseManager()
-    await _unified_db_manager.init_database()
+    try:
+        _unified_db_manager = UnifiedDatabaseManager()
+        await _unified_db_manager.init_database()
+    except Exception as e:
+        print(f"Database initialization failed: {e}")
+        # If the manager was created but init failed, try again with SQLite fallback
+        if _unified_db_manager and "postgresql" in str(e).lower():
+            print("Attempting SQLite fallback for database initialization...")
+            _unified_db_manager = UnifiedDatabaseManager(
+                "sqlite+aiosqlite:///data/summit_emergency.db"
+            )
+            await _unified_db_manager.init_database()
+            print("Emergency SQLite database initialized successfully")
+        else:
+            raise
 
 
 async def get_database() -> UnifiedDatabaseManager:

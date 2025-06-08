@@ -2286,13 +2286,24 @@ def load_environment():
         try:
             with open(setup_env_path, "r") as f:
                 content = f.read()
+                loaded_vars = []
                 for line in content.split("\n"):
-                    if line.strip().startswith("export ANTHROPIC_API_KEY="):
-                        # Extract the API key value
-                        key_part = line.split("=", 1)[1].strip().strip('"')
-                        os.environ["ANTHROPIC_API_KEY"] = key_part
-                        print("API key loaded from setup_env.sh")
-                        break
+                    line = line.strip()
+                    if line.startswith("export ") and "=" in line:
+                        # Extract variable name and value
+                        export_part = line[7:]  # Remove "export "
+                        if "=" in export_part:
+                            var_name, var_value = export_part.split("=", 1)
+                            var_value = var_value.strip().strip('"').strip("'")
+                            os.environ[var_name] = var_value
+                            loaded_vars.append(var_name)
+
+                if loaded_vars:
+                    print(
+                        f"Environment variables loaded: {', '.join(loaded_vars)}"
+                    )
+                else:
+                    print("No environment variables found in setup_env.sh")
         except Exception as e:
             print(f"Warning: Could not load setup_env.sh: {e}")
     else:
