@@ -94,11 +94,11 @@ resource "google_container_node_pool" "opencode_nodes" {
   name       = "opencode-pool"
   location   = var.region
   cluster    = google_container_cluster.summit_cluster.name
-  node_count = 2
+  node_count = 1
 
   node_config {
     preemptible  = false
-    machine_type = "e2-standard-2"  # 2 vCPU, 8GB RAM
+    machine_type = "e2-small"  # 2 vCPU, 2GB RAM
 
     # Google recommends custom service accounts that have cloud-platform scope and permissions granted via IAM Roles.
     service_account = google_service_account.gke_service_account.email
@@ -122,7 +122,7 @@ resource "google_container_node_pool" "opencode_nodes" {
   # Auto-scaling
   autoscaling {
     min_node_count = 1
-    max_node_count = 5
+    max_node_count = 3
   }
 
   # Auto-upgrade and auto-repair
