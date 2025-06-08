@@ -7,6 +7,7 @@ import os
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
+from uuid import UUID
 
 from sqlalchemy import (
     JSON,
@@ -29,7 +30,6 @@ from database_models import (
     AgentStatus,
     AgentTask,
     Base,
-    CostTracking,
     DatabaseManager,
     TaskLog,
     TaskPriority,
@@ -236,11 +236,17 @@ class UnifiedDatabaseManager:
 
     # Agent Task Operations (from postgres_task_manager.py)
 
-    async def get_agent_task(self, task_id: str) -> Optional[AgentTask]:
+    async def get_agent_task(self, task_id) -> Optional[AgentTask]:
         """Get an agent task by ID"""
         async with self.get_session() as session:
+            # Handle both string and UUID types
+            if isinstance(task_id, str):
+                task_uuid = UUID(task_id)
+            else:
+                task_uuid = task_id
+
             result = await session.execute(
-                select(AgentTask).where(AgentTask.id == task_id)
+                select(AgentTask).where(AgentTask.id == task_uuid)
             )
             return result.scalar_one_or_none()
 
@@ -249,16 +255,59 @@ class UnifiedDatabaseManager:
     ) -> List[AgentTask]:
         """Get pending agent tasks assigned to a specific role"""
         async with self.get_session() as session:
+            # Order by priority value in descending order (URGENT=4, HIGH=3, NORMAL=2, LOW=1)
+            # Then by creation time for tasks with same priority
+            from sqlalchemy import case
+
+            priority_order = case(
+                (AgentTask.priority == TaskPriority.URGENT, 4),
+                (AgentTask.priority == TaskPriority.HIGH, 3),
+                (AgentTask.priority == TaskPriority.NORMAL, 2),
+                (AgentTask.priority == TaskPriority.LOW, 1),
+                else_=0,
+            ).desc()
+
             result = await session.execute(
                 select(AgentTask)
                 .where(
                     AgentTask.status == TaskStatus.PENDING,
                     AgentTask.assigned_role == role,
                 )
-                .order_by(AgentTask.priority.desc(), AgentTask.created_at)
+                .order_by(priority_order, AgentTask.created_at)
                 .limit(limit)
             )
             return list(result.scalars().all())
+
+    async def claim_agent_task(self, task_id, agent_id: str) -> bool:
+        """
+        Atomically claim a task for an agent
+
+        TODO: This is a basic implementation. For better backpressure and
+        distribution, consider migrating to Cloud Tasks or Pub/Sub.
+        """
+        async with self.get_session() as session:
+            # Handle both string and UUID types
+            if isinstance(task_id, str):
+                task_uuid = UUID(task_id)
+            else:
+                task_uuid = task_id
+
+            # Atomic update - only claim if still pending
+            result = await session.execute(
+                update(AgentTask)
+                .where(
+                    AgentTask.id == task_uuid,
+                    AgentTask.status == TaskStatus.PENDING,
+                )
+                .values(
+                    status=TaskStatus.RUNNING,
+                    agent_id=agent_id,
+                    started_at=datetime.utcnow(),
+                )
+            )
+
+            # Return True if we successfully claimed the task
+            return result.rowcount > 0
 
     async def register_agent(self, agent_id: str, agent_info: Dict[str, Any]):
         """Register an agent"""
@@ -301,30 +350,40 @@ class UnifiedDatabaseManager:
                 )
                 session.add(agent)
 
-    async def track_cost(
-        self,
-        service: str,
-        operation: str,
-        cost_usd: float,
-        tokens_used: Optional[int] = None,
-        model: Optional[str] = None,
-        agent_id: Optional[str] = None,
-        task_id: Optional[str] = None,
-        web_task_id: Optional[str] = None,
-    ):
-        """Track API usage costs"""
+    async def update_agent_heartbeat(self, agent_id: str, status: AgentStatus):
+        """Update agent heartbeat and status"""
         async with self.get_session() as session:
-            cost_entry = CostTracking(
-                service=service,
-                model=model,
-                operation=operation,
-                tokens_used=tokens_used,
-                cost_usd=cost_usd,
-                agent_id=agent_id,
-                task_id=task_id,
-                web_task_id=web_task_id,
+            await session.execute(
+                update(Agent)
+                .where(Agent.id == agent_id)
+                .values(
+                    status=status,
+                    last_heartbeat=datetime.utcnow(),
+                )
             )
-            session.add(cost_entry)
+
+    async def increment_agent_completed_tasks(self, agent_id: str):
+        """Increment completed tasks counter for agent"""
+        async with self.get_session() as session:
+            await session.execute(
+                update(Agent)
+                .where(Agent.id == agent_id)
+                .values(
+                    tasks_completed=Agent.tasks_completed + 1,
+                    last_task_completed=datetime.utcnow(),
+                )
+            )
+
+    async def increment_agent_failed_tasks(self, agent_id: str):
+        """Increment failed tasks counter for agent"""
+        async with self.get_session() as session:
+            await session.execute(
+                update(Agent)
+                .where(Agent.id == agent_id)
+                .values(
+                    tasks_failed=Agent.tasks_failed + 1,
+                )
+            )
 
     async def close(self):
         """Close database connections"""

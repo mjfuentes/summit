@@ -1,3 +1,10 @@
+# TODO: Consider migrating from Cloud Tasks to a system with better backpressure handling
+# Current Cloud Tasks setup works but has limitations:
+# - No native backpressure for overwhelmed agents
+# - HTTP endpoint requirement adds complexity
+# Future options: Pub/Sub with pull subscriptions, database polling with atomic claiming,
+# or custom queue system with agent load awareness
+
 terraform {
   required_version = ">= 1.0"
   required_providers {

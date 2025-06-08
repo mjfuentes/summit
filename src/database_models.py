@@ -448,51 +448,6 @@ class WebTask(Base):
         }
 
 
-class CostTracking(Base):
-    """Cost tracking for API calls and usage"""
-
-    __tablename__ = "cost_tracking"
-
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    service = Column(
-        String(50), nullable=False
-    )  # openai, anthropic, google, etc.
-    model = Column(String(100), nullable=True)  # gpt-4, claude-3, etc.
-    operation = Column(
-        String(100), nullable=False
-    )  # completion, embedding, etc.
-
-    # Usage metrics
-    tokens_used = Column(Integer, nullable=True)
-    input_tokens = Column(Integer, nullable=True)
-    output_tokens = Column(Integer, nullable=True)
-    cost_usd = Column(Float, nullable=False)
-
-    # Context
-    agent_id = Column(String(100), ForeignKey("agents.id"), nullable=True)
-    task_id = Column(
-        UUID(as_uuid=True), ForeignKey("agent_tasks.id"), nullable=True
-    )
-    web_task_id = Column(
-        String(36), ForeignKey("web_tasks.task_id"), nullable=True
-    )
-
-    # Metadata
-    request_data = Column(JSON, nullable=True)  # Sanitized request details
-    response_data = Column(JSON, nullable=True)  # Sanitized response details
-
-    # Timestamps
-    timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)
-
-    # Indexes
-    __table_args__ = (
-        Index("idx_cost_tracking_service", "service"),
-        Index("idx_cost_tracking_timestamp", "timestamp"),
-        Index("idx_cost_tracking_agent_id", "agent_id"),
-        Index("idx_cost_tracking_task_id", "task_id"),
-    )
-
-
 # Database connection and session management
 
 
