@@ -17,9 +17,11 @@ spec:
         app: opencode-agent
     spec:
       serviceAccountName: summit-agent-sa
+      imagePullSecrets:
+      - name: ghcr-login-secret
       containers:
       - name: opencode
-        image: opencodeinterpreter/opencode:latest
+        image: ghcr.io/mjfuentes/summit/opencode:latest
         ports:
         - containerPort: 8080
         env:
