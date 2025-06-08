@@ -345,11 +345,28 @@ async def run_autonomous_task(task_id: str):
             requirements_src = "../requirements.txt"
             requirements_dest = "requirements.txt"
 
+            # Always ensure requirements.txt is available for Docker build
+            requirements_copied_this_build = False
             if os.path.exists(requirements_src):
                 import shutil
 
-                shutil.copy2(requirements_src, requirements_dest)
-                print("[TASK] Copied requirements.txt to build context")
+                # Only copy if destination doesn't exist or is older than source
+                should_copy = True
+                if os.path.exists(requirements_dest):
+                    src_mtime = os.path.getmtime(requirements_src)
+                    dest_mtime = os.path.getmtime(requirements_dest)
+                    should_copy = src_mtime > dest_mtime
+
+                if should_copy:
+                    shutil.copy2(requirements_src, requirements_dest)
+                    requirements_copied_this_build = True
+                    print(
+                        "[TASK] Copied/updated requirements.txt to build context"
+                    )
+                else:
+                    print(
+                        "[TASK] requirements.txt already up to date in build context"
+                    )
             else:
                 error_msg = "Critical error: requirements.txt not found in root directory"
                 print(f"[ERROR] {error_msg}")
@@ -370,11 +387,14 @@ async def run_autonomous_task(task_id: str):
                     timeout=600,  # 10 minute timeout for build
                 )
             finally:
-                # Clean up copied requirements.txt
-                if os.path.exists(requirements_dest):
+                # Only clean up requirements.txt if we copied it during this build
+                # This preserves manually placed requirements.txt files
+                if requirements_copied_this_build and os.path.exists(
+                    requirements_dest
+                ):
                     os.remove(requirements_dest)
                     print(
-                        "[TASK] Cleaned up requirements.txt from build context"
+                        "[TASK] Cleaned up copied requirements.txt from build context"
                     )
 
             if build_process.returncode != 0:

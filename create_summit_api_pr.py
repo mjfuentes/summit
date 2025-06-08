@@ -77,12 +77,12 @@ def main():
         review_process="This PR follows Summit's quality-first approach with automated quality gates. The changes enable automatic deployment of both Summit API and OpenCode agents to the Kubernetes cluster. Will auto-merge upon successful CI completion.",
     )
 
-    # Create the PR
+    # Create the PR using the git wrapper directly since we're already on feature branch
     print("Creating PR...")
-    result = create_pr(
-        "Add Summit API to CI/CD pipeline with optimized resource requirements",
-        "Feature: Summit API CI/CD Integration",
-        description,
+    from agent_git_api import agent_git
+
+    result = agent_git.git.create_pr(
+        "Feature: Summit API CI/CD Integration", description
     )
 
     if result:
