@@ -6,7 +6,7 @@ export SUMMIT_READONLY_MODE=true
 
 # Store start time
 START_TIME=$(date)
-echo "[$(date '+%H:%M:%S')] Starting Claude AI autonomous development..."
+echo "[$(date '+%H:%M:%S')] Starting OpenCode autonomous development..."
 
 # Get task parameters from environment
 TASK_DESCRIPTION="${TASK_DESCRIPTION:-Complete the assigned development task}"
@@ -16,7 +16,7 @@ REPOSITORY_URL="${REPOSITORY_URL:-}"
 
 # Display startup info
 echo "======================================================"
-echo "  Summit AI - Autonomous Development Session"
+echo "  Summit AI - OpenCode Autonomous Development Session"
 echo "======================================================"
 echo "Task: $TASK_DESCRIPTION"
 echo "Completion Signal: $SAVE_WORD"
@@ -24,7 +24,7 @@ echo "Repository: ${REPOSITORY_URL:-'Working in clean workspace'}"
 echo "Working Directory: $(pwd)"
 echo "======================================================"
 
-# Create task context for Claude
+# Create task context for OpenCode
 cat > task_context.md << EOF
 # Autonomous Development Task
 
@@ -66,8 +66,8 @@ if [ ! -z "$REPOSITORY_URL" ]; then
         
         # Set up git credential store
         git config --global credential.helper store
-        git config --global user.name "Claude AI Assistant"
-        git config --global user.email "claude.ai@anthropic.com"
+        git config --global user.name "OpenCode AI Assistant"
+        git config --global user.email "opencode.ai@summit.dev"
         
         # Create credentials file with token
         mkdir -p ~/.config/git
@@ -121,21 +121,21 @@ else
     echo "[$(date '+%H:%M:%S')] Working in clean workspace (no repository specified)"
     # Initialize a basic git repo for testing
     git init
-    git config user.name "Claude AI Assistant"
-    git config user.email "claude.ai@anthropic.com"
+    git config user.name "OpenCode AI Assistant"
+    git config user.email "opencode.ai@summit.dev"
     export TARGET_BRANCH="main"
 fi
 
-# Configure git for Claude
-git config user.name "Claude AI Assistant" 2>/dev/null || true
-git config user.email "claude.ai@anthropic.com" 2>/dev/null || true
+# Configure git for OpenCode
+git config user.name "OpenCode AI Assistant" 2>/dev/null || true
+git config user.email "opencode.ai@summit.dev" 2>/dev/null || true
 
-# Create the Claude Code interaction script outside the repository
-mkdir -p /tmp/claude_tools
-cat > /tmp/claude_tools/interact_with_claude.py << 'CLAUDE_SCRIPT'
+# Create the OpenCode interaction script outside the repository
+mkdir -p /tmp/opencode_tools
+cat > /tmp/opencode_tools/interact_with_opencode.py << 'OPENCODE_SCRIPT'
 #!/usr/bin/env python3
 """
-Claude Code CLI interaction script for autonomous development
+OpenCode CLI interaction script for autonomous development
 """
 import os
 import sys
@@ -160,10 +160,10 @@ def main():
     task_description = os.environ.get('TASK_DESCRIPTION', 'Complete the assigned development task')
     save_word = os.environ.get('SAVE_WORD', 'SUMMIT_TASK_COMPLETE')
     
-    log(f"Starting Claude Code interaction for task: {task_description}")
+    log(f"Starting OpenCode interaction for task: {task_description}")
     
-    # Check if Claude Code CLI is available
-    log("Checking Claude Code CLI availability...")
+    # Check if OpenCode CLI is available
+    log("Checking OpenCode CLI availability...")
     
     # Debug environment variables
     log("Environment check:")
@@ -184,35 +184,35 @@ def main():
     log(f"API key found: {api_key[:15]}...")
     log(f"API key length: {len(api_key)} characters")
     
-    code, stdout, stderr = run_command("which claude || command -v claude")
+    code, stdout, stderr = run_command("which opencode || command -v opencode")
     if code != 0:
-        log("Claude Code CLI not found. Installing...")
-        code, stdout, stderr = run_command("npm install -g @anthropic-ai/claude-code", timeout=300)
+        log("OpenCode CLI not found. Installing...")
+        code, stdout, stderr = run_command("curl -fsSL https://raw.githubusercontent.com/opencode-ai/opencode/main/install | bash", timeout=300)
         if code != 0:
-            log(f"Failed to install Claude Code CLI: {stderr}")
+            log(f"Failed to install OpenCode CLI: {stderr}")
             return
     
-    log("Claude Code CLI is available")
+    log("OpenCode CLI is available")
     
-    # Initialize Claude Code if needed
-    log("Initializing Claude Code session...")
+    # Initialize OpenCode if needed
+    log("Initializing OpenCode session...")
     
-    # Test Claude Code access
-    code, stdout, stderr = run_command("claude --version")
+    # Test OpenCode access
+    code, stdout, stderr = run_command("opencode --version")
     if code != 0:
-        log(f"Claude Code CLI error: {stderr}")
+        log(f"OpenCode CLI error: {stderr}")
         log(f"STDOUT: {stdout}")
         return
     
-    log(f"Using Claude Code version: {stdout.strip()}")
+    log(f"Using OpenCode version: {stdout.strip()}")
     
     # Test API authentication
-    log("Testing Claude Code authentication...")
-    code, stdout, stderr = run_command("claude --help", timeout=10)
+    log("Testing OpenCode authentication...")
+    code, stdout, stderr = run_command("opencode --help", timeout=10)
     if code != 0:
-        log(f"Claude Code help command failed: {stderr}")
+        log(f"OpenCode help command failed: {stderr}")
     else:
-        log("Claude Code help command successful")
+        log("OpenCode help command successful")
         
     # Check workspace setup
     log(f"Current working directory: {os.getcwd()}")
@@ -229,7 +229,7 @@ def main():
     
     # Create the prompt with coding rules
     coding_prompt = f"""
-You are an AI coding assistant working on a development task in a Git repository.
+You are an AI coding assistant working on a development task in a Git repository using OpenCode.
 
 **CRITICAL: EVERY TASK MUST END WITH GIT COMMIT AND PUSH**
 NO TASK IS COMPLETE WITHOUT PUSHING TO GIT - THIS IS MANDATORY FOR ALL TASKS
@@ -320,49 +320,48 @@ When you're completely finished with everything, you can simply end your session
         prompt_file = f.name
     
     try:
-        log("Sending task to Claude Code...")
+        log("Sending task to OpenCode...")
         
         # Write prompt to temporary file and use shell redirection
-        log("Executing Claude Code command...")
+        log("Executing OpenCode command...")
         
         # Write the full prompt to the temp file we created earlier
         with open(prompt_file, 'w') as f:
             f.write(coding_prompt)
         
-        # First try a simple test to see if Claude Code responds at all
-        log("Testing basic Claude Code interaction...")
-        test_result = run_command('echo "Hello" | claude -p "Just say hello back"', timeout=30)
+        # First try a simple test to see if OpenCode responds at all
+        log("Testing basic OpenCode interaction...")
+        test_result = run_command('echo "Hello" | opencode -p "Just say hello back"', timeout=30)
         if test_result[0] == 0:
-            log("Basic Claude Code test successful")
+            log("Basic OpenCode test successful")
             log(f"Test output: {test_result[1][:200]}")
         else:
-            log(f"Basic Claude Code test failed: {test_result[2]}")
+            log(f"Basic OpenCode test failed: {test_result[2]}")
             log("Continuing with full task anyway...")
         
-        # Use Claude Code's built-in autonomous mode (Safe YOLO + Headless)
-        log("Running Claude Code in autonomous mode...")
+        # Use OpenCode's built-in autonomous mode
+        log("Running OpenCode in autonomous mode...")
         log(f"Task length: {len(coding_prompt)} characters")
-        log("Using --dangerously-skip-permissions flag (safe as non-root user)")
-        log(f"Command: claude -p --dangerously-skip-permissions [task]")
+        log("Using OpenCode with task prompt...")
+        log(f"Command: opencode -p [task]")
         
-        # Run Claude Code with headless mode (-p) and dangerous permissions
-        # (now safe since we're running as non-root claude user)
+        # Run OpenCode with the task prompt
         process = subprocess.Popen(
-            ['claude', '-p', '--dangerously-skip-permissions', coding_prompt],
+            ['opencode', '-p', coding_prompt],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
             universal_newlines=True
         )
         
-        log("Claude Code is processing the task autonomously...")
-        log("Monitoring Claude Code output in real-time...")
+        log("OpenCode is processing the task autonomously...")
+        log("Monitoring OpenCode output in real-time...")
         
         # Set timeout (default 8 minutes if not specified)
         timeout_seconds = int(os.environ.get('TIMEOUT_MINUTES', 8)) * 60
         start_time = time.time()
         
-        # Monitor Claude Code output in real-time
+        # Monitor OpenCode output in real-time
         return_code = 0
         output_lines = []
         error_lines = []
@@ -374,7 +373,7 @@ When you're completely finished with everything, you can simply end your session
             
             # Check timeout
             if elapsed > timeout_seconds:
-                log(f"Claude Code execution timed out after {timeout_seconds/60:.1f} minutes")
+                log(f"OpenCode execution timed out after {timeout_seconds/60:.1f} minutes")
                 process.terminate()
                 return_code = -1
                 break
@@ -382,12 +381,12 @@ When you're completely finished with everything, you can simply end your session
             # Check if process ended
             if process.poll() is not None:
                 return_code = process.returncode
-                log(f"Claude Code process ended with return code: {return_code}")
+                log(f"OpenCode process ended with return code: {return_code}")
                 break
             
             # Show progress every 30 seconds
             if int(elapsed) % 30 == 0 and elapsed > 30:
-                log(f"Claude Code still running... {elapsed:.0f}s elapsed")
+                log(f"OpenCode still running... {elapsed:.0f}s elapsed")
                 
             # Read stdout
             try:
@@ -399,7 +398,7 @@ When you're completely finished with everything, you can simply end your session
                     if output:
                         clean_output = output.strip()
                         if clean_output:
-                            log(f"Claude STDOUT: {clean_output}")
+                            log(f"OpenCode STDOUT: {clean_output}")
                             output_lines.append(clean_output)
                             last_output_time = current_time
                             
@@ -408,7 +407,7 @@ When you're completely finished with everything, you can simply end your session
                     if error:
                         clean_error = error.strip()
                         if clean_error:
-                            log(f"Claude STDERR: {clean_error}")
+                            log(f"OpenCode STDERR: {clean_error}")
                             error_lines.append(clean_error)
                             
             except ImportError:
@@ -418,32 +417,32 @@ When you're completely finished with everything, you can simply end your session
                     if output:
                         clean_output = output.strip()
                         if clean_output:
-                            log(f"Claude: {clean_output}")
+                            log(f"OpenCode: {clean_output}")
                             output_lines.append(clean_output)
                             last_output_time = current_time
                 except:
                     pass
                 time.sleep(1)
             
-            # Check if Claude Code seems stuck (no output for 2 minutes)
+            # Check if OpenCode seems stuck (no output for 2 minutes)
             if current_time - last_output_time > 120:
-                log("Warning: No output from Claude Code for 2 minutes - may be stuck")
-                log("Attempting to check Claude Code process status...")
+                log("Warning: No output from OpenCode for 2 minutes - may be stuck")
+                log("Attempting to check OpenCode process status...")
                 
-                # Try to get more info about what Claude Code is doing
+                # Try to get more info about what OpenCode is doing
                 try:
                     ps_result = subprocess.run(['ps', 'aux'], capture_output=True, text=True, timeout=5)
-                    if 'claude' in ps_result.stdout:
-                        log("Claude Code process still found in process list")
+                    if 'opencode' in ps_result.stdout:
+                        log("OpenCode process still found in process list")
                     else:
-                        log("Claude Code process not found in process list")
+                        log("OpenCode process not found in process list")
                 except:
                     log("Could not check process status")
                 
                 last_output_time = current_time  # Reset to avoid spam
         
         # Process the results
-        log(f"Claude Code process finished with return code: {return_code}")
+        log(f"OpenCode process finished with return code: {return_code}")
         log(f"Total output lines captured: {len(output_lines)}")
         log(f"Total error lines captured: {len(error_lines)}")
         
@@ -457,28 +456,33 @@ When you're completely finished with everything, you can simply end your session
             for line in error_lines[-5:]:  # Show last 5 error lines
                 log(f"  ERR: {line}")
         
-        # Check workspace after Claude Code execution
-        log("Checking workspace after Claude Code execution:")
+        # Check workspace after OpenCode execution
+        log("Checking workspace after OpenCode execution:")
         try:
             files = os.listdir('.')
-            log(f"Files created: {files}")
+            log(f"Files in workspace: {files}")
             
-            # Look for our target file
-            if 'test_autonomous_claude.py' in files:
-                log("Target file 'test_autonomous_claude.py' was created!")
-                with open('test_autonomous_claude.py', 'r') as f:
-                    content = f.read()
-                    log(f"File content preview: {content[:200]}...")
+            # Check for any Python files that might have been created
+            python_files = [f for f in files if f.endswith('.py')]
+            if python_files:
+                log(f"Python files found: {python_files}")
+                for py_file in python_files[:3]:  # Show first 3 files
+                    try:
+                        with open(py_file, 'r') as f:
+                            content = f.read()
+                            log(f"File {py_file} content preview: {content[:200]}...")
+                    except Exception as e:
+                        log(f"Could not read {py_file}: {e}")
             else:
-                log("Target file 'test_autonomous_claude.py' was NOT created")
+                log("No Python files found")
                 
         except Exception as e:
             log(f"Error checking workspace: {e}")
         
         if return_code == 0:
-            log("Claude Code completed successfully")
+            log("OpenCode completed successfully")
         else:
-            log(f"Claude Code exited with error code: {return_code}")
+            log(f"OpenCode exited with error code: {return_code}")
             log("Task finished with errors")
     
     finally:
@@ -490,12 +494,12 @@ When you're completely finished with everything, you can simply end your session
 
 if __name__ == '__main__':
     main()
-CLAUDE_SCRIPT
+OPENCODE_SCRIPT
 
-chmod +x /tmp/claude_tools/interact_with_claude.py
+chmod +x /tmp/opencode_tools/interact_with_opencode.py
 
-echo "[$(date '+%H:%M:%S')] Running Claude Code interaction..."
-python3 /tmp/claude_tools/interact_with_claude.py
+echo "[$(date '+%H:%M:%S')] Running OpenCode interaction..."
+python3 /tmp/opencode_tools/interact_with_opencode.py
 
 # Start web terminal for monitoring
 cat > welcome.sh << 'WELCOME'
@@ -506,7 +510,7 @@ echo "  Summit AI - Development Environment"
 echo "======================================================"
 echo ""
 echo "Task: $TASK_DESCRIPTION" 
-echo "Status: Ready for Claude development"
+echo "Status: Ready for OpenCode development"
 echo ""
 echo "Commands:"
 echo "  git log --oneline -5  - Recent commits"
@@ -529,6 +533,6 @@ TTYD_PID=$!
 
 echo "[$(date '+%H:%M:%S')] Web terminal started on port 7681"
 
-# Claude Code has finished - the session will now end naturally
-echo "[$(date '+%H:%M:%S')] Claude Code execution completed"
+# OpenCode has finished - the session will now end naturally
+echo "[$(date '+%H:%M:%S')] OpenCode execution completed"
 echo "[$(date '+%H:%M:%S')] Session ended" 
