@@ -53,4 +53,25 @@ data/summit_costs.json
 data/summit_embeddings.index
 
 # Logs
-*.log 
+*.log
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+terraform.tfvars
+
+# Google Cloud credentials
+*-key.json
+service-account-*.json
+
+# Local setup scripts
+setup-*.sh
+test-*.sh
+
+# Coverage files (temporary)
+coverage.json
+.coverage
+coverage.xml
+htmlcov/ 
