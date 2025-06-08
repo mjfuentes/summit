@@ -389,6 +389,37 @@ class UnifiedDatabaseManager:
         """Close database connections"""
         await self.db_manager.close()
 
+    async def get_all_agents(self) -> List[Agent]:
+        """Get all registered agents"""
+        async with self.get_session() as session:
+            result = await session.execute(select(Agent))
+            return list(result.scalars().all())
+
+    async def get_tasks_since(
+        self, since_date: datetime, limit: int = None
+    ) -> List[AgentTask]:
+        """Get tasks created since a specific date"""
+        async with self.get_session() as session:
+            query = select(AgentTask).where(AgentTask.created_at >= since_date)
+            if limit:
+                query = query.limit(limit)
+            query = query.order_by(AgentTask.created_at.desc())
+            result = await session.execute(query)
+            return list(result.scalars().all())
+
+    async def get_tasks_between(
+        self, start_date: datetime, end_date: datetime
+    ) -> List[AgentTask]:
+        """Get tasks between two dates"""
+        async with self.get_session() as session:
+            result = await session.execute(
+                select(AgentTask).where(
+                    AgentTask.created_at >= start_date,
+                    AgentTask.created_at < end_date,
+                )
+            )
+            return list(result.scalars().all())
+
 
 # Global unified database manager instance
 _unified_db_manager: Optional[UnifiedDatabaseManager] = None
