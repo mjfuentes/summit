@@ -548,16 +548,14 @@ async def run_autonomous_task(task_id: str):
 
                 with open(log_file_path, "w", encoding="utf-8") as f:
                     f.write(
-                        f"[SYSTEM] Task started at {
-                            datetime.now().isoformat()}\n"
+                        f"[SYSTEM] Task started at {datetime.now().isoformat()}\n"
                     )
                     f.write(f"[SYSTEM] Task ID: {task_id}\n")
                     f.write(
                         f"[SYSTEM] Task Description: {task.task_description}\n"
                     )
                     f.write(
-                        f"[SYSTEM] Completion Signal: {
-                            task.save_word or 'TASK_COMPLETE'}\n"
+                        f"[SYSTEM] Completion Signal: {task.save_word or 'TASK_COMPLETE'}\n"
                     )
                     f.write(f"[SYSTEM] Container ID: {container_id}\n")
                     f.write(f"[SYSTEM] Log monitoring started\n")
@@ -637,8 +635,7 @@ async def run_autonomous_task(task_id: str):
                                         template_vars = {
                                             "summary": f"This PR was automatically created by Summit's autonomous agent upon successful completion of task: {task.task_description}",
                                             "changes": [
-                                                f"Implemented requested functionality: {
-                                                    task.task_description}",
+                                                f"Implemented requested functionality: {task.task_description}",
                                                 "Autonomous agent development workflow completed",
                                                 "Task executed in isolated Docker environment",
                                             ],
@@ -767,9 +764,7 @@ The PR will auto-merge upon successful CI completion and positive reviews.
                                                         )
                                                 else:
                                                     print(
-                                                        f"Multi-role review failed: {
-                                                            review_result.get(
-                                                                'error', 'Unknown error')}"
+                                                        f"Multi-role review failed: {review_result.get('error', 'Unknown error')}"
                                                     )
                                                     await add_task_log(
                                                         task_id,
@@ -782,8 +777,7 @@ The PR will auto-merge upon successful CI completion and positive reviews.
                                                 )
                                                 await add_task_log(
                                                     task_id,
-                                                    f"Multi-role review error: {
-                                                        str(review_error)}",
+                                                    f"Multi-role review error: {str(review_error)}",
                                                 )
 
                                         else:
@@ -803,8 +797,7 @@ The PR will auto-merge upon successful CI completion and positive reviews.
                                     await update_task_status(
                                         task_id,
                                         "completed",
-                                        f"Task completed but PR error: {
-                                            str(pr_error)}",
+                                        f"Task completed but PR error: {str(pr_error)}",
                                     )
                             else:
                                 error_msg = f"Claude Code exited with error code {exit_code}"
@@ -973,12 +966,10 @@ The PR will auto-merge upon successful CI completion and positive reviews.
                 with open(log_file_path, "a", encoding="utf-8") as f:
                     f.write("=" * 60 + "\n")
                     f.write(
-                        f"[SYSTEM] Task ended at {
-                            datetime.now().isoformat()}\n"
+                        f"[SYSTEM] Task ended at {datetime.now().isoformat()}\n"
                     )
                     f.write(
-                        f"[SYSTEM] Final status: {
-                            current_task.status if current_task else 'unknown'}\n"
+                        f"[SYSTEM] Final status: {current_task.status if current_task else 'unknown'}\n"
                     )
                     f.write(f"[SYSTEM] Log file saved to: {log_file_path}\n")
 
@@ -1694,8 +1685,7 @@ async def retrigger_failed_task(task_id: str):
             "progress": "Task retriggered from failed task",
             "logs": [
                 f"Task retriggered from original task: {task_id}",
-                f"Original task failed with: {
-                    original_task.error or 'Unknown error'}",
+                f"Original task failed with: {original_task.error or 'Unknown error'}",
                 "Starting fresh Claude instance...",
             ],
             "created_at": datetime.utcnow(),
@@ -1792,10 +1782,8 @@ async def retrigger_all_failed_tasks():
                     "status": "pending",
                     "progress": "Batch retriggered from failed task",
                     "logs": [
-                        f"Batch retriggered from failed task: {
-                            failed_task.task_id}",
-                        f"Original error: {
-                            failed_task.error or 'Unknown error'}",
+                        f"Batch retriggered from failed task: {failed_task.task_id}",
+                        f"Original error: {failed_task.error or 'Unknown error'}",
                         "Starting fresh Claude instance...",
                     ],
                     "created_at": datetime.utcnow(),
