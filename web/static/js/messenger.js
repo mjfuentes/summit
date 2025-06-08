@@ -76,10 +76,11 @@ async function sendMessage() {
         // Handle streaming response
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
+        let streamComplete = false;
         
         while (true) {
             const { done, value } = await reader.read();
-            if (done) break;
+            if (done || streamComplete) break;
             
             const chunk = decoder.decode(value);
             const lines = chunk.split('\n');
@@ -92,19 +93,19 @@ async function sendMessage() {
                         if (data.type === 'content') {
                             fullResponse += data.content;
                             
-                            // Check if we just completed a sentence (ends with . ! ? or double newline)
-                            const sentenceEnders = /[.!?]\s*$|(\n\n)$/;
-                            const justCompletedSentence = sentenceEnders.test(data.content);
-                            
                             // Convert newlines to <br> and update the bubble
                             streamingBubble.innerHTML = fullResponse.replace(/\n/g, '<br>');
                             chatArea.scrollTop = chatArea.scrollHeight;
                             
-                            if (justCompletedSentence) {
-                                // Long pause between sentences (3-8 seconds for testing, can be increased)
-                                const pauseTime = 3000 + Math.random() * 5000; // 3-8 seconds
+                            // Check if we just completed a sentence (ends with . ! ? or double newline)
+                            const sentenceEnders = /[.!?]\s*$|(\n\n)$/;
+                            const justCompletedSentence = sentenceEnders.test(data.content);
+                            
+                            if (justCompletedSentence && fullResponse.length > 500) {
+                                // Only show thinking for longer responses
+                                const pauseTime = 200 + Math.random() * 300; // 200-500ms
                                 
-                                // Show "Summit is thinking..." during long pauses
+                                // Show "Summit is thinking..." during pauses
                                 const originalContent = streamingBubble.innerHTML;
                                 streamingBubble.innerHTML = originalContent + '<br><em style="color: #666; font-size: 10px; animation: pulse 1s infinite;">Summit is thinking...</em>';
                                 
@@ -113,11 +114,12 @@ async function sendMessage() {
                                 // Remove the thinking indicator
                                 streamingBubble.innerHTML = originalContent;
                             } else {
-                                // Fast typing within sentences (very short delay)
-                                await new Promise(resolve => setTimeout(resolve, 5));
+                                // Fast typing within sentences
+                                await new Promise(resolve => setTimeout(resolve, 2));
                             }
                         } else if (data.type === 'done') {
-                            // Check if response contains task creation
+                            // Stream is complete - stop immediately
+                            streamComplete = true;
                             if (fullResponse.includes('Task ID:')) {
                                 streamingBubble.innerHTML = enhanceTaskMessage(fullResponse.replace(/\n/g, '<br>'));
                             }
@@ -127,6 +129,9 @@ async function sendMessage() {
                         // Ignore JSON parse errors for malformed chunks
                     }
                 }
+                
+                // Break out of inner loop if stream is complete
+                if (streamComplete) break;
             }
         }
         
