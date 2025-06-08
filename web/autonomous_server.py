@@ -180,6 +180,10 @@ class TaskRequest(BaseModel):
     task_description: str  # Only thing the user needs to provide
 
 
+class ChatRequest(BaseModel):
+    message: str
+
+
 class TaskStatus(BaseModel):
     task_id: str
     status: str
@@ -2280,6 +2284,36 @@ async def get_task_logs(task_id: str):
             }
 
     return {"success": False, "message": "Log file not found"}
+
+
+@app.post("/api/chat")
+async def chat_with_claude(request: ChatRequest):
+    """Chat with Claude AI"""
+    try:
+        import anthropic
+
+        # Get API key from environment
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+        if not api_key:
+            return {
+                "success": False,
+                "error": "ANTHROPIC_API_KEY not configured",
+            }
+
+        # Initialize Anthropic client
+        client = anthropic.Anthropic(api_key=api_key)
+
+        # Create message
+        message = client.messages.create(
+            model="claude-3-5-sonnet-20241022",
+            max_tokens=1000,
+            messages=[{"role": "user", "content": request.message}],
+        )
+
+        return {"success": True, "response": message.content[0].text}
+
+    except Exception as e:
+        return {"success": False, "error": f"Chat error: {str(e)}"}
 
 
 @app.get("/health")
