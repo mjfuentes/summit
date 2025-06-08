@@ -75,6 +75,27 @@ Analysis → Implementation → Testing → Quality Checks → Commit → Deploy
     ←←←← Continuous Integration & Deployment Pipeline ←←←←←←←←←←←←←←
 ```
 
+### Docker Build Optimization
+Summit features **optimized Docker builds** that reduce build time from 20+ minutes to under 5 minutes:
+
+**Key Optimizations:**
+- **Lightweight Dependencies**: Removed heavy ML libraries (PyTorch, transformers) from production builds
+- **Multi-layer Caching**: Registry cache + GitHub Actions cache for faster rebuilds  
+- **Optimized .dockerignore**: Excludes unnecessary files from build context
+- **Development Split**: Heavy dependencies moved to `dev-requirements.txt` for local development
+
+**Build Performance:**
+```bash
+# Test optimized build locally
+./scripts/test-docker-build.sh
+
+# Development setup (full dependencies)
+pip install -r requirements.txt -r dev-requirements.txt
+
+# Production build (lightweight)
+docker build -f infrastructure/docker/Dockerfile.summit-api .
+```
+
 ## Core Capabilities
 
 ### Learning System
