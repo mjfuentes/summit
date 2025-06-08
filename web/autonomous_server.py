@@ -296,7 +296,7 @@ async def run_autonomous_task(task_id: str):
         try:
             # Early validation of critical components
             dockerfile_path = "Dockerfile.autonomous"
-            task_script_path = "claude_code_task.sh"
+            task_script_path = "opencode_task.sh"
 
             # Check for required files
             missing_files = []

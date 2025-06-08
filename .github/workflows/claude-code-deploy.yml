@@ -1,47 +1,32 @@
-name: Claude Code Container Build & Publish
+name: Claude Code Deployment
 
 on:
   push:
-    branches: [ main ]
     paths:
-      - 'web/Dockerfile.autonomous'
-      - 'web/claude_code_task.sh'
-      - 'web/autonomous_server.py'
-      - 'requirements.txt'
-      - '.github/workflows/claude-code-deploy.yml'
+    - 'web/opencode_task.sh'
+    branches: [main]
   workflow_dispatch:
-    inputs:
-      force_rebuild:
-        description: 'Force rebuild containers'
-        required: false
-        default: false
-        type: boolean
 
+# Grant GITHUB_TOKEN the necessary permissions
 permissions:
   contents: read
   packages: write
-  actions: read
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}/claude-code
 
 jobs:
-  validate-files:
-    name: Validate Required Files
+  validate:
+    name: Validate Deployment Files
     runs-on: ubuntu-latest
-    outputs:
-      files-valid: ${{ steps.check.outputs.valid }}
-    
     steps:
-    - name: Checkout code
+    - name: Checkout repository
       uses: actions/checkout@v4
       
-    - name: Check required files
-      id: check
+    - name: Validate required files
       run: |
-        echo "Checking for required Claude Code deployment files..."
-        
+        echo "Checking for required OpenCode deployment files..."
         MISSING_FILES=()
         
         # Check Dockerfile.autonomous
@@ -49,14 +34,9 @@ jobs:
           MISSING_FILES+=("web/Dockerfile.autonomous")
         fi
         
-        # Check claude_code_task.sh
-        if [ ! -f "web/claude_code_task.sh" ]; then
-          MISSING_FILES+=("web/claude_code_task.sh")
-        fi
-        
-        # Check autonomous_server.py
-        if [ ! -f "web/autonomous_server.py" ]; then
-          MISSING_FILES+=("web/autonomous_server.py")
+        # Check opencode_task.sh
+        if [ ! -f "web/opencode_task.sh" ]; then
+          MISSING_FILES+=("web/opencode_task.sh")
         fi
         
         # Check requirements.txt
@@ -64,26 +44,45 @@ jobs:
           MISSING_FILES+=("requirements.txt")
         fi
         
-        if [ ${#MISSING_FILES[@]} -eq 0 ]; then
-          echo " All required files present"
-          echo "valid=true" >> $GITHUB_OUTPUT
-        else
-          echo " Missing required files: ${MISSING_FILES[*]}"
-          echo "valid=false" >> $GITHUB_OUTPUT
+        # Check if any files are missing
+        if [ ${#MISSING_FILES[@]} -ne 0 ]; then
+          echo " Missing required files:"
+          for file in "${MISSING_FILES[@]}"; do
+            echo "  - $file"
+          done
           exit 1
         fi
+        
+        echo " All required files found"
+        
+    - name: Validate file permissions and content
+      run: |
+        echo "Validating deployment files..."
+        
+        # Check that Dockerfile.autonomous exists and has content
+        if [ ! -s "web/Dockerfile.autonomous" ]; then
+          echo " Dockerfile.autonomous is empty"
+          exit 1
+        fi
+        
+        # Check that opencode_task.sh has proper shebang
+        if ! head -n 1 "web/opencode_task.sh" | grep -q "#!/bin/bash"; then
+          echo " opencode_task.sh missing proper shebang"
+          exit 1
+        fi
+        
+        echo " File validation passed"
 
-  build-and-publish:
-    name: Build & Publish Claude Code Image
+  build:
+    name: Build OpenCode Image
     runs-on: ubuntu-latest
-    needs: validate-files
-    if: needs.validate-files.outputs.files-valid == 'true'
+    needs: validate
     outputs:
-      image-tag: ${{ steps.meta.outputs.tags }}
       image-digest: ${{ steps.build.outputs.digest }}
+      image-tags: ${{ steps.meta.outputs.tags }}
     
     steps:
-    - name: Checkout code
+    - name: Checkout repository
       uses: actions/checkout@v4
       
     - name: Set up Docker Buildx
@@ -96,6 +95,23 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
         
+    - name: Prepare build context
+      run: |
+        echo "Preparing OpenCode build context..."
+        cd web
+        
+        # Copy requirements.txt from parent directory
+        cp ../requirements.txt .
+        echo " Copied requirements.txt to build context"
+        
+        # Verify opencode_task.sh is executable
+        chmod +x opencode_task.sh
+        echo " Made opencode_task.sh executable"
+        
+        # List files in build context
+        echo " Build context contents:"
+        ls -la
+        
     - name: Extract metadata
       id: meta
       uses: docker/metadata-action@v5
@@ -103,35 +119,11 @@ jobs:
         images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
         tags: |
           type=ref,event=branch
+          type=ref,event=pr
           type=sha,prefix={{branch}}-
           type=raw,value=latest,enable={{is_default_branch}}
-          type=raw,value=render,enable={{is_default_branch}}
           
-    - name: Prepare build context
-      run: |
-        echo " Preparing build context for Claude Code container..."
-        
-        # Copy requirements.txt to web directory for build context
-        cp requirements.txt web/
-        echo " Copied requirements.txt to web directory"
-        
-        # Verify claude_code_task.sh is executable
-        chmod +x web/claude_code_task.sh
-        echo " Made claude_code_task.sh executable"
-        
-        # Remove hardcoded API key from Dockerfile for security
-        if grep -q "ENV ANTHROPIC_API_KEY=" web/Dockerfile.autonomous; then
-          sed -i '/ENV ANTHROPIC_API_KEY=/d' web/Dockerfile.autonomous
-          echo " Removed hardcoded API key from Dockerfile"
-        else
-          echo "ℹ  No hardcoded API key found in Dockerfile"
-        fi
-        
-        # Show build context contents
-        echo " Build context contents:"
-        ls -la web/
-        
-    - name: Build and push Claude Code image
+    - name: Build and push image
       id: build
       uses: docker/build-push-action@v5
       with:
@@ -143,241 +135,135 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
         build-args: |
-          BUILDKIT_INLINE_CACHE=1
-          
+          ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
+
+  test:
+    name: Test OpenCode Container
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
     - name: Test container startup
       run: |
         echo " Testing container startup..."
         
-        # Get the main image tag
-        IMAGE_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n1)
+        # Extract the image tag from the build step
+        IMAGE_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
         echo "Testing image: $IMAGE_TAG"
         
-        # Test container startup with minimal environment
-        docker run --rm -d \
-          --name claude-test \
-          -e ANTHROPIC_API_KEY=test-key \
-          -e TASK_DESCRIPTION="Test startup" \
+        # Try to run the container with a simple test
+        docker run --rm \
+          -e ANTHROPIC_API_KEY="test-key" \
+          -e TASK_DESCRIPTION="echo 'Hello OpenCode'" \
           -e TIMEOUT_MINUTES=1 \
+          --name opencode-test \
           "$IMAGE_TAG" &
         
-        # Wait for startup
-        sleep 15
+        # Give it a moment to start
+        sleep 10
         
-        # Check if container is running or completed
-        if docker ps | grep claude-test; then
-          echo " Container is running"
-          docker stop claude-test
-        elif docker ps -a | grep claude-test; then
-          echo "ℹ  Container completed startup sequence"
-          docker logs claude-test | tail -20
+        # Check if container is running or exited cleanly
+        if docker ps | grep -q opencode-test; then
+          echo " Container started successfully"
+          docker stop opencode-test
+        elif docker ps -a | grep opencode-test | grep -q "Exited"; then
+          echo " Container ran and exited (expected for quick tasks)"
+          docker logs opencode-test | tail -20
         else
           echo " Container failed to start"
-          docker logs claude-test || true
+          docker logs opencode-test 2>&1 || echo "No logs available"
           exit 1
         fi
-        
-    - name: Generate SBOM
-      uses: anchore/sbom-action@v0
-      with:
-        image: ${{ steps.meta.outputs.tags }}
-        format: spdx-json
-        output-file: /tmp/sbom.spdx.json
-        
-    - name: Scan image for vulnerabilities
-      uses: anchore/scan-action@v3
-      with:
-        image: ${{ steps.meta.outputs.tags }}
-        fail-build: false
-        severity-cutoff: high
 
-  create-render-config:
-    name: Create Render Configuration
+  deploy:
+    name: Deploy to Render
     runs-on: ubuntu-latest
-    needs: [validate-files, build-and-publish]
-    if: needs.validate-files.outputs.files-valid == 'true'
+    needs: [build, test]
+    if: github.ref == 'refs/heads/main'
     
     steps:
-    - name: Checkout code
+    - name: Checkout repository
       uses: actions/checkout@v4
       
-    - name: Create render.yaml configuration
+    - name: Deploy to Render
+      env:
+        RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+        IMAGE_URL: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
       run: |
-        echo " Creating Render.com configuration..."
+        echo " Deploying OpenCode to Render..."
         
-        # Get the published image tag
-        IMAGE_TAG="${{ needs.build-and-publish.outputs.image-tag }}"
-        MAIN_IMAGE=$(echo "$IMAGE_TAG" | grep ":latest" || echo "$IMAGE_TAG" | head -n1)
+        # Prepare deployment script
+        cat > deploy_to_render.py << 'EOF'
+        import os
+        import requests
+        import json
+        import time
         
-        cat > render.yaml << EOF
-        # Render.com configuration for Summit Claude Code deployment
-        # This file configures automatic deployment when main branch changes
+        api_key = os.environ.get('RENDER_API_KEY')
+        service_id = os.environ.get('RENDER_SERVICE_ID') 
+        image_url = os.environ.get('IMAGE_URL')
         
-        services:
-          # Main web interface service
-          - type: web
-            name: summit-web-interface
-            env: docker
-            dockerfilePath: ./Dockerfile.render
-            plan: starter
-            region: oregon
-            branch: main
-            healthCheckPath: /health
-            envVars:
-              - key: ANTHROPIC_API_KEY
-                sync: false
-              - key: GITHUB_TOKEN
-                sync: false
-              - key: SUMMIT_ENV
-                value: production
-              - key: PORT
-                value: 8000
-              - key: SUMMIT_LOG_LEVEL
-                value: info
-            buildCommand: |
-              pip install -r requirements.txt
-            startCommand: python start_server.py
+        if not all([api_key, service_id, image_url]):
+            print("Missing required environment variables")
+            exit(1)
             
-          # Claude Code autonomous service (uses pre-built image)
-          - type: web
-            name: summit-claude-code
-            env: docker
-            dockerfilePath: ./web/Dockerfile.autonomous
-            dockerContext: ./web
-            plan: starter
-            region: oregon
-            branch: main
-            healthCheckPath: /health
-            envVars:
-              - key: ANTHROPIC_API_KEY
-                sync: false
-              - key: GITHUB_TOKEN
-                sync: false
-              - key: SUMMIT_ENV
-                value: production
-              - key: PORT
-                value: 8000
-              - key: SUMMIT_READONLY_MODE
-                value: false
-            buildCommand: |
-              cp ../requirements.txt .
-              chmod +x claude_code_task.sh
-            startCommand: python3 autonomous_server.py
+        headers = {
+            'Authorization': f'Bearer {api_key}',
+            'Content-Type': 'application/json'
+        }
+        
+        # Update service with new image
+        update_data = {
+            'service': {
+                'image': {
+                    'imageUrl': image_url
+                }
+            }
+        }
+        
+        response = requests.patch(
+            f'https://api.render.com/v1/services/{service_id}',
+            headers=headers,
+            json=update_data
+        )
+        
+        if response.status_code == 200:
+            print(f" Deployment initiated successfully")
+            print(f"Image: {image_url}")
+        else:
+            print(f" Deployment failed: {response.status_code}")
+            print(response.text)
+            exit(1)
         EOF
         
-        echo " Created render.yaml configuration"
+        python deploy_to_render.py
         
-    - name: Create Render Dockerfile for web interface
+    - name: Health check
       run: |
-        echo " Creating optimized Dockerfile for Render web interface..."
+        echo " Running post-deployment health check..."
+        # Add health check logic here once service is deployed
+        echo " Health check placeholder - add actual endpoint check"
         
-        cat > Dockerfile.render << EOF
-        FROM python:3.12-slim
-        
-        # Set environment variables
-        ENV PYTHONUNBUFFERED=1
-        ENV PYTHONDONTWRITEBYTECODE=1
-        
-        WORKDIR /app
-        
-        # Install system dependencies
-        RUN apt-get update && apt-get install -y --no-install-recommends \\
-            git \\
-            curl \\
-            && rm -rf /var/lib/apt/lists/*
-        
-        # Copy requirements and install Python dependencies
-        COPY requirements.txt .
-        RUN pip install --no-cache-dir --upgrade pip \\
-            && pip install --no-cache-dir -r requirements.txt
-        
-        # Copy application code
-        COPY . .
-        
-        # Set Python path
-        ENV PYTHONPATH=/app/src:/app
-        
-        # Create non-root user
-        RUN useradd -m -u 1000 summit && chown -R summit:summit /app
-        USER summit
-        
-        # Expose port
-        EXPOSE 8000
-        
-        # Health check
-        HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \\
-            CMD curl -f http://localhost:8000/health || exit 1
-        
-        # Start command
-        CMD ["python", "start_server.py"]
-        EOF
-        
-        echo " Created Dockerfile.render for web interface"
-        
-    - name: Commit configuration files
+    - name: Cleanup build context
       run: |
-        echo " Committing Render configuration files..."
-        
-        # Configure git
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        
-        # Add files if they've changed
-        git add render.yaml Dockerfile.render || true
-        
-        # Check if there are changes to commit
-        if git diff --staged --quiet; then
-          echo "ℹ  No changes to commit"
-        else
-          git commit -m "Update Render.com deployment configuration
-          
-          - Updated render.yaml with latest service configuration
-          - Created optimized Dockerfile.render for web interface
-          - Configured for automatic deployment on main branch changes
-          
-          Image: ${{ needs.build-and-publish.outputs.image-tag }}"
-          
-          git push
-          echo " Committed and pushed configuration files"
-        fi
+        cd web
+        # Clean up copied files
+        rm -f requirements.txt
+        chmod +x opencode_task.sh
+        echo " Cleaned up build context"
 
-  deployment-summary:
-    name: Deployment Summary
+  cleanup:
+    name: Cleanup
     runs-on: ubuntu-latest
-    needs: [validate-files, build-and-publish, create-render-config]
+    needs: [deploy]
     if: always()
     
     steps:
-    - name: Generate deployment summary
+    - name: Summary
       run: |
-        echo " Claude Code Container Build & Publish Summary"
-        echo "================================================"
-        echo ""
-        echo " Build Results:"
-        echo "  - File Validation: ${{ needs.validate-files.result }}"
-        echo "  - Container Build: ${{ needs.build-and-publish.result }}"
-        echo "  - Config Creation: ${{ needs.create-render-config.result }}"
-        echo ""
-        
-        if [ "${{ needs.build-and-publish.result }}" = "success" ]; then
-          echo " Container Image Published:"
-          echo "  - Registry: ghcr.io"
-          echo "  - Image: ${{ needs.build-and-publish.outputs.image-tag }}"
-          echo "  - Digest: ${{ needs.build-and-publish.outputs.image-digest }}"
-          echo ""
-          echo " Render.com Integration:"
-          echo "  - Render will automatically detect main branch changes"
-          echo "  - New deployments will use the published container image"
-          echo "  - Configuration files updated in repository"
-          echo ""
-          echo " Next Steps:"
-          echo "  1. Render.com will automatically deploy when it detects the changes"
-          echo "  2. Monitor deployment status in Render dashboard"
-          echo "  3. Verify Claude Code functionality after deployment"
-        else
-          echo " Container build failed - Render deployment will not proceed"
-        fi
-        
-        echo ""
-        echo " Completed: $(date)"
-        echo " Commit: ${{ github.sha }}" 
+        echo " OpenCode Deployment Summary"
+        echo "=================================="
+        echo "Status: ${{ needs.deploy.result }}"
+        echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+        echo "Deployment: ${{ github.sha }}"
+        echo "Timestamp: $(date)" 
