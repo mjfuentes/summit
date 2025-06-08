@@ -180,27 +180,43 @@ jobs:
         IMAGE_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
         echo "Testing image: $IMAGE_TAG"
         
-        # Try to run the container with a simple test
-        docker run --rm \
+        # Try to run the container with a simple test (removed --rm for debugging)
+        echo "Starting container..."
+        CONTAINER_ID=$(docker run -d \
           -e ANTHROPIC_API_KEY="test-key" \
           -e TASK_DESCRIPTION="echo 'Hello OpenCode'" \
           -e TIMEOUT_MINUTES=1 \
           --name opencode-test \
-          "$IMAGE_TAG" &
+          "$IMAGE_TAG")
         
-        # Give it a moment to start
-        sleep 10
+        echo "Container ID: $CONTAINER_ID"
+        
+        # Give it a moment to start and show immediate logs
+        sleep 3
+        echo " Container logs (first 3 seconds):"
+        docker logs opencode-test || echo "No logs yet"
+        
+        # Wait a bit more and check status
+        sleep 7
+        echo " Container status after 10 seconds:"
+        docker ps -a | grep opencode-test || echo "Container not found"
+        
+        # Show full logs
+        echo " Complete container logs:"
+        docker logs opencode-test 2>&1 || echo "No logs available"
         
         # Check if container is running or exited cleanly
         if docker ps | grep -q opencode-test; then
-          echo " Container started successfully"
+          echo " Container is still running - SUCCESS!"
           docker stop opencode-test
-        elif docker ps -a | grep opencode-test | grep -q "Exited"; then
-          echo " Container ran and exited (expected for quick tasks)"
-          docker logs opencode-test | tail -20
+          docker rm opencode-test
+        elif docker ps -a | grep opencode-test | grep -q "Exited (0)"; then
+          echo " Container exited successfully - SUCCESS!"
+          docker rm opencode-test
         else
-          echo " Container failed to start"
-          docker logs opencode-test 2>&1 || echo "No logs available"
+          echo " Container failed or exited with error"
+          docker ps -a | grep opencode-test || echo "Container not found in ps -a"
+          docker rm opencode-test 2>/dev/null || echo "No container to remove"
           exit 1
         fi
 
