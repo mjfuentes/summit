@@ -6,11 +6,10 @@ This module tests the RunPod integration functionality including
 configuration, deployment management, and cost calculations.
 """
 
-import asyncio
 import os
 import sys
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import patch
 
 import pytest
 

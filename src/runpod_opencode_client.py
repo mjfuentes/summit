@@ -7,9 +7,7 @@ for OpenCode integration.
 """
 
 import asyncio
-import json
 import logging
-import os
 import time
 from typing import Any, Dict, Optional
 
@@ -111,11 +109,13 @@ class RunPodOpenCodeClient:
                     else:
                         error_text = await response.text()
                         self.logger.error(
-                            f"RunPod sync API error {response.status}: {error_text}"
+                            f"RunPod sync API error {
+                                response.status}: {error_text}"
                         )
                         return {
                             "success": False,
-                            "error": f"API error {response.status}: {error_text}",
+                            "error": f"API error {
+                                response.status}: {error_text}",
                             "processing_time": processing_time,
                             "method": "sync",
                         }
@@ -199,7 +199,8 @@ class RunPodOpenCodeClient:
                 else:
                     error_text = await response.text()
                     self.logger.error(
-                        f"Failed to submit job: {response.status} - {error_text}"
+                        f"Failed to submit job: {
+                            response.status} - {error_text}"
                     )
                     return None
 
@@ -333,7 +334,8 @@ class RunPodOpenCodeClient:
                         error_text = await response.text()
                         return {
                             "success": False,
-                            "error": f"Health check failed: {response.status} - {error_text}",
+                            "error": f"Health check failed: {
+                                response.status} - {error_text}",
                         }
         except Exception as e:
             self.logger.error(f"Health check error: {e}")
@@ -359,7 +361,8 @@ class RunPodOpenCodeClient:
                         error_text = await response.text()
                         return {
                             "success": False,
-                            "error": f"Status check failed: {response.status} - {error_text}",
+                            "error": f"Status check failed: {
+                                response.status} - {error_text}",
                         }
         except Exception as e:
             self.logger.error(f"Status check error: {e}")
@@ -385,7 +388,8 @@ class RunPodOpenCodeClient:
                         error_text = await response.text()
                         return {
                             "success": False,
-                            "error": f"Cancel failed: {response.status} - {error_text}",
+                            "error": f"Cancel failed: {
+                                response.status} - {error_text}",
                         }
         except Exception as e:
             self.logger.error(f"Cancel job error: {e}")
@@ -411,7 +415,8 @@ class RunPodOpenCodeClient:
                         error_text = await response.text()
                         return {
                             "success": False,
-                            "error": f"Purge failed: {response.status} - {error_text}",
+                            "error": f"Purge failed: {
+                                response.status} - {error_text}",
                         }
         except Exception as e:
             self.logger.error(f"Purge queue error: {e}")
@@ -463,7 +468,7 @@ class RunPodOpenCodeClient:
 
         for i in range(num_requests):
             prompt = test_prompts[i % len(test_prompts)]
-            result = await self.send_prompt(f"Request {i+1}: {prompt}")
+            result = await self.send_prompt(f"Request {i + 1}: {prompt}")
             results.append(
                 {
                     "request_id": i + 1,
@@ -564,7 +569,7 @@ async def test_runpod_connection():
         total_cost += async_result.get("estimated_cost", 0)
 
     print(f"  Total estimated cost: ${total_cost:.6f}")
-    print(f"  Cost per request: ${total_cost/2:.6f}")
+    print(f"  Cost per request: ${total_cost / 2:.6f}")
 
     # Test 6: OpenCode Configuration
     print("\n6. OpenCode integration config...")

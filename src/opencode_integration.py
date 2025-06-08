@@ -19,12 +19,11 @@ import asyncio
 import json
 import logging
 import os
-import subprocess
 import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 from cost_tracker import CostTracker
 
@@ -184,7 +183,7 @@ class OpenCodeManager:
 **Working Directory:** {self.config.working_directory}
 
 ## Context
-You are working as part of Summit AI's autonomous development system. 
+You are working as part of Summit AI's autonomous development system.
 Your goal is to complete the specified task efficiently and professionally.
 
 ## Available Tools
@@ -397,7 +396,8 @@ Use the available tools to read, write, and test code as needed."""
                 await process.wait()
                 return {
                     "success": False,
-                    "error": f"Command timed out after {timeout or self.config.timeout} seconds",
+                    "error": f"Command timed out after {
+                        timeout or self.config.timeout} seconds",
                 }
 
         except Exception as e:

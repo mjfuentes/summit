@@ -4,8 +4,6 @@ import os
 import sys
 from unittest.mock import Mock, patch
 
-import pytest
-
 # Add scripts to path for imports
 repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 scripts_path = os.path.join(repo_root, "scripts")

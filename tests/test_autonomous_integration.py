@@ -44,14 +44,13 @@ If tests fail, check:
 """
 
 import asyncio
-import json
 import os
 import shutil
 import subprocess
 import sys
 import tempfile
 import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -198,10 +197,7 @@ class TestAutonomousIntegration:
 
     def test_autonomous_server_startup(self):
         """Test that autonomous server can start without errors"""
-        import signal
-        import tempfile
         import time
-        from threading import Timer
 
         # Use a different port to avoid conflicts
         test_port = 8001
@@ -242,7 +238,9 @@ if __name__ == "__main__":
                     # Process ended early - check for errors
                     stdout, stderr = process.communicate()
                     pytest.fail(
-                        f"Server startup failed. STDOUT: {stdout.decode()}, STDERR: {stderr.decode()}"
+                        f"Server startup failed. STDOUT: {
+                            stdout.decode()}, STDERR: {
+                            stderr.decode()}"
                     )
 
                 # Check if server is responding
@@ -377,7 +375,9 @@ if __name__ == "__main__":
 
                     # Check task completion (remove arbitrary time requirement)
                     print(
-                        f"Task execution completed in {end_time - start_time:.2f} seconds"
+                        f"Task execution completed in {
+                            end_time -
+                            start_time:.2f} seconds"
                     )
 
                     # Verify task was processed

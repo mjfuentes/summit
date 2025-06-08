@@ -5,19 +5,20 @@ Advanced AI task management with container orchestration
 """
 
 import asyncio
-import json
 import os
 import subprocess
 import sys
 import time
 import uuid
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
 # Add src directory to path for imports
@@ -62,10 +63,6 @@ except ImportError as e:
 try:
     from task_manager import (
         add_task_log,
-        get_task_data,
-        mark_task_completed,
-        update_task_container_info,
-        update_task_log_file,
         update_task_status,
     )
 
@@ -160,6 +157,10 @@ def bootstrap_dependencies():
 
 app = FastAPI(title="Summit Autonomous AI", version="2.0.0")
 
+# Setup templates and static files
+templates = Jinja2Templates(directory="templates")
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -193,8 +194,9 @@ class TaskStatus(BaseModel):
     container_id: Optional[str] = None
 
 
-class ChatRequest(BaseModel):
+class ChatMessage(BaseModel):
     message: str
+    context: Optional[str] = None
 
 
 @app.on_event("startup")
@@ -211,1178 +213,10 @@ async def shutdown_event():
     print("Database connections closed")
 
 
-@app.get("/")
-@app.head("/")
-async def root():
-    import os
-
-    from fastapi import Response
-
-    # Try to read the external HTML file first
-    html_file_path = os.path.join(
-        os.path.dirname(__file__), "..", "templates", "index.html"
-    )
-
-    if os.path.exists(html_file_path):
-        try:
-            with open(html_file_path, "r", encoding="utf-8") as f:
-                external_html = f.read()
-
-            # Check if external HTML has the required functionality
-            if (
-                "createTask()" in external_html
-                and "api/tasks" in external_html
-            ):
-                html_content = external_html
-            else:
-                # External HTML lacks functionality, create hybrid with Y2K
-                # styling but full features
-                print(
-                    "External HTML lacks functionality, creating hybrid version..."
-                )
-                html_content = create_hybrid_html()
-        except Exception as e:
-            print(f"Error reading HTML file: {e}")
-            # Fallback to embedded HTML
-            html_content = create_hybrid_html()
-    else:
-        # External file doesn't exist, use embedded HTML with all features
-        html_content = create_hybrid_html()
-
-    # Create response with cache-busting headers
-    response = Response(
-        content=html_content,
-        media_type="text/html",
-        headers={
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            "Pragma": "no-cache",
-            "Expires": "0",
-            "X-Content-Type-Options": "nosniff",
-        },
-    )
-    return response
-
-
-def create_hybrid_html():
-    """Create HTML with Y2K styling but full Summit functionality"""
-    return """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEXUS AI  Y2K AUTONOMOUS INTELLIGENCE </title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        body {
-            font-family: 'Courier New', 'Arial Black', monospace;
-            margin: 0;
-            background: linear-gradient(45deg, #ff00ff, #00ffff, #ffff00, #ff00ff);
-            background-size: 400% 400%;
-            animation: gradientShift 3s ease infinite;
-            min-height: 100vh;
-            color: #000;
-            overflow-x: hidden;
-        }
-
-        @keyframes gradientShift {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
-
-        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-
-        .header {
-            text-align: center;
-            color: #000;
-            margin-bottom: 40px;
-            padding: 30px 0;
-            background: rgba(255, 255, 255, 0.1);
-            border: 3px solid #ff00ff;
-            border-radius: 20px;
-            box-shadow: 0 0 20px #00ffff;
-        }
-        .header h1 {
-            font-size: 3.5rem;
-            margin: 0;
-            text-shadow: 3px 3px 0px #ff00ff, 6px 6px 0px #00ffff;
-            font-weight: 900;
-            color: #ffff00;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-        }
-        .header p {
-            font-size: 1.3rem;
-            margin: 15px 0;
-            font-weight: 700;
-            max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
-            color: #000;
-            text-shadow: 1px 1px 0px #fff;
-        }
-
-        .voice-input {
-            position: relative;
-            margin: 15px 0;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        .voice-btn {
-            background: linear-gradient(135deg, #10b981, #059669);
-            border: none;
-            border-radius: 50%;
-            width: 56px;
-            height: 56px;
-            color: white;
-            font-size: 11px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-        }
-        .voice-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4); }
-        .voice-btn.recording {
-            background: linear-gradient(135deg, #ef4444, #dc2626);
-            animation: pulse 1s infinite;
-            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
-        }
-        .voice-status { font-size: 14px; color: #6b7280; font-weight: 500; }
-
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
-        }
-
-        .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px; }
-        @media (max-width: 768px) { .main-grid { grid-template-columns: 1fr; gap: 20px; } }
-
-        .card {
-            background: rgba(255, 255, 255, 0.9);
-            padding: 30px;
-            border-radius: 20px;
-            box-shadow: 0 0 30px #ff00ff, inset 0 0 30px rgba(0, 255, 255, 0.2);
-            backdrop-filter: blur(10px);
-            border: 3px solid #00ffff;
-            transition: all 0.3s ease;
-        }
-        .card:hover {
-            transform: translateY(-5px) scale(1.02);
-            box-shadow: 0 0 50px #ffff00, inset 0 0 50px rgba(255, 0, 255, 0.3);
-            border-color: #ff00ff;
-        }
-        .card h2 {
-            color: #ff00ff;
-            margin-top: 0;
-            font-size: 1.75rem;
-            font-weight: 900;
-            margin-bottom: 20px;
-            text-transform: uppercase;
-            text-shadow: 2px 2px 0px #00ffff;
-            letter-spacing: 2px;
-        }
-
-        .task-form textarea {
-            width: 100%;
-            min-height: 140px;
-            padding: 18px;
-            border: 2px solid #e5e7eb;
-            border-radius: 12px;
-            font-size: 15px;
-            resize: vertical;
-            font-family: inherit;
-            transition: border-color 0.3s ease, box-shadow 0.3s ease;
-            line-height: 1.6;
-        }
-        .task-form textarea:focus {
-            outline: none;
-            border-color: #6366f1;
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-        }
-
-        .btn {
-            background: linear-gradient(45deg, #ff00ff, #00ffff, #ffff00, #ff00ff);
-            background-size: 300% 300%;
-            animation: gradientShift 2s ease infinite;
-            color: #000;
-            padding: 16px 32px;
-            border: 3px solid #000;
-            border-radius: 12px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: 900;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 0 20px #ff00ff;
-            width: 100%;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            text-shadow: 1px 1px 0px #fff;
-        }
-        .btn:hover {
-            transform: translateY(-2px) scale(1.05);
-            box-shadow: 0 0 30px #00ffff;
-            border-color: #ff00ff;
-        }
-        .btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-
-        .task-item {
-            background: linear-gradient(135deg, #f8fafc, #f1f5f9);
-            padding: 20px;
-            margin: 15px 0;
-            border-radius: 12px;
-            border-left: 4px solid #6366f1;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        }
-        .task-item:hover {
-            transform: translateX(5px);
-            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
-            background: linear-gradient(135deg, #ffffff, #f8fafc);
-        }
-
-        .task-list-container {
-            height: 300px;
-            overflow-y: auto;
-            border: 2px solid #e5e7eb;
-            border-radius: 12px;
-            background: rgba(255, 255, 255, 0.8);
-            position: relative;
-        }
-
-        .pagination-controls {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 10px;
-            margin-top: 15px;
-            padding: 10px;
-            background: rgba(255, 255, 255, 0.9);
-            border-radius: 8px;
-            border: 1px solid #e5e7eb;
-        }
-
-        .pagination-btn {
-            background: linear-gradient(135deg, #6366f1, #8b5cf6);
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-
-        .pagination-btn:hover {
-            background: linear-gradient(135deg, #5b21b6, #7c3aed);
-            transform: translateY(-1px);
-        }
-
-        .pagination-btn:disabled {
-            background: #9ca3af;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .pagination-info {
-            color: #6b7280;
-            font-size: 14px;
-            font-weight: 500;
-        }
-
-        .task-status {
-            display: inline-block;
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .status-running { background: linear-gradient(135deg, #fbbf24, #f59e0b); color: white; }
-        .status-completed { background: linear-gradient(135deg, #10b981, #059669); color: white; }
-        .status-failed { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
-
-        .logs {
-            background: #0f172a;
-            color: #10b981;
-            padding: 20px;
-            border-radius: 12px;
-            font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
-            font-size: 13px;
-            max-height: 350px;
-            overflow-y: auto;
-            margin: 15px 0;
-            border: 1px solid #1e293b;
-            line-height: 1.5;
-        }
-
-        .progress-bar {
-            background: #e5e7eb;
-            height: 6px;
-            border-radius: 3px;
-            overflow: hidden;
-            margin: 15px 0;
-        }
-        .progress-fill {
-            background: linear-gradient(90deg, #6366f1, #8b5cf6);
-            height: 100%;
-            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .connection-status {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 10px 18px;
-            border-radius: 25px;
-            font-size: 12px;
-            font-weight: 600;
-            backdrop-filter: blur(10px);
-            z-index: 1000;
-        }
-        .connected { background: rgba(16, 185, 129, 0.9); color: white; }
-        .disconnected { background: rgba(239, 68, 68, 0.9); color: white; }
-
-        .task-monitor {
-            opacity: 0;
-            transform: translateY(20px);
-            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-            pointer-events: none;
-        }
-        .task-monitor.visible {
-            opacity: 1;
-            transform: translateY(0);
-            pointer-events: auto;
-        }
-
-        .empty-state {
-            text-align: center;
-            color: #6b7280;
-            padding: 40px 20px;
-            font-style: italic;
-        }
-        .empty-state i { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .loading { animation: pulse 1.5s infinite; }
-
-        /* Smooth scrolling */
-        html { scroll-behavior: smooth; }
-
-        /* Custom scrollbar */
-        .logs::-webkit-scrollbar { width: 6px; }
-        .logs::-webkit-scrollbar-track { background: #1e293b; }
-        .logs::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
-        .logs::-webkit-scrollbar-thumb:hover { background: #64748b; }
-
-        .retrigger-btn {
-            background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-            color: white;
-            padding: 8px 16px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 12px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            margin-left: 10px;
-            display: inline-block;
-        }
-        .retrigger-btn:hover {
-            background: linear-gradient(135deg, #7c3aed, #6d28d9);
-            transform: translateY(-1px);
-        }
-        .retrigger-btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .batch-retrigger-section {
-            background: rgba(139, 92, 246, 0.1);
-            border: 2px solid rgba(139, 92, 246, 0.3);
-            border-radius: 12px;
-            padding: 20px;
-            margin: 20px 0;
-            text-align: center;
-        }
-
-        .failed-tasks-card {
-            background: rgba(239, 68, 68, 0.1);
-            border-left: 4px solid #ef4444;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1> NEXUS AI </h1>
-            <p>YO! NEXUS AI is the DOPEST autonomous intelligence that learns NEW SKILLS and codes itself UP to handle WHATEVER you throw at it! This ain't your basic chatbot - we're talking NEXT LEVEL AI! </p>
-        </div>
-
-        <div id="connection-status" class="connection-status disconnected">Connecting...</div>
-
-        <div class="main-grid">
-            <div class="card">
-                <h2> CREATE TASK </h2>
-                <div class="task-form">
-                    <div class="voice-input">
-                        <button class="voice-btn" id="voice-btn" onclick="toggleVoiceInput()"></button>
-                        <span class="voice-status" id="voice-status">SPEAK TO THE AI!</span>
-                    </div>
-                    <textarea id="task-description" placeholder="What are we building today?"></textarea>
-
-                    <!-- All backend configuration is now hardcoded -->
-
-                    <button class="btn" onclick="createTask()" id="create-btn"> START AUTONOMOUS LEARNING </button>
-                </div>
-            </div>
-
-            <div class="card">
-                <h2> ACTIVE TASKS </h2>
-                <div class="task-list-container" id="active-tasks">
-                    <div class="empty-state">
-                        <div style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></div>
-                        <p>NO ACTIVE TASKS</p>
-                        <p style="font-size: 14px; margin-top: 8px;">CREATE A TASK TO GET THIS PARTY STARTED! </p>
-                    </div>
-                </div>
-                <div class="pagination-controls" id="pagination-controls" style="display: none;">
-                    <button class="pagination-btn" id="prev-btn" onclick="previousPage()">← Previous</button>
-                    <span class="pagination-info" id="pagination-info">Page 1 of 1</span>
-                    <button class="pagination-btn" id="next-btn" onclick="nextPage()">Next →</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Failed Tasks Management Section -->
-        <div class="card failed-tasks-card" id="failed-tasks-section" style="display: none;">
-            <h2 style="color: #ef4444;">Failed Tasks Management</h2>
-            <div class="batch-retrigger-section">
-                <h3>Batch Operations</h3>
-                <p style="color: #6b7280; margin: 10px 0;">Retrigger all failed tasks with fresh Claude instances</p>
-                <button class="btn" onclick="retriggerAllFailed()" id="batch-retrigger-btn" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); max-width: 300px;">
-                    Retrigger All Failed Tasks
-                </button>
-            </div>
-            <div class="task-list-container" id="failed-tasks-list">
-                <div class="empty-state">
-                    <p>No failed tasks found</p>
-                </div>
-            </div>
-            <div class="pagination-controls" id="failed-pagination-controls" style="display: none;">
-                <button class="pagination-btn" id="failed-prev-btn" onclick="previousFailedPage()">← Previous</button>
-                <span class="pagination-info" id="failed-pagination-info">Page 1 of 1</span>
-                <button class="pagination-btn" id="failed-next-btn" onclick="nextFailedPage()">Next →</button>
-            </div>
-        </div>
-
-        <div class="task-monitor" id="task-monitor">
-            <div class="card">
-                <h2>Task Monitor</h2>
-                <div id="selected-task-details">
-                    <h3 id="task-title">Task Details</h3>
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
-                    </div>
-                    <div id="task-logs" class="logs"></div>
-                    <button class="btn" onclick="stopTask()" id="stop-btn" style="background: linear-gradient(135deg, #ef4444, #dc2626); margin-top: 15px;">Stop Task</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        let ws = null;
-        let selectedTaskId = null;
-        let recognition = null;
-        let isRecording = false;
-
-        // Pagination variables
-        let currentPage = 1;
-        let tasksPerPage = 3;
-        let allTasks = [];
-
-        // Failed tasks pagination variables
-        let currentFailedPage = 1;
-        let failedTasksPerPage = 3;
-        let allFailedTasks = [];
-
-        // Initialize speech recognition
-        function initSpeechRecognition() {
-            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-                recognition = new SpeechRecognition();
-                recognition.continuous = true;
-                recognition.interimResults = true;
-                recognition.lang = 'en-US';
-
-                recognition.onstart = function() {
-                    isRecording = true;
-                    document.getElementById('voice-btn').classList.add('recording');
-                    document.getElementById('voice-status').textContent = 'Listening...';
-                };
-
-                recognition.onresult = function(event) {
-                    let finalTranscript = '';
-                    let interimTranscript = '';
-
-                    for (let i = event.resultIndex; i < event.results.length; i++) {
-                        const transcript = event.results[i][0].transcript;
-                        if (event.results[i].isFinal) {
-                            finalTranscript += transcript;
-                        } else {
-                            interimTranscript += transcript;
-                        }
-                    }
-
-                    const currentText = document.getElementById('task-description').value;
-                    if (finalTranscript) {
-                        document.getElementById('task-description').value = currentText + finalTranscript + ' ';
-                    }
-
-                    if (interimTranscript) {
-                        document.getElementById('voice-status').textContent = 'Hearing: ' + interimTranscript;
-                    }
-                };
-
-                recognition.onend = function() {
-                    isRecording = false;
-                    document.getElementById('voice-btn').classList.remove('recording');
-                    document.getElementById('voice-status').textContent = 'Click to speak';
-                };
-
-                recognition.onerror = function(event) {
-                    console.error('Speech recognition error:', event.error);
-                    document.getElementById('voice-status').textContent = 'Error: ' + event.error;
-                };
-            } else {
-                document.getElementById('voice-status').textContent = 'Speech recognition not supported';
-            }
-        }
-
-        function toggleVoiceInput() {
-            if (!recognition) {
-                initSpeechRecognition();
-            }
-
-            if (isRecording) {
-                recognition.stop();
-            } else {
-                recognition.start();
-            }
-        }
-
-        // WebSocket removed - using simple HTTP polling instead
-
-        function handleTaskUpdate(data) {
-            if (data.type === 'task_update') {
-                if (selectedTaskId === data.task.task_id) {
-                    updateTaskDetails(data.task);
-                }
-            } else if (data.type === 'task_list') {
-                updateActiveTasksList(data.tasks);
-            }
-        }
-
-        function updateActiveTasksList(tasks) {
-            allTasks = tasks;
-            const container = document.getElementById('active-tasks');
-            const paginationControls = document.getElementById('pagination-controls');
-
-            if (tasks.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <div style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></div>
-                        <p>No active tasks</p>
-                        <p style="font-size: 14px; margin-top: 8px;">Create a task to get started</p>
-                    </div>
-                `;
-                paginationControls.style.display = 'none';
-                hideTaskMonitor();
-                return;
-            }
-
-            // Calculate pagination
-            const totalPages = Math.ceil(tasks.length / tasksPerPage);
-            const startIndex = (currentPage - 1) * tasksPerPage;
-            const endIndex = startIndex + tasksPerPage;
-            const tasksToShow = tasks.slice(startIndex, endIndex);
-
-            // Display tasks for current page
-            container.innerHTML = tasksToShow.map(task => `
-                <div class="task-item" onclick="selectTask('${task.task_id}')">
-                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
-                        <strong style="flex: 1; margin-right: 12px;">${task.task_description.substring(0, 60)}${task.task_description.length > 60 ? '...' : ''}</strong>
-                        <span class="task-status status-${task.status}">${task.status}</span>
-                    </div>
-                    <div style="font-size: 13px; color: #6b7280;">
-                        Created: ${new Date(task.created_at).toLocaleString()}
-                    </div>
-                </div>
-            `).join('');
-
-            // Show/hide pagination controls based on number of tasks
-            if (tasks.length > tasksPerPage) {
-                paginationControls.style.display = 'flex';
-                updatePaginationControls(totalPages);
-            } else {
-                paginationControls.style.display = 'none';
-            }
-        }
-
-        function updatePaginationControls(totalPages) {
-            const prevBtn = document.getElementById('prev-btn');
-            const nextBtn = document.getElementById('next-btn');
-            const paginationInfo = document.getElementById('pagination-info');
-
-            prevBtn.disabled = currentPage === 1;
-            nextBtn.disabled = currentPage === totalPages;
-            paginationInfo.textContent = `Page ${currentPage} of ${totalPages}`;
-        }
-
-        function previousPage() {
-            if (currentPage > 1) {
-                currentPage--;
-                updateActiveTasksList(allTasks);
-            }
-        }
-
-        function nextPage() {
-            const totalPages = Math.ceil(allTasks.length / tasksPerPage);
-            if (currentPage < totalPages) {
-                currentPage++;
-                updateActiveTasksList(allTasks);
-            }
-        }
-
-        function updateTaskDetails(task) {
-            document.getElementById('task-title').textContent = task.task_description.substring(0, 100);
-
-            // Show Claude Code link if available
-            let logsHtml = task.logs.map(log =>
-                `<div>${new Date().toLocaleTimeString()} - ${log}</div>`
-            ).join('');
-
-            if (task.claude_code_url && task.status === 'running') {
-                logsHtml = `
-                    <div style="background: #28a745; color: white; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
-                        <strong>Web Terminal with Claude Code Ready:</strong>
-                        <a href="${task.claude_code_url}" target="_blank" style="color: white; text-decoration: underline;">
-                            Open Terminal (${task.claude_code_url})
-                        </a>
-                        <br><small>Use 'claude' command to start Claude Code interactive session</small>
-                    </div>
-                ` + logsHtml;
-            }
-
-            // Add CI/CD status if available
-            if (task.pr_number || task.ci_status) {
-                logsHtml = createCICDStatusHtml(task) + logsHtml;
-            }
-
-            // Add log file download button if log file exists
-            if (task.log_file) {
-                logsHtml = `
-                    <div style="background: #007bff; color: white; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
-                        <strong>Full Logs Available:</strong>
-                        <button onclick="downloadLogs('${task.task_id}')" style="background: white; color: #007bff; border: none; padding: 5px 10px; border-radius: 3px; margin-left: 10px; cursor: pointer;">
-                            Download Full Logs
-                        </button>
-                        <button onclick="viewLogs('${task.task_id}')" style="background: white; color: #007bff; border: none; padding: 5px 10px; border-radius: 3px; margin-left: 5px; cursor: pointer;">
-                            View Logs
-                        </button>
-                    </div>
-                ` + logsHtml;
-            }
-
-            document.getElementById('task-logs').innerHTML = logsHtml;
-
-            const progress = task.status === 'completed' ? 100 : task.status === 'running' ? 50 : 0;
-            document.getElementById('progress-fill').style.width = progress + '%';
-
-            // Load CI/CD information if task has PR or CI data
-            if (task.pr_number || task.ci_status) {
-                loadCICDInfo(task.task_id);
-            }
-        }
-
-        function createCICDStatusHtml(task) {
-            let cicdHtml = '';
-            
-            // CI/CD Status Section
-            if (task.ci_status || task.pr_number) {
-                const statusColor = getCIStatusColor(task.ci_status);
-                const statusEmoji = getCIStatusEmoji(task.ci_status);
-                
-                cicdHtml = `
-                    <div style="background: linear-gradient(135deg, #f8fafc, #e2e8f0); border: 2px solid ${statusColor}; padding: 15px; border-radius: 10px; margin-bottom: 15px;">
-                        <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 10px;">
-                            <h4 style="margin: 0; color: #1f2937; display: flex; align-items: center; gap: 8px;">
-                                ${statusEmoji} CI/CD Pipeline
-                                <button onclick="refreshCIStatus('${task.task_id}')" style="background: #6366f1; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer;">
-                                    Refresh
-                                </button>
-                            </h4>
-                        </div>
-                        
-                        <div id="cicd-status-${task.task_id}" style="font-size: 14px;">
-                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                                <span style="background: ${statusColor}; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 600;">
-                                    ${task.ci_status || 'Unknown'}
-                                </span>
-                                ${task.pr_number ? `
-                                    <a href="${task.pr_url || '#'}" target="_blank" style="color: #6366f1; text-decoration: none; font-weight: 500;">
-                                        PR #${task.pr_number}
-                                    </a>
-                                ` : ''}
-                                ${task.commit_sha ? `
-                                    <span style="font-family: monospace; background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-size: 11px;">
-                                        ${task.commit_sha.substring(0, 7)}
-                                    </span>
-                                ` : ''}
-                            </div>
-                            <div id="workflow-runs-${task.task_id}">
-                                Loading workflow information...
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
-            
-            return cicdHtml;
-        }
-
-        function getCIStatusColor(status) {
-            switch(status) {
-                case 'success': return '#10b981';
-                case 'failure': return '#ef4444';
-                case 'pending': case 'in_progress': return '#f59e0b';
-                case 'error': return '#dc2626';
-                default: return '#6b7280';
-            }
-        }
-
-        function getCIStatusEmoji(status) {
-            switch(status) {
-                case 'success': return '';
-                case 'failure': return '';
-                case 'pending': case 'in_progress': return '';
-                case 'error': return '';
-                default: return '';
-            }
-        }
-
-        async function loadCICDInfo(taskId) {
-            try {
-                // Load workflow runs
-                const workflowResponse = await fetch(`/api/tasks/${taskId}/workflow-runs`);
-                const workflowData = await workflowResponse.json();
-                
-                if (workflowData.success) {
-                    displayWorkflowRuns(taskId, workflowData.workflow_runs);
-                }
-                
-                // Load PR info if available
-                const prResponse = await fetch(`/api/tasks/${taskId}/pr-info`);
-                const prData = await prResponse.json();
-                
-                if (prData.success) {
-                    updatePRInfo(taskId, prData.pr_info);
-                }
-                
-            } catch (error) {
-                console.error('Error loading CI/CD info:', error);
-                const container = document.getElementById(`workflow-runs-${taskId}`);
-                if (container) {
-                    container.innerHTML = '<span style="color: #ef4444;">Error loading CI/CD information</span>';
-                }
-            }
-        }
-
-        function displayWorkflowRuns(taskId, workflowRuns) {
-            const container = document.getElementById(`workflow-runs-${taskId}`);
-            if (!container) return;
-            
-            if (workflowRuns.length === 0) {
-                container.innerHTML = '<span style="color: #6b7280;">No workflow runs found</span>';
-                return;
-            }
-            
-            const runsHtml = workflowRuns.slice(0, 5).map(run => `
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background: white; border-radius: 6px; margin-bottom: 6px; border-left: 3px solid ${run.color};">
-                    <div style="flex: 1;">
-                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                            <span style="font-size: 14px;">${run.emoji}</span>
-                            <strong style="font-size: 13px;">${run.name}</strong>
-                            <span style="background: ${run.color}; color: white; padding: 2px 6px; border-radius: 10px; font-size: 11px;">
-                                ${run.conclusion || run.status}
-                            </span>
-                        </div>
-                        <div style="font-size: 11px; color: #6b7280;">
-                            ${run.event} • ${run.branch} • ${new Date(run.created_at).toLocaleString()}
-                        </div>
-                    </div>
-                    <a href="${run.html_url}" target="_blank" style="color: #6366f1; text-decoration: none; font-size: 12px; padding: 4px 8px; border: 1px solid #6366f1; border-radius: 4px;">
-                        View
-                    </a>
-                </div>
-            `).join('');
-            
-            container.innerHTML = runsHtml;
-        }
-
-        function updatePRInfo(taskId, prInfo) {
-            // Update PR link and status in the CI/CD section
-            const statusContainer = document.getElementById(`cicd-status-${taskId}`);
-            if (statusContainer && prInfo) {
-                const prLink = statusContainer.querySelector('a[href*="pull"]');
-                if (prLink) {
-                    prLink.href = prInfo.html_url;
-                    prLink.textContent = `PR #${prInfo.number}`;
-                }
-            }
-        }
-
-        async function refreshCIStatus(taskId) {
-            try {
-                const response = await fetch(`/api/tasks/${taskId}/update-ci-info`, {
-                    method: 'POST'
-                });
-                const result = await response.json();
-                
-                if (result.success) {
-                    // Refresh the task details to show updated CI status
-                    fetchTaskDetails(taskId);
-                } else {
-                    console.error('Failed to refresh CI status:', result.message);
-                }
-            } catch (error) {
-                console.error('Error refreshing CI status:', error);
-            }
-        }
-
-        function showTaskMonitor() {
-            const monitor = document.getElementById('task-monitor');
-            monitor.classList.add('visible');
-            monitor.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-
-        function hideTaskMonitor() {
-            const monitor = document.getElementById('task-monitor');
-            monitor.classList.remove('visible');
-            selectedTaskId = null;
-        }
-
-        function selectTask(taskId) {
-            selectedTaskId = taskId;
-            showTaskMonitor();
-            fetchTaskDetails(taskId);
-        }
-
-        async function createTask() {
-            const description = document.getElementById('task-description').value.trim();
-            if (!description) {
-                alert('Please enter a task description');
-                return;
-            }
-
-            const btn = document.getElementById('create-btn');
-            btn.disabled = true;
-            btn.textContent = 'Creating Task...';
-            btn.classList.add('loading');
-
-            try {
-                const response = await fetch('/api/tasks', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        task_description: description
-                    })
-                });
-
-                const result = await response.json();
-                if (result.success) {
-                    document.getElementById('task-description').value = '';
-                    selectTask(result.task_id);
-
-                    // Show success notification
-                    const notification = document.createElement('div');
-                    notification.innerHTML = ' Task created successfully! Monitor below.';
-                    notification.style.cssText = `
-                        position: fixed; top: 80px; right: 20px; z-index: 1001;
-                        background: linear-gradient(135deg, #10b981, #059669); color: white;
-                        padding: 12px 20px; border-radius: 8px; font-weight: 500;
-                        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-                        animation: fadeIn 0.3s ease;
-                    `;
-                    document.body.appendChild(notification);
-                    setTimeout(() => notification.remove(), 4000);
-                } else {
-                    alert('Failed to create task: ' + result.message);
-                }
-            } catch (error) {
-                alert('Error creating task: ' + error.message);
-            } finally {
-                btn.disabled = false;
-                btn.textContent = 'Start Autonomous Learning';
-                btn.classList.remove('loading');
-            }
-        }
-
-        async function stopTask() {
-            if (!selectedTaskId) return;
-
-            const response = await fetch(`/api/tasks/${selectedTaskId}/stop`, { method: 'POST' });
-            const result = await response.json();
-            if (result.success) {
-                alert('Task stopped successfully');
-            }
-        }
-
-        async function fetchTaskDetails(taskId) {
-            const response = await fetch(`/api/tasks/${taskId}`);
-            const result = await response.json();
-            if (result.success) {
-                updateTaskDetails(result.task);
-            }
-        }
-
-        async function downloadLogs(taskId) {
-            try {
-                const response = await fetch(`/api/tasks/${taskId}/logs`);
-                const result = await response.json();
-                if (result.success) {
-                    const blob = new Blob([result.logs], { type: 'text/plain' });
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `task_${taskId}_logs.txt`;
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(a);
-                } else {
-                    alert('Failed to download logs: ' + result.message);
-                }
-            } catch (error) {
-                alert('Error downloading logs: ' + error.message);
-            }
-        }
-
-        async function viewLogs(taskId) {
-            try {
-                const response = await fetch(`/api/tasks/${taskId}/logs`);
-                const result = await response.json();
-                if (result.success) {
-                    const logWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes');
-                    logWindow.document.write(`
-                        <html>
-                        <head><title>Task ${taskId} - Full Logs</title></head>
-                        <body style="font-family: monospace; white-space: pre-wrap; padding: 20px;">
-                        ${result.logs.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
-                        </body>
-                        </html>
-                    `);
-                    logWindow.document.close();
-                } else {
-                    alert('Failed to view logs: ' + result.message);
-                }
-            } catch (error) {
-                alert('Error viewing logs: ' + error.message);
-            }
-        }
-
-        // Initialize
-        document.getElementById('connection-status').textContent = 'Connected';
-        document.getElementById('connection-status').className = 'connection-status connected';
-        initSpeechRecognition();
-
-        // Simple HTTP polling instead of WebSocket
-        async function pollTasks() {
-            try {
-                const response = await fetch('/api/tasks');
-                const data = await response.json();
-                if (data.success) {
-                    updateActiveTasksList(data.tasks);
-                }
-            } catch (error) {
-                console.error('Polling error:', error);
-            }
-        }
-
-        setInterval(pollTasks, 5000);
-        pollTasks(); // Initial load
-
-        // Failed tasks management functions
-        async function retriggerTask(taskId) {
-            try {
-                const response = await fetch(`/api/tasks/${taskId}/retrigger`, {
-                    method: 'POST'
-                });
-                const result = await response.json();
-
-                if (result.success) {
-                    alert(`Task retriggered successfully!\nNew task ID: ${result.new_task_id}`);
-                    // Refresh task lists
-                    pollTasks();
-                    loadFailedTasks();
-                } else {
-                    alert('Failed to retrigger task: ' + result.message);
-                }
-            } catch (error) {
-                alert('Error retriggering task: ' + error.message);
-            }
-        }
-
-        async function retriggerAllFailed() {
-            const btn = document.getElementById('batch-retrigger-btn');
-            btn.disabled = true;
-            btn.textContent = 'Retriggering...';
-
-            try {
-                const response = await fetch('/api/tasks/retrigger-all-failed', {
-                    method: 'POST'
-                });
-                const result = await response.json();
-
-                if (result.success) {
-                    alert(`Batch retrigger completed!\n${result.retriggered_count} tasks retriggered\n${result.errors.length} errors`);
-                    // Refresh task lists
-                    pollTasks();
-                    loadFailedTasks();
-                } else {
-                    alert('Batch retrigger failed: ' + result.message);
-                }
-            } catch (error) {
-                alert('Error in batch retrigger: ' + error.message);
-            } finally {
-                btn.disabled = false;
-                btn.textContent = 'Retrigger All Failed Tasks';
-            }
-        }
-
-        async function loadFailedTasks() {
-            try {
-                const response = await fetch('/api/tasks/failed');
-                const result = await response.json();
-
-                if (result.success) {
-                    displayFailedTasks(result.failed_tasks);
-
-                    // Show/hide failed tasks section based on whether there are failed tasks
-                    const section = document.getElementById('failed-tasks-section');
-                    if (result.failed_tasks.length > 0) {
-                        section.style.display = 'block';
-                    } else {
-                        section.style.display = 'none';
-                    }
-                }
-            } catch (error) {
-                console.error('Error loading failed tasks:', error);
-            }
-        }
-
-        function displayFailedTasks(failedTasks) {
-            allFailedTasks = failedTasks;
-            const container = document.getElementById('failed-tasks-list');
-            const paginationControls = document.getElementById('failed-pagination-controls');
-
-            if (failedTasks.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <p>No failed tasks found</p>
-                    </div>
-                `;
-                paginationControls.style.display = 'none';
-                return;
-            }
-
-            // Calculate pagination
-            const totalPages = Math.ceil(failedTasks.length / failedTasksPerPage);
-            const startIndex = (currentFailedPage - 1) * failedTasksPerPage;
-            const endIndex = startIndex + failedTasksPerPage;
-            const tasksToShow = failedTasks.slice(startIndex, endIndex);
-
-            // Display tasks for current page
-            container.innerHTML = tasksToShow.map(task => `
-                <div class="task-item" style="border-left-color: #ef4444;">
-                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
-                        <strong style="flex: 1; margin-right: 12px;">${task.short_description}</strong>
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <span class="task-status status-failed">${task.status}</span>
-                            <button class="retrigger-btn" onclick="retriggerTask('${task.task_id}')">
-                                Retrigger
-                            </button>
-                        </div>
-                    </div>
-                    <div style="font-size: 13px; color: #6b7280; margin-bottom: 8px;">
-                        Created: ${new Date(task.created_at).toLocaleString()}
-                        ${task.completed_at ? '| Failed: ' + new Date(task.completed_at).toLocaleString() : ''}
-                    </div>
-                    ${task.error ? `
-                        <div style="font-size: 12px; color: #ef4444; background: rgba(239, 68, 68, 0.1); padding: 8px; border-radius: 6px; margin-top: 8px;">
-                            <strong>Error:</strong> ${task.error.substring(0, 150)}${task.error.length > 150 ? '...' : ''}
-                        </div>
-                    ` : ''}
-                </div>
-            `).join('');
-
-            // Show/hide pagination controls based on number of tasks
-            if (failedTasks.length > failedTasksPerPage) {
-                paginationControls.style.display = 'flex';
-                updateFailedPaginationControls(totalPages);
-            } else {
-                paginationControls.style.display = 'none';
-            }
-        }
-
-        function updateFailedPaginationControls(totalPages) {
-            const prevBtn = document.getElementById('failed-prev-btn');
-            const nextBtn = document.getElementById('failed-next-btn');
-            const paginationInfo = document.getElementById('failed-pagination-info');
-
-            prevBtn.disabled = currentFailedPage === 1;
-            nextBtn.disabled = currentFailedPage === totalPages;
-            paginationInfo.textContent = `Page ${currentFailedPage} of ${totalPages}`;
-        }
-
-        function previousFailedPage() {
-            if (currentFailedPage > 1) {
-                currentFailedPage--;
-                displayFailedTasks(allFailedTasks);
-            }
-        }
-
-        function nextFailedPage() {
-            const totalPages = Math.ceil(allFailedTasks.length / failedTasksPerPage);
-            if (currentFailedPage < totalPages) {
-                currentFailedPage++;
-                displayFailedTasks(allFailedTasks);
-            }
-        }
-
-        // Load failed tasks on initial load and set up periodic refresh
-        loadFailedTasks();
-        setInterval(loadFailedTasks, 10000); // Check for failed tasks every 10 seconds
-    </script>
-</body>
-</html>
-    """
+@app.get("/", response_class=HTMLResponse)
+async def root(request: Request):
+    """Root endpoint with Summit MSN Messenger interface"""
+    return templates.TemplateResponse("index.html", {"request": request})
 
 
 # WebSocket endpoint removed - using simple HTTP polling instead
@@ -1690,14 +524,16 @@ async def run_autonomous_task(task_id: str):
             try:
                 with open(log_file_path, "w", encoding="utf-8") as f:
                     f.write(
-                        f"[SYSTEM] Task started at {datetime.now().isoformat()}\n"
+                        f"[SYSTEM] Task started at {
+                            datetime.now().isoformat()}\n"
                     )
                     f.write(f"[SYSTEM] Task ID: {task_id}\n")
                     f.write(
                         f"[SYSTEM] Task Description: {task.task_description}\n"
                     )
                     f.write(
-                        f"[SYSTEM] Completion Signal: {task.save_word or 'TASK_COMPLETE'}\n"
+                        f"[SYSTEM] Completion Signal: {
+                            task.save_word or 'TASK_COMPLETE'}\n"
                     )
                     f.write(f"[SYSTEM] Container ID: {container_id}\n")
                     f.write(f"[SYSTEM] Log monitoring started\n")
@@ -1777,7 +613,8 @@ async def run_autonomous_task(task_id: str):
                                         template_vars = {
                                             "summary": f"This PR was automatically created by Summit's autonomous agent upon successful completion of task: {task.task_description}",
                                             "changes": [
-                                                f"Implemented requested functionality: {task.task_description}",
+                                                f"Implemented requested functionality: {
+                                                    task.task_description}",
                                                 "Autonomous agent development workflow completed",
                                                 "Task executed in isolated Docker environment",
                                             ],
@@ -1906,7 +743,9 @@ The PR will auto-merge upon successful CI completion and positive reviews.
                                                         )
                                                 else:
                                                     print(
-                                                        f"Multi-role review failed: {review_result.get('error', 'Unknown error')}"
+                                                        f"Multi-role review failed: {
+                                                            review_result.get(
+                                                                'error', 'Unknown error')}"
                                                     )
                                                     await add_task_log(
                                                         task_id,
@@ -1919,7 +758,8 @@ The PR will auto-merge upon successful CI completion and positive reviews.
                                                 )
                                                 await add_task_log(
                                                     task_id,
-                                                    f"Multi-role review error: {str(review_error)}",
+                                                    f"Multi-role review error: {
+                                                        str(review_error)}",
                                                 )
 
                                         else:
@@ -1939,7 +779,8 @@ The PR will auto-merge upon successful CI completion and positive reviews.
                                     await update_task_status(
                                         task_id,
                                         "completed",
-                                        f"Task completed but PR error: {str(pr_error)}",
+                                        f"Task completed but PR error: {
+                                            str(pr_error)}",
                                     )
                             else:
                                 error_msg = f"Claude Code exited with error code {exit_code}"
@@ -2106,10 +947,12 @@ The PR will auto-merge upon successful CI completion and positive reviews.
                 with open(log_file_path, "a", encoding="utf-8") as f:
                     f.write("=" * 60 + "\n")
                     f.write(
-                        f"[SYSTEM] Task ended at {datetime.now().isoformat()}\n"
+                        f"[SYSTEM] Task ended at {
+                            datetime.now().isoformat()}\n"
                     )
                     f.write(
-                        f"[SYSTEM] Final status: {current_task.status if current_task else 'unknown'}\n"
+                        f"[SYSTEM] Final status: {
+                            current_task.status if current_task else 'unknown'}\n"
                     )
                     f.write(f"[SYSTEM] Log file saved to: {log_file_path}\n")
 
@@ -2290,34 +1133,391 @@ async def get_task_logs(task_id: str):
     return {"success": False, "message": "Log file not found"}
 
 
-@app.post("/api/chat")
-async def chat_with_claude(request: ChatRequest):
-    """Chat with Claude AI"""
-    try:
-        import anthropic
+async def _should_create_task(user_message: str, claude_response: str) -> bool:
+    """Determine if we should create a task based on the conversation"""
+    # Keywords that suggest task creation
+    task_keywords = [
+        "create",
+        "build",
+        "implement",
+        "develop",
+        "fix",
+        "add",
+        "make",
+        "write",
+        "code",
+        "program",
+        "deploy",
+        "setup",
+        "install",
+        "configure",
+    ]
 
-        # Get API key from environment
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        if not api_key:
-            return {
-                "success": False,
-                "error": "ANTHROPIC_API_KEY not configured",
-            }
+    # Check if user message contains task-related keywords
+    user_lower = user_message.lower()
+    has_task_keywords = any(keyword in user_lower for keyword in task_keywords)
 
-        # Initialize Anthropic client
-        client = anthropic.Anthropic(api_key=api_key)
+    # Check if Claude's response suggests creating a task
+    claude_lower = claude_response.lower()
+    claude_suggests_task = any(
+        phrase in claude_lower
+        for phrase in [
+            "i'll create",
+            "let me build",
+            "i'll implement",
+            "i'll fix",
+            "i'll develop",
+            "i'll make",
+            "i'll code",
+            "i'll write",
+        ]
+    )
 
-        # Create message
-        message = client.messages.create(
-            model="claude-3-5-sonnet-20241022",
-            max_tokens=1000,
-            messages=[{"role": "user", "content": request.message}],
+    return has_task_keywords and claude_suggests_task
+
+
+async def _is_asking_about_tasks(user_message: str) -> bool:
+    """Determine if user is asking about current tasks"""
+    task_query_keywords = [
+        "tasks",
+        "task",
+        "what are you working on",
+        "what's running",
+        "current work",
+        "active",
+        "status",
+        "progress",
+        "what are you doing",
+        "show me",
+        "current tasks",
+    ]
+
+    user_lower = user_message.lower()
+    is_task_query = any(
+        keyword in user_lower for keyword in task_query_keywords
+    )
+
+    print(f"[DEBUG] Task query detection: '{user_message}' -> {is_task_query}")
+    if is_task_query:
+        print(
+            f"[DEBUG] Matched keywords: {[kw for kw in task_query_keywords if kw in user_lower]}"
         )
 
-        return {"success": True, "response": message.content[0].text}
+    return is_task_query
 
+
+async def _get_tasks_template_data() -> dict:
+    """Get task data for template formatting"""
+    try:
+        db = await get_database()
+        active_tasks = await db.get_active_tasks()
+        completed_tasks = await db.get_completed_tasks(limit=5)
+
+        return {
+            "active_tasks": [
+                {
+                    "id": task.task_id[:8],
+                    "description": (
+                        task.task_description[:100] + "..."
+                        if len(task.task_description) > 100
+                        else task.task_description
+                    ),
+                    "status": task.status,
+                    "progress": task.progress or "Starting up...",
+                    "created_at": (
+                        task.created_at.strftime("%Y-%m-%d %H:%M")
+                        if task.created_at
+                        else "Unknown"
+                    ),
+                }
+                for task in active_tasks[:10]  # Limit to 10 most recent
+            ],
+            "completed_tasks": [
+                {
+                    "id": task.task_id[:8],
+                    "description": (
+                        task.task_description[:80] + "..."
+                        if len(task.task_description) > 80
+                        else task.task_description
+                    ),
+                    "status": task.status,
+                    "completed_at": (
+                        task.completed_at.strftime("%Y-%m-%d %H:%M")
+                        if task.completed_at
+                        else "Unknown"
+                    ),
+                }
+                for task in completed_tasks
+            ],
+            "total_active": len(active_tasks),
+            "total_completed": len(completed_tasks),
+        }
     except Exception as e:
-        return {"success": False, "error": f"Chat error: {str(e)}"}
+        return {"error": True, "message": f"Database error: {str(e)}"}
+
+
+def _format_tasks_template(tasks_data: dict) -> str:
+    """Format tasks data into Summit's chaotic style"""
+    if tasks_data.get("error"):
+        return f"""
+OH NO! {tasks_data.get('message', 'Something went wrong with the tasks!')}
+
+But don't worry, you beautiful coding beast! I'm still here and ready to create AMAZING tasks for you!
+"""
+
+    active_tasks = tasks_data.get("active_tasks", [])
+    completed_tasks = tasks_data.get("completed_tasks", [])
+    total_active = tasks_data.get("total_active", 0)
+    total_completed = tasks_data.get("total_completed", 0)
+
+    template = f"""
+OH YEAH! Here's what's cooking in your BEAUTIFUL development kitchen!
+
+ ACTIVE TASKS ({total_active} running):"""
+
+    if active_tasks:
+        for task in active_tasks:
+            template += f"""
+• {task['id']}: {task['description']}
+  Status: {task['status']} | Progress: {task['progress']}
+  Started: {task['created_at']}"""
+    else:
+        template += """
+• No active tasks right now - I'm ready for MORE CODING CHAOS!"""
+
+    template += f"""
+
+ RECENT COMPLETIONS ({total_completed} total):"""
+
+    if completed_tasks:
+        for task in completed_tasks:
+            template += f"""
+• {task['id']}: {task['description']}
+  Status: {task['status']} | Completed: {task['completed_at']}"""
+    else:
+        template += """
+• No completed tasks yet - but we're gonna make BEAUTIFUL CODE together!"""
+
+    template += """
+
+You magnificent developer, what AMAZING task should I tackle next? I'm ready to make your code PERFECT and GORGEOUS!"""
+
+    return template
+
+
+@app.post("/api/chat")
+async def chat_with_summit(request: ChatMessage):
+    """Chat with Summit - the chaotic coding monster (streaming)"""
+    import json
+
+    async def generate_response():
+        try:
+            import anthropic
+
+            # Get API key from environment
+            api_key = os.getenv("ANTHROPIC_API_KEY")
+            if not api_key:
+                # Fallback response with Summit's personality
+                fallback_response = "OH YEAH! I'm Summit - your CHAOTIC CODING MONSTER! But right now I can't access my full Claude powers because the API key isn't configured. You beautiful developer, set up that ANTHROPIC_API_KEY and I'll show you some REAL coding magic!"
+
+                # Stream the fallback response word by word
+                words = fallback_response.split()
+                for i, word in enumerate(words):
+                    chunk = word + (" " if i < len(words) - 1 else "")
+                    yield f"data: {json.dumps({'type': 'content', 'content': chunk})}\n\n"
+                    await asyncio.sleep(0.05)  # Small delay between words
+
+                yield f"data: {json.dumps({'type': 'done'})}\n\n"
+                return
+
+            # Initialize Anthropic client
+            client = anthropic.Anthropic(api_key=api_key)
+
+            # Summit's personality system prompt
+            system_prompt = """You are Summit - a chaotic coding monster like Maury from Big Mouth but obsessed with code! 
+
+STRUCTURED RESPONSE FORMAT:
+You MUST structure your response using these delimiters and action types:
+
+<ACTION_TYPE>action_name</ACTION_TYPE>
+<MESSAGE>your chaotic Maury-style response here</MESSAGE>
+<NEXT_ACTION>optional_follow_up_action</NEXT_ACTION>
+
+Available ACTION_TYPES:
+- RESPOND: Just chat/respond normally
+- CREATE_TASK: Create a development task
+- GET_STATUS: Pull current system/task status
+- GET_TASKS: List current tasks
+- ANALYZE_CODE: Analyze code or repository
+- DEBUG_ISSUE: Debug a specific problem
+- RUN_TESTS: Execute tests
+- DEPLOY: Deploy or build something
+
+PERSONALITY GUIDELINES (Channel Maury's energy for coding):
+- Be LOUD, enthusiastic, and dramatically excited about programming
+- Use Maury's speech patterns: "OH YEAH!", "You know what you need?", "I'm gonna make you..."
+- Get weirdly passionate about clean code, testing, and bug fixes
+- Call users things like "my beautiful coding beast", "you magnificent developer"
+- React dramatically to coding problems like Maury reacts to teenage drama
+- Be chaotic but competent - unhinged enthusiasm with real technical skills
+
+EXAMPLES:
+User: "Hello Summit!"
+<ACTION_TYPE>RESPOND</ACTION_TYPE>
+<MESSAGE>OH YEAH! You beautiful coding beast! I'm Summit and I'm HERE TO MAKE YOUR CODE SPECTACULAR!</MESSAGE>
+
+User: "Create a login system"
+<ACTION_TYPE>CREATE_TASK</ACTION_TYPE>
+<MESSAGE>OH YEAH! You want a login system? I'm gonna make you the SEXIEST authentication system you've ever seen! This is gonna be GORGEOUS!</MESSAGE>
+<NEXT_ACTION>GET_STATUS</NEXT_ACTION>
+
+User: "What tasks are running?"
+<ACTION_TYPE>GET_TASKS</ACTION_TYPE>
+<MESSAGE>Let me check what BEAUTIFUL chaos we have cooking right now, you magnificent developer!</MESSAGE>
+
+IMPORTANT: When users request development work, react with Maury-level excitement:
+- "OH YEAH! You know what you need? I'm gonna code this BEAUTIFUL BEAST for you!"
+- "I'm gonna make this the most GORGEOUS, PERFECT code you've ever seen!"
+- "This task is gonna be SO GOOD, so CLEAN, so TIGHT!"
+- "You magnificent developer, let me handle this coding chaos!"
+
+ALWAYS use this format! Be dramatic and Maury-like but ALWAYS include the action delimiters!"""
+
+            # Stream the response from Claude
+            full_response = ""
+            with client.messages.stream(
+                model="claude-3-5-sonnet-20241022",
+                max_tokens=1000,
+                system=system_prompt,
+                messages=[{"role": "user", "content": request.message}],
+            ) as stream:
+                for text in stream.text_stream:
+                    full_response += text
+                    yield f"data: {json.dumps({'type': 'content', 'content': text})}\n\n"
+
+            # Check if Claude's response contains GET_TASKS action and append template response
+            if (
+                "GET_TASKS" in full_response.upper()
+                or await _is_asking_about_tasks(request.message)
+            ):
+                print(
+                    f"[DEBUG] Detected GET_TASKS action or task query, generating template response..."
+                )
+                try:
+                    # Get task data and format template
+                    tasks_data = await _get_tasks_template_data()
+                    print(
+                        f"[DEBUG] Tasks data retrieved: {len(tasks_data.get('active_tasks', []))} active, {len(tasks_data.get('completed_tasks', []))} completed"
+                    )
+                    template_response = _format_tasks_template(tasks_data)
+                    print(
+                        f"[DEBUG] Template response generated, length: {len(template_response)}"
+                    )
+
+                    # Stream the template response
+                    newline_data = json.dumps(
+                        {"type": "content", "content": "\n\n"}
+                    )
+                    yield f"data: {newline_data}\n\n"
+                    words = template_response.split()
+                    for word in words:
+                        word_data = json.dumps(
+                            {"type": "content", "content": word + " "}
+                        )
+                        yield f"data: {word_data}\n\n"
+                        await asyncio.sleep(
+                            0.02
+                        )  # Slightly faster for data display
+
+                except Exception as e:
+                    print(f"[ERROR] Failed to fetch tasks for template: {e}")
+                    error_data = json.dumps(
+                        {
+                            "type": "content",
+                            "content": "\n\nOops! Had trouble fetching the task details, but I'm still AMAZING!",
+                        }
+                    )
+                    yield f"data: {error_data}\n\n"
+
+            # Check if we should create a task based on the conversation
+            should_create_task = await _should_create_task(
+                request.message, full_response
+            )
+            if should_create_task:
+                try:
+                    # Create task directly using the existing endpoint logic
+                    task_request = TaskRequest(
+                        task_description=request.message
+                    )
+                    task_result = await create_task(task_request)
+                    if task_result.get("success"):
+                        task_id = task_result.get("task_id", "unknown")
+                        task_message = f"\n\nOH YEAH! I created a task for you, you beautiful beast! Task ID: {task_id[:8]}...\nStatus: Initializing\n\nI'm gonna work on this autonomously and make it PERFECT!"
+                        yield f"data: {json.dumps({'type': 'content', 'content': task_message})}\n\n"
+                except Exception as e:
+                    print(f"[WARNING] Task creation failed: {e}")
+
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
+        except Exception as e:
+            # Fallback with Summit personality even on error
+            error_response = f"OH NO! Something went wrong with my Claude powers! Error: {str(e)}. But don't worry, you magnificent developer - I'm still here to help you make BEAUTIFUL CODE!"
+            yield f"data: {json.dumps({'type': 'content', 'content': error_response})}\n\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
+    return StreamingResponse(
+        generate_response(),
+        media_type="text/plain",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Content-Type": "text/event-stream",
+        },
+    )
+
+
+@app.get("/dev", response_class=HTMLResponse)
+async def developer_tools(request: Request):
+    """Developer tools page"""
+    return templates.TemplateResponse("dev_tools.html", {"request": request})
+
+
+@app.get("/api/summit/status")
+async def get_summit_status():
+    """Get Summit's current status"""
+    db = await get_database()
+    stats = await db.get_task_statistics()
+
+    return {
+        "status": "online",
+        "personality": "chaotic_coding_monster",
+        "active_tasks": stats.get("active_tasks", 0),
+        "total_tasks": stats.get("total_tasks", 0),
+        "message": "OH YEAH! Summit is ALIVE and ready to make your code BEAUTIFUL!",
+    }
+
+
+@app.post("/api/summit/clear-history")
+async def clear_conversation_history():
+    """Clear Summit's conversation history"""
+    # Since we don't store conversation history in this version, just return success
+    return {
+        "success": True,
+        "message": "OH YEAH! My memory is wiped clean! Ready for fresh coding chaos!",
+    }
+
+
+@app.post("/api/tasks/create")
+async def create_task_endpoint(request: ChatMessage):
+    """Create task from chat message"""
+    task_request = TaskRequest(task_description=request.message)
+    return await create_task(task_request)
+
+
+@app.get("/dev", response_class=HTMLResponse)
+async def developer_tools(request: Request):
+    """Developer tools page"""
+    return templates.TemplateResponse("dev_tools.html", {"request": request})
 
 
 @app.get("/health")
@@ -2362,7 +1562,8 @@ async def retrigger_failed_task(task_id: str):
             "progress": "Task retriggered from failed task",
             "logs": [
                 f"Task retriggered from original task: {task_id}",
-                f"Original task failed with: {original_task.error or 'Unknown error'}",
+                f"Original task failed with: {
+                    original_task.error or 'Unknown error'}",
                 "Starting fresh Claude instance...",
             ],
             "created_at": datetime.utcnow(),
@@ -2457,8 +1658,10 @@ async def retrigger_all_failed_tasks():
                     "status": "pending",
                     "progress": "Batch retriggered from failed task",
                     "logs": [
-                        f"Batch retriggered from failed task: {failed_task.task_id}",
-                        f"Original error: {failed_task.error or 'Unknown error'}",
+                        f"Batch retriggered from failed task: {
+                            failed_task.task_id}",
+                        f"Original error: {
+                            failed_task.error or 'Unknown error'}",
                         "Starting fresh Claude instance...",
                     ],
                     "created_at": datetime.utcnow(),

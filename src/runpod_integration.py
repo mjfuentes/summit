@@ -14,13 +14,11 @@ Features:
 """
 
 import asyncio
-import json
 import logging
-import os
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 import runpod
 
@@ -318,7 +316,8 @@ class RunPodDeploymentManager:
                         deployment_type="serverless",
                         gpu_type=self.config.gpu_type,
                         status="deploying",
-                        endpoint_url=f"https://api.runpod.ai/v2/{endpoint['id']}/run",
+                        endpoint_url=f"https://api.runpod.ai/v2/{
+                            endpoint['id']}/run",
                         cost_per_hour=self.client.gpu_pricing[
                             self.config.gpu_type
                         ]["serverless_flex"]
@@ -347,7 +346,8 @@ class RunPodDeploymentManager:
                     deployment_info
                 )
                 self.logger.info(
-                    f"Successfully deployed Summit: {deployment_info.deployment_id}"
+                    f"Successfully deployed Summit: {
+                        deployment_info.deployment_id}"
                 )
 
                 # Track deployment cost

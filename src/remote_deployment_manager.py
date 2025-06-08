@@ -7,7 +7,6 @@ platforms including Render.com, RunPod, and other providers.
 """
 
 import asyncio
-import json
 import os
 import time
 from datetime import datetime, timezone
@@ -18,8 +17,6 @@ import requests
 
 class DeploymentError(Exception):
     """Custom exception for deployment errors"""
-
-    pass
 
 
 class RemoteDeploymentManager:
@@ -102,7 +99,9 @@ class RemoteDeploymentManager:
                 }
             else:
                 raise DeploymentError(
-                    f"Render deployment failed: {response.status_code} - {response.text}"
+                    f"Render deployment failed: {
+                        response.status_code} - {
+                        response.text}"
                 )
 
         except requests.RequestException as e:

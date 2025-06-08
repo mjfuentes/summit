@@ -9,12 +9,9 @@ Provides automated PR reviews from different perspectives:
 - Domain Expert: Specific area expertise
 """
 
-import asyncio
-import json
 import os
-import time
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import requests
 from anthropic import Anthropic
@@ -329,32 +326,30 @@ Additions: +{pr_data['additions']} | Deletions: -{pr_data['deletions']}
     async def analyze_review_sentiment(
         self, review_text: str
     ) -> Dict[str, Any]:
-        """Analyze if a review is positive/approving or requesting changes"""
-        if not self.anthropic_client or not review_text:
+        """Analyze review sentiment to determine if it's an approval or request for changes"""
+        if not self.anthropic_client:
             return {
-                "sentiment": "neutral",
+                "decision": "REQUEST_CHANGES",
                 "confidence": 0.0,
-                "reasoning": "No review text or AI client",
+                "reasoning": "No Claude client available",
+                "blocking_issues": ["API not configured"],
             }
 
-        analysis_prompt = f"""Analyze this code review and determine if the reviewer would APPROVE or REQUEST_CHANGES for the PR.
+        analysis_prompt = f"""Analyze this PR review and determine if the reviewer is approving or requesting changes:
 
 Review text:
 {review_text}
 
 Consider:
-- Does the reviewer find any blocking issues?
-- Are there security concerns or critical bugs mentioned?
 - Does the reviewer suggest the code is ready to merge?
 - Are the concerns minor (comments/suggestions) or major (blocking issues)?
 
 Respond in this exact JSON format:
-{{
-    "decision": "APPROVE" or "REQUEST_CHANGES",
+{{"decision": "APPROVE" or "REQUEST_CHANGES",
     "confidence": 0.0-1.0,
     "reasoning": "Brief explanation of the decision",
     "blocking_issues": ["list", "of", "any", "blocking", "issues"]
-}}"""
+}} """
 
         try:
             message = self.anthropic_client.messages.create(
@@ -370,7 +365,7 @@ Respond in this exact JSON format:
 
         except Exception as e:
             return {
-                "decision": "REQUEST_CHANGES",  # Default to cautiou
+                "decision": "REQUEST_CHANGES",  # Default to cautious
                 "confidence": 0.0,
                 "reasoning": f"Error analyzing review: {e}",
                 "blocking_issues": ["Analysis failed"],
@@ -424,7 +419,9 @@ Respond in this exact JSON format:
 
                     review_decisions[role] = sentiment["decision"]
                     print(
-                        f"{role} review: {sentiment['decision']} (confidence: {sentiment['confidence']:.2f})"
+                        f"{role} review: {
+                            sentiment['decision']} (confidence: {
+                            sentiment['confidence']:.2f})"
                     )
 
         # Determine overall approval statu

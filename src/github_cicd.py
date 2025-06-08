@@ -6,7 +6,7 @@ Provides functionality to monitor GitHub Actions workflows and CI/CD status
 
 import os
 import re
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
 import requests
@@ -74,7 +74,8 @@ class GitHubCICDManager:
             owner, repo = self._parse_repo_url(repo_url)
 
             # Get commit status (legacy status API)
-            status_url = f"{self.base_url}/repos/{owner}/{repo}/commits/{commit_sha}/status"
+            status_url = f"{
+                self.base_url}/repos/{owner}/{repo}/commits/{commit_sha}/status"
             status_response = requests.get(
                 status_url, headers=self.headers, timeout=30
             )
@@ -85,7 +86,8 @@ class GitHubCICDManager:
             )
 
             # Get check runs (newer checks API)
-            checks_url = f"{self.base_url}/repos/{owner}/{repo}/commits/{commit_sha}/check-runs"
+            checks_url = f"{
+                self.base_url}/repos/{owner}/{repo}/commits/{commit_sha}/check-runs"
             checks_response = requests.get(
                 checks_url, headers=self.headers, timeout=30
             )
@@ -181,7 +183,8 @@ class GitHubCICDManager:
 
         try:
             owner, repo = self._parse_repo_url(repo_url)
-            url = f"{self.base_url}/repos/{owner}/{repo}/actions/runs/{run_id}/jobs"
+            url = f"{
+                self.base_url}/repos/{owner}/{repo}/actions/runs/{run_id}/jobs"
 
             response = requests.get(url, headers=self.headers, timeout=30)
             response.raise_for_status()
@@ -214,7 +217,8 @@ class GitHubCICDManager:
                 repo_url, branch, limit=20
             )
 
-            # Filter runs that match the PR's head SHA or are pull_request events
+            # Filter runs that match the PR's head SHA or are pull_request
+            # events
             pr_runs = []
             for run in workflow_runs:
                 if (
