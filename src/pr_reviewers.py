@@ -349,7 +349,7 @@ Respond in this exact JSON format:
     "confidence": 0.0-1.0,
     "reasoning": "Brief explanation of the decision",
     "blocking_issues": ["list", "of", "any", "blocking", "issues"]
-}} """
+}}"""
 
         try:
             message = self.anthropic_client.messages.create(

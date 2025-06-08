@@ -83,7 +83,7 @@ jobs:
     outputs:
       image-tag: ${{ steps.meta.outputs.tags }}
       image-digest: ${{ steps.build.outputs.digest }}
-      primary-tag: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+      primary-tag: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-api:latest
     
     steps:
     - name: Checkout code
@@ -103,19 +103,20 @@ jobs:
       id: meta
       uses: docker/metadata-action@v5
       with:
-        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-api
         tags: |
           type=ref,event=branch
           type=ref,event=pr
           type=sha,prefix={{branch}}-
           type=raw,value=latest,enable={{is_default_branch}}
           
-    - name: Build and push Summit web image
+    - name: Build and push Summit API image
       id: build
       uses: docker/build-push-action@v5
       with:
         context: .
-        file: ./web/Dockerfile.autonomous
+        file: ./infrastructure/docker/Dockerfile.summit-api
+        platforms: linux/amd64
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
@@ -125,14 +126,14 @@ jobs:
     - name: Generate SBOM
       uses: anchore/sbom-action@v0
       with:
-        image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+        image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-api:latest
         format: spdx-json
         output-file: /tmp/sbom.spdx.json
         
     - name: Scan image for vulnerabilities
       uses: anchore/scan-action@v3
       with:
-        image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+        image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-api:latest
         fail-build: false
         severity-cutoff: high
 
