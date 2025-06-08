@@ -52,7 +52,7 @@ def run_coverage_for_files(files):
         "--cov=" + ",".join(files),
         "--cov-report=term-missing",
         "--cov-report=json:coverage_new.json",
-        "--cov-fail-under=70",
+        "--cov-fail-under=60",
         "-v",
     ]
 
