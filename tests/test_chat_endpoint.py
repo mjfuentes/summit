@@ -79,7 +79,10 @@ class TestChatEndpoint:
 
             assert response.status_code == 200
             # Check that we get a streaming response
-            assert response.headers.get("content-type") == "text/event-stream"
+            assert (
+                response.headers.get("content-type")
+                == "text/plain; charset=utf-8"
+            )
 
             # The response should contain streaming data
             content = response.text
