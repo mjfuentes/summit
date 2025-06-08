@@ -533,12 +533,3 @@ Our expert panel has identified issues that need to be addressed before this PR 
 
 # Global instance for easy acce
 pr_review_system = PRReviewSystem()
-
-
-async def review_pr_with_multiple_roles(
-    owner: str, repo: str, pr_number: int, roles: Optional[List[str]] = None
-) -> Dict[str, Any]:
-    """Convenience function to review a PR with multiple roles"""
-    return await pr_review_system.conduct_multi_role_review(
-        owner, repo, pr_number, roles
-    )

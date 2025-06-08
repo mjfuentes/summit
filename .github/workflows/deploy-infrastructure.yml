@@ -208,11 +208,15 @@ jobs:
       run: |
         gcloud auth configure-docker
 
-    - name: Build and Push Summit API Image
+    - name: Build and Push Docker Images
       run: |
         # Build Summit API image
         docker build -f infrastructure/docker/Dockerfile.summit-api -t gcr.io/${{ env.GCP_PROJECT_ID }}/summit-api:latest .
         docker push gcr.io/${{ env.GCP_PROJECT_ID }}/summit-api:latest
+        
+        # Build Summit MCP Server image
+        docker build -f infrastructure/docker/Dockerfile.mcp-server -t gcr.io/${{ env.GCP_PROJECT_ID }}/summit-mcp-server:latest .
+        docker push gcr.io/${{ env.GCP_PROJECT_ID }}/summit-mcp-server:latest
 
     - name: Get GKE credentials
       run: |
@@ -259,9 +263,13 @@ jobs:
         # Deploy Summit API
         kubectl apply -f infrastructure/kubernetes/summit-app/deployment.yaml
         
+        # Deploy Summit MCP Server
+        kubectl apply -f infrastructure/kubernetes/mcp-server/deployment.yaml
+        
         # Wait for deployments
         kubectl wait --for=condition=available --timeout=300s deployment/opencode-agent -n summit || echo "OpenCode deployment timeout - checking status"
         kubectl wait --for=condition=available --timeout=300s deployment/summit-app -n summit || echo "Summit API deployment timeout - checking status"
+        kubectl wait --for=condition=available --timeout=300s deployment/summit-mcp-server -n summit || echo "MCP Server deployment timeout - checking status"
 
     - name: Verify Deployment
       run: |
@@ -273,6 +281,8 @@ jobs:
         kubectl describe deployment/opencode-agent -n summit
         echo "Summit API status:"
         kubectl describe deployment/summit-app -n summit
+        echo "MCP Server status:"
+        kubectl describe deployment/summit-mcp-server -n summit
 
   manual-deploy:
     name: Manual Deploy
@@ -326,11 +336,15 @@ jobs:
       run: |
         gcloud auth configure-docker
 
-    - name: Build and Push Summit API Image
+    - name: Build and Push Docker Images
       run: |
         # Build Summit API image
         docker build -f infrastructure/docker/Dockerfile.summit-api -t gcr.io/${{ env.GCP_PROJECT_ID }}/summit-api:latest .
         docker push gcr.io/${{ env.GCP_PROJECT_ID }}/summit-api:latest
+        
+        # Build Summit MCP Server image
+        docker build -f infrastructure/docker/Dockerfile.mcp-server -t gcr.io/${{ env.GCP_PROJECT_ID }}/summit-mcp-server:latest .
+        docker push gcr.io/${{ env.GCP_PROJECT_ID }}/summit-mcp-server:latest
 
     - name: Manual Terraform Apply
       working-directory: infrastructure/terraform
@@ -374,11 +388,17 @@ jobs:
         # Deploy Summit API
         kubectl apply -f infrastructure/kubernetes/summit-app/deployment.yaml
         
+        # Deploy Summit MCP Server
+        kubectl apply -f infrastructure/kubernetes/mcp-server/deployment.yaml
+        
         # Wait for deployments
         kubectl wait --for=condition=available --timeout=300s deployment/opencode-agent -n summit || echo "OpenCode deployment timeout - checking status"
         kubectl wait --for=condition=available --timeout=300s deployment/summit-app -n summit || echo "Summit API deployment timeout - checking status"
+        kubectl wait --for=condition=available --timeout=300s deployment/summit-mcp-server -n summit || echo "MCP Server deployment timeout - checking status"
         
         # Verify deployment
         kubectl get pods -n summit
         kubectl get services -n summit
-        kubectl get deployments -n summit 
+        kubectl get deployments -n summit
+        echo "MCP Server status:"
+        kubectl describe deployment/summit-mcp-server -n summit 

@@ -334,6 +334,198 @@ class AgentContext(Base):
     )
 
 
+class TaskComment(Base):
+    """Comments and reviews on tasks by agents"""
+
+    __tablename__ = "task_comments"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    task_id = Column(
+        UUID(as_uuid=True), ForeignKey("agent_tasks.id"), nullable=False
+    )
+    agent_id = Column(String(100), ForeignKey("agents.id"), nullable=False)
+    comment_type = Column(
+        String(50), nullable=False
+    )  # comment, review, approval, rejection, question
+    content = Column(Text, nullable=False)
+
+    # Structured data for different comment types
+    comment_metadata = Column(
+        JSON, nullable=True
+    )  # Additional structured data
+
+    # Review-specific fields
+    rating = Column(Integer, nullable=True)  # 1-5 rating scale
+    approval_status = Column(
+        String(20), nullable=True
+    )  # approved, rejected, needs_changes, pending
+
+    # Threading support
+    parent_comment_id = Column(
+        UUID(as_uuid=True), ForeignKey("task_comments.id"), nullable=True
+    )
+
+    # Status and visibility
+    is_internal = Column(
+        Boolean, nullable=False, default=False
+    )  # Internal agent communication
+    is_resolved = Column(Boolean, nullable=False, default=False)
+
+    # Timestamps
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+    # Relationships
+    task = relationship("AgentTask", backref="comments")
+    agent = relationship("Agent")
+    parent_comment = relationship(
+        "TaskComment", remote_side=[id], backref="replies"
+    )
+
+    # Indexes
+    __table_args__ = (
+        Index("idx_task_comments_task_id", "task_id"),
+        Index("idx_task_comments_agent_id", "agent_id"),
+        Index("idx_task_comments_type", "comment_type"),
+        Index("idx_task_comments_created_at", "created_at"),
+        Index("idx_task_comments_approval_status", "approval_status"),
+        Index("idx_task_comments_parent_id", "parent_comment_id"),
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for API responses"""
+        return {
+            "id": str(self.id),
+            "task_id": str(self.task_id),
+            "agent_id": self.agent_id,
+            "comment_type": self.comment_type,
+            "content": self.content,
+            "metadata": self.comment_metadata,
+            "rating": self.rating,
+            "approval_status": self.approval_status,
+            "parent_comment_id": (
+                str(self.parent_comment_id) if self.parent_comment_id else None
+            ),
+            "is_internal": self.is_internal,
+            "is_resolved": self.is_resolved,
+            "created_at": (
+                self.created_at.isoformat() if self.created_at else None
+            ),
+            "updated_at": (
+                self.updated_at.isoformat() if self.updated_at else None
+            ),
+        }
+
+
+class TaskReview(Base):
+    """Structured reviews for task evaluation"""
+
+    __tablename__ = "task_reviews"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    task_id = Column(
+        UUID(as_uuid=True), ForeignKey("agent_tasks.id"), nullable=False
+    )
+    reviewer_agent_id = Column(
+        String(100), ForeignKey("agents.id"), nullable=False
+    )
+    review_type = Column(
+        String(50), nullable=False
+    )  # code_review, security_review, performance_review, etc.
+
+    # Review decision
+    decision = Column(
+        String(20), nullable=False
+    )  # approved, rejected, needs_changes, conditional
+    confidence = Column(
+        Float, nullable=False, default=1.0
+    )  # 0.0 to 1.0 confidence level
+
+    # Review content
+    summary = Column(Text, nullable=False)
+    findings = Column(JSON, nullable=False, default=list)  # List of findings
+    recommendations = Column(
+        JSON, nullable=False, default=list
+    )  # List of recommendations
+
+    # Scoring
+    quality_score = Column(Float, nullable=True)  # 0.0 to 10.0
+    complexity_score = Column(Float, nullable=True)  # 0.0 to 10.0
+    risk_score = Column(Float, nullable=True)  # 0.0 to 10.0
+
+    # Review metadata
+    review_criteria = Column(JSON, nullable=True)  # Criteria used for review
+    review_duration_seconds = Column(Integer, nullable=True)
+    files_reviewed = Column(JSON, nullable=True)  # List of files reviewed
+
+    # Status
+    is_final = Column(Boolean, nullable=False, default=True)
+    superseded_by = Column(
+        UUID(as_uuid=True), ForeignKey("task_reviews.id"), nullable=True
+    )
+
+    # Timestamps
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+    # Relationships
+    task = relationship("AgentTask", backref="reviews")
+    reviewer = relationship("Agent")
+    superseding_review = relationship(
+        "TaskReview", remote_side=[id], backref="superseded_reviews"
+    )
+
+    # Indexes
+    __table_args__ = (
+        Index("idx_task_reviews_task_id", "task_id"),
+        Index("idx_task_reviews_reviewer_id", "reviewer_agent_id"),
+        Index("idx_task_reviews_type", "review_type"),
+        Index("idx_task_reviews_decision", "decision"),
+        Index("idx_task_reviews_created_at", "created_at"),
+        Index("idx_task_reviews_is_final", "is_final"),
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for API responses"""
+        return {
+            "id": str(self.id),
+            "task_id": str(self.task_id),
+            "reviewer_agent_id": self.reviewer_agent_id,
+            "review_type": self.review_type,
+            "decision": self.decision,
+            "confidence": self.confidence,
+            "summary": self.summary,
+            "findings": self.findings,
+            "recommendations": self.recommendations,
+            "quality_score": self.quality_score,
+            "complexity_score": self.complexity_score,
+            "risk_score": self.risk_score,
+            "review_criteria": self.review_criteria,
+            "review_duration_seconds": self.review_duration_seconds,
+            "files_reviewed": self.files_reviewed,
+            "is_final": self.is_final,
+            "superseded_by": (
+                str(self.superseded_by) if self.superseded_by else None
+            ),
+            "created_at": (
+                self.created_at.isoformat() if self.created_at else None
+            ),
+            "updated_at": (
+                self.updated_at.isoformat() if self.updated_at else None
+            ),
+        }
+
+
 class WebTask(Base):
     """Web application tasks (from autonomous_server.py)"""
 

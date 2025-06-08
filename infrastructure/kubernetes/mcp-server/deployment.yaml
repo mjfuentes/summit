@@ -1,0 +1,167 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: summit-mcp-server
+  namespace: summit
+  labels:
+    app: summit-mcp-server
+    component: mcp-server
+spec:
+  replicas: 2  # Multiple replicas for high availability
+  selector:
+    matchLabels:
+      app: summit-mcp-server
+  template:
+    metadata:
+      labels:
+        app: summit-mcp-server
+        component: mcp-server
+    spec:
+      serviceAccountName: summit-agent-sa
+      containers:
+      - name: mcp-server
+        image: gcr.io/summit-ai-platform/summit-mcp-server:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: mcp-port
+        env:
+        - name: DATABASE_URL
+          value: "postgresql+asyncpg://summit:summit123@localhost:5432/summit"
+        - name: PYTHONPATH
+          value: "/mcp-server/src"
+        - name: MCP_SERVER_PORT
+          value: "8080"
+        - name: MCP_SERVER_HOST
+          value: "0.0.0.0"
+        - name: ANTHROPIC_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: summit-secrets
+              key: anthropic-api-key
+        - name: GITHUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: summit-secrets
+              key: github-token
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "400m"
+        livenessProbe:
+          tcpSocket:
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          tcpSocket:
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      # Cloud SQL Proxy sidecar for database access
+      - name: cloud-sql-proxy
+        image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.8.0
+        args:
+          - "--structured-logs"
+          - "--port=5432"
+          - "PROJECT_ID:us-central1:summit-postgres"
+        securityContext:
+          runAsNonRoot: true
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "10m"
+          limits:
+            memory: "64Mi"
+            cpu: "50m"
+---
+# Service for MCP server
+apiVersion: v1
+kind: Service
+metadata:
+  name: summit-mcp-service
+  namespace: summit
+  labels:
+    app: summit-mcp-server
+  annotations:
+    cloud.google.com/load-balancer-type: "External"
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+    name: mcp-port
+  selector:
+    app: summit-mcp-server
+---
+# Horizontal Pod Autoscaler for MCP server
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: summit-mcp-server-hpa
+  namespace: summit
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: summit-mcp-server
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+---
+# Network Policy for MCP server (security)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: summit-mcp-server-policy
+  namespace: summit
+spec:
+  podSelector:
+    matchLabels:
+      app: summit-mcp-server
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          component: ai-agent  # Allow access from agents
+    - namespaceSelector: {}  # Allow cross-namespace if needed
+    ports:
+    - protocol: TCP
+      port: 8080
+  egress:
+  - to: []  # Allow all egress for external API calls
+    ports:
+    - protocol: TCP
+      port: 443  # HTTPS
+    - protocol: TCP
+      port: 80   # HTTP
+  - to:
+    - podSelector:
+        matchLabels:
+          app: cloud-sql-proxy
+    ports:
+    - protocol: TCP
+      port: 5432  # PostgreSQL 

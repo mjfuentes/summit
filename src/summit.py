@@ -14,6 +14,7 @@ from anthropic import Anthropic
 from mcp.server import NotificationOptions, Server
 
 from cost_tracker import CostTracker
+from unified_database import UnifiedDatabaseManager
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "config"))
 
@@ -43,6 +44,22 @@ cost_tracker = CostTracker(
     hourly_budget=SUMMIT_CONFIG["hourly_budget"],
     max_recursion_depth=SUMMIT_CONFIG["max_recursion_depth"],
 )
+
+# Database manager instance
+_database_manager = None
+
+
+def get_database() -> UnifiedDatabaseManager:
+    """Get or create database manager instance"""
+    global _database_manager
+    if _database_manager is None:
+        from unified_database import UnifiedDatabaseManager
+
+        database_url = os.getenv(
+            "DATABASE_URL", "sqlite+aiosqlite:///summit.db"
+        )
+        _database_manager = UnifiedDatabaseManager(database_url)
+    return _database_manager
 
 
 # Initialize Anthropic client
@@ -210,6 +227,206 @@ async def handle_list_tools() -> list[types.Tool]:
                     },
                 },
                 "required": ["codespace_name"],
+            },
+        ),
+        # Task Management Tools
+        types.Tool(
+            name="summit_get_task",
+            description="Get detailed information about a specific task",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task_id": {
+                        "type": "string",
+                        "description": "ID of the task to retrieve",
+                    },
+                    "include_collaboration": {
+                        "type": "boolean",
+                        "description": "Include comments and reviews in response",
+                    },
+                },
+                "required": ["task_id"],
+            },
+        ),
+        types.Tool(
+            name="summit_list_tasks",
+            description="List tasks assigned to a specific role or all tasks",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "role": {
+                        "type": "string",
+                        "description": "Filter tasks by agent role (engineering, product, etc.)",
+                    },
+                    "status": {
+                        "type": "string",
+                        "description": "Filter tasks by status (pending, running, completed, etc.)",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of tasks to return",
+                    },
+                },
+            },
+        ),
+        types.Tool(
+            name="summit_update_task_status",
+            description="Update the status of a task",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task_id": {
+                        "type": "string",
+                        "description": "ID of the task to update",
+                    },
+                    "status": {
+                        "type": "string",
+                        "description": "New status (pending, claimed, running, completed, failed, etc.)",
+                    },
+                    "agent_id": {
+                        "type": "string",
+                        "description": "ID of the agent updating the task",
+                    },
+                    "result": {
+                        "type": "object",
+                        "description": "Optional: Task result data",
+                    },
+                    "error": {
+                        "type": "string",
+                        "description": "Optional: Error message if task failed",
+                    },
+                },
+                "required": ["task_id", "status", "agent_id"],
+            },
+        ),
+        types.Tool(
+            name="summit_add_task_comment",
+            description="Add a comment or review to a task",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task_id": {
+                        "type": "string",
+                        "description": "ID of the task to comment on",
+                    },
+                    "agent_id": {
+                        "type": "string",
+                        "description": "ID of the agent making the comment",
+                    },
+                    "comment_type": {
+                        "type": "string",
+                        "description": "Type of comment (comment, review, approval, rejection, question)",
+                    },
+                    "content": {
+                        "type": "string",
+                        "description": "Content of the comment",
+                    },
+                    "approval_status": {
+                        "type": "string",
+                        "description": "Optional: Approval status (approved, rejected, needs_changes, pending)",
+                    },
+                    "rating": {
+                        "type": "integer",
+                        "description": "Optional: Rating from 1-5",
+                    },
+                    "is_internal": {
+                        "type": "boolean",
+                        "description": "Whether this is internal agent communication",
+                    },
+                    "parent_comment_id": {
+                        "type": "string",
+                        "description": "Optional: ID of parent comment for threading",
+                    },
+                },
+                "required": ["task_id", "agent_id", "comment_type", "content"],
+            },
+        ),
+        types.Tool(
+            name="summit_get_task_comments",
+            description="Get all comments and reviews for a task",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task_id": {
+                        "type": "string",
+                        "description": "ID of the task",
+                    },
+                    "include_internal": {
+                        "type": "boolean",
+                        "description": "Include internal agent communications",
+                    },
+                },
+                "required": ["task_id"],
+            },
+        ),
+        types.Tool(
+            name="summit_create_task_review",
+            description="Create a structured review for a task",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task_id": {
+                        "type": "string",
+                        "description": "ID of the task to review",
+                    },
+                    "reviewer_agent_id": {
+                        "type": "string",
+                        "description": "ID of the reviewing agent",
+                    },
+                    "review_type": {
+                        "type": "string",
+                        "description": "Type of review (code_review, security_review, performance_review, etc.)",
+                    },
+                    "decision": {
+                        "type": "string",
+                        "description": "Review decision (approved, rejected, needs_changes, conditional)",
+                    },
+                    "summary": {
+                        "type": "string",
+                        "description": "Summary of the review",
+                    },
+                    "findings": {
+                        "type": "array",
+                        "description": "List of findings from the review",
+                    },
+                    "recommendations": {
+                        "type": "array",
+                        "description": "List of recommendations",
+                    },
+                    "quality_score": {
+                        "type": "number",
+                        "description": "Quality score (0-10)",
+                    },
+                    "confidence": {
+                        "type": "number",
+                        "description": "Confidence level (0-1)",
+                    },
+                },
+                "required": [
+                    "task_id",
+                    "reviewer_agent_id",
+                    "review_type",
+                    "decision",
+                    "summary",
+                ],
+            },
+        ),
+        types.Tool(
+            name="summit_get_agent_activity",
+            description="Get recent task activity for an agent",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "agent_id": {
+                        "type": "string",
+                        "description": "ID of the agent",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of activities to return",
+                    },
+                },
+                "required": ["agent_id"],
             },
         ),
     ]
@@ -535,6 +752,414 @@ Ready for the next capability development session!"""
             return [
                 types.TextContent(
                     type="text", text=f"Error cleaning up environment: {e}"
+                )
+            ]
+
+    # Task Management Tool Handlers
+    elif name == "summit_get_task":
+        task_id = arguments.get("task_id")
+        include_collaboration = arguments.get("include_collaboration", False)
+
+        if not task_id:
+            raise ValueError("Task ID is required")
+
+        try:
+            from unified_database import get_database
+
+            db = await get_database()
+
+            if include_collaboration:
+                task_data = await db.get_task_with_collaboration_data(task_id)
+                if not task_data:
+                    return [
+                        types.TextContent(
+                            type="text", text=f"Task {task_id} not found"
+                        )
+                    ]
+
+                response = f"""Task Details (with collaboration data):
+
+ID: {task_data['id']}
+Type: {task_data['task_type']}
+Status: {task_data['status']}
+Assigned Role: {task_data['assigned_role']}
+Agent: {task_data['agent_id'] or 'Unassigned'}
+Priority: {task_data['priority']}
+Created: {task_data['created_at']}
+
+Comments ({len(task_data['comments'])}):"""
+
+                for comment in task_data["comments"]:
+                    response += f"""
+- [{comment['comment_type']}] by {comment['agent_id']}: {comment['content'][:100]}..."""
+
+                response += f"""
+
+Reviews ({len(task_data['reviews'])}):"""
+
+                for review in task_data["reviews"]:
+                    response += f"""
+- [{review['review_type']}] {review['decision']} by {review['reviewer_agent_id']}"""
+
+            else:
+                task = await db.get_agent_task(task_id)
+                if not task:
+                    return [
+                        types.TextContent(
+                            type="text", text=f"Task {task_id} not found"
+                        )
+                    ]
+
+                task_data = task.to_dict()
+                response = f"""Task Details:
+
+ID: {task_data['id']}
+Type: {task_data['task_type']}
+Status: {task_data['status']}
+Assigned Role: {task_data['assigned_role']}
+Agent: {task_data['agent_id'] or 'Unassigned'}
+Priority: {task_data['priority']}
+Created: {task_data['created_at']}
+Payload: {task_data['payload']}"""
+
+            return [types.TextContent(type="text", text=response)]
+
+        except Exception as e:
+            return [
+                types.TextContent(
+                    type="text", text=f"Error retrieving task: {e}"
+                )
+            ]
+
+    elif name == "summit_list_tasks":
+        role = arguments.get("role")
+        status = arguments.get("status")
+        limit = arguments.get("limit", 20)
+
+        try:
+            from database_models import TaskStatus
+            from unified_database import get_database
+
+            db = await get_database()
+
+            if role:
+                tasks = await db.get_tasks_for_role(role, limit)
+            else:
+                # Get all recent tasks
+                from datetime import datetime, timedelta
+
+                since_date = datetime.utcnow() - timedelta(days=7)
+                tasks = await db.get_tasks_since(since_date, limit)
+
+            # Filter by status if provided
+            if status:
+                status_enum = getattr(TaskStatus, status.upper(), None)
+                if status_enum:
+                    tasks = [t for t in tasks if t.status == status_enum]
+
+            if not tasks:
+                filter_desc = f" (role: {role})" if role else ""
+                filter_desc += f" (status: {status})" if status else ""
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=f"No tasks found{filter_desc}",
+                    )
+                ]
+
+            response = f"Found {len(tasks)} task(s):\n\n"
+            for task in tasks[:limit]:
+                task_data = task.to_dict()
+                response += f"""• {task_data['id'][:8]}... - {task_data['task_type']}
+  Status: {task_data['status']} | Role: {task_data['assigned_role']}
+  Created: {task_data['created_at'][:10]}
+
+"""
+
+            return [types.TextContent(type="text", text=response)]
+
+        except Exception as e:
+            return [
+                types.TextContent(
+                    type="text", text=f"Error listing tasks: {e}"
+                )
+            ]
+
+    elif name == "summit_update_task_status":
+        task_id = arguments.get("task_id")
+        status = arguments.get("status")
+        agent_id = arguments.get("agent_id")
+        result = arguments.get("result")
+        error = arguments.get("error")
+
+        if not all([task_id, status, agent_id]):
+            raise ValueError("Task ID, status, and agent ID are required")
+
+        try:
+            from datetime import datetime
+
+            from database_models import TaskStatus
+            from unified_database import get_database
+
+            db = await get_database()
+
+            # Validate status
+            try:
+                status_enum = getattr(TaskStatus, status.upper())
+            except AttributeError:
+                valid_statuses = [s.value for s in TaskStatus]
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=f"Invalid status '{status}'. Valid options: {', '.join(valid_statuses)}",
+                    )
+                ]
+
+            # Prepare update data
+            updates = {
+                "status": status_enum,
+                "agent_id": agent_id,
+            }
+
+            if status_enum in [TaskStatus.RUNNING]:
+                updates["started_at"] = datetime.utcnow()
+            elif status_enum in [TaskStatus.COMPLETED, TaskStatus.FAILED]:
+                updates["completed_at"] = datetime.utcnow()
+
+            if result:
+                updates["result"] = result
+            if error:
+                updates["error"] = error
+
+            updated_task = await db.update_agent_task(task_id, updates)
+
+            if not updated_task:
+                return [
+                    types.TextContent(
+                        type="text", text=f"Task {task_id} not found"
+                    )
+                ]
+
+            response = f"""Task status updated successfully:
+
+Task: {task_id}
+New Status: {status}
+Updated by: {agent_id}
+Timestamp: {datetime.utcnow().isoformat()}"""
+
+            return [types.TextContent(type="text", text=response)]
+
+        except Exception as e:
+            return [
+                types.TextContent(
+                    type="text", text=f"Error updating task status: {e}"
+                )
+            ]
+
+    elif name == "summit_add_task_comment":
+        task_id = arguments.get("task_id")
+        agent_id = arguments.get("agent_id")
+        comment_type = arguments.get("comment_type")
+        content = arguments.get("content")
+        approval_status = arguments.get("approval_status")
+        rating = arguments.get("rating")
+        is_internal = arguments.get("is_internal", False)
+        parent_comment_id = arguments.get("parent_comment_id")
+
+        if not all([task_id, agent_id, comment_type, content]):
+            raise ValueError(
+                "Task ID, agent ID, comment type, and content are required"
+            )
+
+        try:
+            from unified_database import get_database
+
+            db = await get_database()
+
+            # Prepare comment data
+            comment_data = {}
+            if approval_status:
+                comment_data["approval_status"] = approval_status
+            if rating:
+                comment_data["rating"] = rating
+            if parent_comment_id:
+                comment_data["parent_comment_id"] = parent_comment_id
+
+            comment_data["is_internal"] = is_internal
+
+            comment = await db.create_task_comment(
+                task_id=task_id,
+                agent_id=agent_id,
+                comment_type=comment_type,
+                content=content,
+                **comment_data,
+            )
+
+            response = f"""Comment added successfully:
+
+Task: {task_id}
+Type: {comment_type}
+Author: {agent_id}
+Content: {content[:100]}{'...' if len(content) > 100 else ''}
+Comment ID: {comment.id}"""
+
+            return [types.TextContent(type="text", text=response)]
+
+        except Exception as e:
+            return [
+                types.TextContent(
+                    type="text", text=f"Error adding comment: {e}"
+                )
+            ]
+
+    elif name == "summit_get_task_comments":
+        task_id = arguments.get("task_id")
+        include_internal = arguments.get("include_internal", True)
+
+        if not task_id:
+            raise ValueError("Task ID is required")
+
+        try:
+            from unified_database import get_database
+
+            db = await get_database()
+
+            comments = await db.get_task_comments(task_id, include_internal)
+
+            if not comments:
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=f"No comments found for task {task_id}",
+                    )
+                ]
+
+            response = (
+                f"Comments for task {task_id} ({len(comments)} total):\n\n"
+            )
+
+            for comment in comments:
+                comment_data = comment.to_dict()
+                response += f"""[{comment_data['comment_type']}] by {comment_data['agent_id']}
+{comment_data['created_at'][:19]}
+{comment_data['content']}
+"""
+                if comment_data["approval_status"]:
+                    response += f"Status: {comment_data['approval_status']}\n"
+                if comment_data["rating"]:
+                    response += f"Rating: {comment_data['rating']}/5\n"
+                response += "\n"
+
+            return [types.TextContent(type="text", text=response)]
+
+        except Exception as e:
+            return [
+                types.TextContent(
+                    type="text", text=f"Error retrieving comments: {e}"
+                )
+            ]
+
+    elif name == "summit_create_task_review":
+        task_id = arguments.get("task_id")
+        reviewer_agent_id = arguments.get("reviewer_agent_id")
+        review_type = arguments.get("review_type")
+        decision = arguments.get("decision")
+        summary = arguments.get("summary")
+        findings = arguments.get("findings", [])
+        recommendations = arguments.get("recommendations", [])
+        quality_score = arguments.get("quality_score")
+        confidence = arguments.get("confidence", 1.0)
+
+        if not all(
+            [task_id, reviewer_agent_id, review_type, decision, summary]
+        ):
+            raise ValueError(
+                "Task ID, reviewer agent ID, review type, decision, and summary are required"
+            )
+
+        try:
+            from unified_database import get_database
+
+            db = await get_database()
+
+            # Prepare review data
+            review_data = {
+                "confidence": confidence,
+                "findings": findings,
+                "recommendations": recommendations,
+            }
+
+            if quality_score is not None:
+                review_data["quality_score"] = quality_score
+
+            review = await db.create_task_review(
+                task_id=task_id,
+                reviewer_agent_id=reviewer_agent_id,
+                review_type=review_type,
+                decision=decision,
+                summary=summary,
+                **review_data,
+            )
+
+            response = f"""Task review created successfully:
+
+Task: {task_id}
+Review Type: {review_type}
+Reviewer: {reviewer_agent_id}
+Decision: {decision}
+Quality Score: {quality_score}/10
+Confidence: {confidence:.2f}
+
+Summary: {summary}
+
+Review ID: {review.id}"""
+
+            return [types.TextContent(type="text", text=response)]
+
+        except Exception as e:
+            return [
+                types.TextContent(
+                    type="text", text=f"Error creating review: {e}"
+                )
+            ]
+
+    elif name == "summit_get_agent_activity":
+        agent_id = arguments.get("agent_id")
+        limit = arguments.get("limit", 20)
+
+        if not agent_id:
+            raise ValueError("Agent ID is required")
+
+        try:
+            from unified_database import get_database
+
+            db = await get_database()
+
+            activity = await db.get_agent_task_activity(agent_id, limit)
+
+            response = f"""Recent activity for agent {agent_id}:
+
+Comments: {activity['total_comments']}
+Reviews: {activity['total_reviews']}
+
+Recent Comments:"""
+
+            for comment in activity["recent_comments"][:5]:
+                response += f"""
+- {comment['created_at'][:10]}: [{comment['comment_type']}] on task {comment['task_id'][:8]}..."""
+
+            response += "\n\nRecent Reviews:"
+
+            for review in activity["recent_reviews"][:5]:
+                response += f"""
+- {review['created_at'][:10]}: [{review['review_type']}] {review['decision']} on task {review['task_id'][:8]}..."""
+
+            return [types.TextContent(type="text", text=response)]
+
+        except Exception as e:
+            return [
+                types.TextContent(
+                    type="text", text=f"Error retrieving agent activity: {e}"
                 )
             ]
 
