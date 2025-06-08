@@ -1,232 +1,220 @@
 #!/usr/bin/env python3
 """
-Test script for the Multi-Role PR Review System
+Demo script for Summit Agent Role System and PR Reviews
 
-This script demonstrates how the different reviewer personas analyze PRs
-from their respective expertise areas.
+This script demonstrates how different agent roles handle PR reviews
+through the agent coordination system.
 """
 
 import asyncio
 import os
 import sys
 
-import pytest
-import pytest_asyncio
-
-from pr_reviewers import pr_review_system, review_pr_with_multiple_roles
-
 # Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+
+from agent_roles import AgentRoles
 
 
-@pytest.mark.asyncio
-async def test_single_persona_review():
-    """Test a single reviewer persona"""
-    print("Testing single persona review...")
-
-    # Mock PR data for testing
-    mock_pr_info = """
-Title: feat: implement PR-based workflow for autonomous agent
-Description: Add automated PR creation and multi-role review system for autonomous development tasks
-Author: claude-ai-assistant
-Branch: feature/pr-workflow -> main
-Files Changed: 5
-Additions: +500 | Deletions: -50
-"""
-
-    mock_file_changes = """
-- MODIFIED: src/summit.py (+120 -10)
-  Preview:
-  @@ -200,6 +200,30 @@ async def create_pull_request(owner: str, repo: str, title: str, head: str, bas
-  +    async def conduct_multi_role_review(self, owner: str, repo: str, pr_number: int):
-  +        # Get PR details and conduct reviews from multiple perspectives
-
-- ADDED: src/pr_reviewers.py (+350 -0)
-  Preview:
-  New file implementing multi-role PR review system with personas:
-  - Engineer (Alex Chen): Technical implementation and code quality
-  - Infrastructure (Jordan Kim): Security, performance, deployment
-
-- MODIFIED: web/autonomous_server.py (+80 -20)
-  Preview:
-  Integration of multi-role review system into autonomous agent workflow
-"""
-
-    # Test engineer review
-    engineer_review = await pr_review_system.generate_review(
-        "engineer", mock_pr_info, mock_file_changes
-    )
-    print("\n" + "=" * 60)
-    print("ENGINEER REVIEW:")
+def demonstrate_agent_roles():
+    """Demonstrate the available agent roles in Summit"""
     print("=" * 60)
-    print(engineer_review)
-
-    return engineer_review
-
-
-@pytest.mark.asyncio
-async def test_multi_role_review_on_current_pr():
-    """Test the multi-role review system on our actual PR"""
-    print("\nTesting multi-role review on current PR...")
-
-    # Test on our actual PR
-    owner = "mjfuentes"
-    repo = "summit"
-    pr_number = 1  # Our current PR
-
-    try:
-        result = await review_pr_with_multiple_roles(
-            owner=owner,
-            repo=repo,
-            pr_number=pr_number,
-            roles=["engineer", "infrastructure"],  # Test with 2 roles first
-        )
-
-        if result.get("success"):
-            print("\n" + "=" * 60)
-            print("MULTI-ROLE REVIEW POSTED SUCCESSFULLY!")
-            print("=" * 60)
-            print(
-                f"Check the PR at: https://github.com/{owner}/{repo}/pull/{pr_number}"
-            )
-
-            # Show preview of consolidated review
-            if "consolidated" in result:
-                print("\nConsolidated Review Preview:")
-                print("-" * 40)
-                print(result["consolidated"][:500] + "...")
-        else:
-            print(f"Review failed: {result}")
-
-    except Exception as e:
-        print(f"Error testing multi-role review: {e}")
-
-
-async def demonstrate_all_personas():
-    """Demonstrate all reviewer personas"""
-    print("\n" + "=" * 60)
-    print("DEMONSTRATING ALL REVIEWER PERSONAS")
+    print("SUMMIT AGENT ROLE SYSTEM")
     print("=" * 60)
 
-    # Mock scenario: Adding AI model caching feature
-    pr_info = """
-Title: feat: add intelligent model response caching system
-Description: Implement Redis-based caching for AI model responses to improve performance and reduce API costs
-Author: developer
-Branch: feature/ai-caching -> main
-Files Changed: 8
-Additions: +420 | Deletions: -15
-"""
+    agent_roles = AgentRoles()
 
-    file_changes = """
-- ADDED: src/cache_manager.py (+180 -0)
-  Preview: New Redis-based caching system for AI responses
-- MODIFIED: src/summit.py (+95 -10)
-  Preview: Integration of caching layer into AI advice system
-- ADDED: requirements.txt dependencies: redis>=4.0.0, redis-py>=4.0.0
-- MODIFIED: config/config.py (+30 -5)
-  Preview: Added Redis configuration and cache settings
-- ADDED: tests/test_cache_manager.py (+115 -0)
-  Preview: Comprehensive test suite for caching functionality
-"""
+    print("\nAvailable Agent Roles:")
+    print("-" * 30)
 
-    personas = ["engineer", "infrastructure", "product", "domain_expert"]
+    for role_name in agent_roles.get_all_roles():
+        role_info = agent_roles.get_role_info(role_name)
 
-    for persona in personas:
-        print(f"\n{'-'*50}")
-        print(f"GENERATING {persona.upper()} REVIEW...")
-        print(f"{'-'*50}")
+        print(f"\n {role_name.upper()}")
+        print(f"   Description: {role_info['description']}")
+        print(f"   Capabilities: {', '.join(role_info['capabilities'])}")
 
-        review = await pr_review_system.generate_review(
-            persona, pr_info, file_changes
-        )
-        if review:
-            print(review[:800] + "..." if len(review) > 800 else review)
-        else:
-            print(f"Failed to generate {persona} review")
-
-        print()
+        if "focus_areas" in role_info:
+            print(f"   Focus Areas: {', '.join(role_info['focus_areas'])}")
 
 
-async def show_reviewer_personas():
-    """Display information about available reviewer personas"""
+def demonstrate_pr_review_workflow():
+    """Demonstrate how PR reviews work through agent coordination"""
     print("\n" + "=" * 60)
-    print("AVAILABLE REVIEWER PERSONAS")
+    print("PR REVIEW THROUGH AGENT COORDINATION")
     print("=" * 60)
 
-    for key, persona in pr_review_system.reviewers.items():
-        print(f"\n{persona.name} - {persona.role}")
-        print(f"Expertise: {', '.join(persona.expertise)}")
-        print("Focus Areas:")
-        for area in persona.focus_areas:
-            print(f"  • {area}")
+    print("\nHow PR Reviews Work in Summit:")
+    print("-" * 35)
+
+    workflow_steps = [
+        "1. Agent creates a Pull Request",
+        "2. System creates agent tasks for different review roles:",
+        "   • Engineering review task → assigned to 'engineering' agents",
+        "   • Security review task → assigned to 'security' agents",
+        "   • Infrastructure review task → assigned to 'infrastructure' agents",
+        "3. Available agents claim tasks based on their roles",
+        "4. Each agent performs specialized review in parallel",
+        "5. Reviews are consolidated and posted to the PR",
+        "6. System determines approval based on review results",
+    ]
+
+    for step in workflow_steps:
+        print(f"   {step}")
+
+    print("\n Example Review Task Assignment:")
+    print("   Task: 'review_pr' with PR #123")
+    print("   Assigned Role: 'engineering'")
+    print("   Task Data: {")
+    print("     'pr_number': 123,")
+    print("     'repository': 'summit',")
+    print("     'focus_areas': ['code_quality', 'testing', 'architecture']")
+    print("   }")
 
 
-async def main():
-    """Main test function"""
-    print("Multi-Role PR Review System Test")
+def demonstrate_role_specialization():
+    """Show how different roles specialize in review areas"""
+    print("\n" + "=" * 60)
+    print("AGENT ROLE SPECIALIZATION")
+    print("=" * 60)
+
+    specializations = {
+        "engineering": [
+            "Code quality and maintainability",
+            "Testing coverage and edge cases",
+            "Architecture and design patterns",
+            "Performance considerations",
+            "Error handling and robustness",
+        ],
+        "security": [
+            "Security vulnerabilities",
+            "Authentication and authorization",
+            "Data validation and sanitization",
+            "Encryption and secure communication",
+            "Access control and permissions",
+        ],
+        "infrastructure": [
+            "Deployment considerations",
+            "Scalability and resource usage",
+            "Monitoring and observability",
+            "CI/CD pipeline impact",
+            "Configuration management",
+        ],
+        "product": [
+            "User experience impact",
+            "Business requirement alignment",
+            "API usability and design",
+            "Documentation quality",
+            "Backward compatibility",
+        ],
+    }
+
+    for role, areas in specializations.items():
+        print(f"\n {role.upper()} AGENT FOCUS:")
+        for area in areas:
+            print(f"   • {area}")
+
+
+def show_agent_coordination_benefits():
+    """Show benefits of the agent coordination approach"""
+    print("\n" + "=" * 60)
+    print("BENEFITS OF AGENT COORDINATION")
+    print("=" * 60)
+
+    benefits = [
+        " Scalable: Add more agents of any role as needed",
+        " Parallel: Multiple agents can review simultaneously",
+        " Specialized: Each agent focuses on their expertise area",
+        " Flexible: Easy to add new roles and capabilities",
+        " Trackable: All review tasks are logged and monitored",
+        " Autonomous: Agents work independently and coordinate",
+        " Efficient: No single bottleneck for reviews",
+        " Reliable: Failed reviews can be reassigned automatically",
+    ]
+
+    print("\nWhy Agent Coordination > Legacy Multi-Role Reviews:")
+    for benefit in benefits:
+        print(f"   {benefit}")
+
+
+async def show_sample_task_creation():
+    """Demonstrate how review tasks are created"""
+    print("\n" + "=" * 60)
+    print("SAMPLE AGENT TASK CREATION")
+    print("=" * 60)
+
+    print("\nWhen a PR needs review, Summit creates tasks like this:")
+    print("-" * 50)
+
+    sample_tasks = [
+        {
+            "task_type": "pr_review",
+            "assigned_role": "engineering",
+            "task_description": "Engineering review of PR #123: Add caching system",
+            "priority": 1,
+            "task_data": {
+                "pr_number": 123,
+                "repository": "summit",
+                "focus": "code_quality",
+            },
+        },
+        {
+            "task_type": "pr_review",
+            "assigned_role": "security",
+            "task_description": "Security review of PR #123: Add caching system",
+            "priority": 1,
+            "task_data": {
+                "pr_number": 123,
+                "repository": "summit",
+                "focus": "security_analysis",
+            },
+        },
+    ]
+
+    for i, task in enumerate(sample_tasks, 1):
+        print(f"\nTask {i}:")
+        print(f"   Type: {task['task_type']}")
+        print(f"   Role: {task['assigned_role']}")
+        print(f"   Description: {task['task_description']}")
+        print(f"   Priority: {task['priority']}")
+        print(f"   Data: {task['task_data']}")
+
+
+def main():
+    """Main demo function"""
+    print("Summit Agent-Based PR Review System Demo")
     print("=" * 50)
 
-    # Check environment
-    if not os.getenv("ANTHROPIC_API_KEY"):
-        print(
-            "WARNING: ANTHROPIC_API_KEY not found. AI reviews will not work."
-        )
+    print("\nThis demo shows how Summit's agent coordination system")
+    print("handles PR reviews through specialized agent roles.")
 
-    if not os.getenv("GITHUB_TOKEN"):
-        print(
-            "WARNING: GITHUB_TOKEN not found. Cannot post reviews to GitHub."
-        )
+    demonstrate_agent_roles()
+    demonstrate_pr_review_workflow()
+    demonstrate_role_specialization()
+    show_agent_coordination_benefits()
 
-    print("\nAvailable tests:")
-    print("1. Show reviewer personas")
-    print("2. Test single persona review (mock data)")
-    print("3. Demonstrate all personas (mock data)")
-    print("4. Test on actual PR #1 (requires GitHub access)")
+    print("\n" + "=" * 60)
+    print("NEXT STEPS")
+    print("=" * 60)
 
-    try:
-        choice = input("\nSelect test (1-4) or press Enter for all: ").strip()
+    next_steps = [
+        "1. Deploy agents with different roles to your cluster",
+        "2. Agents will automatically register and await tasks",
+        "3. When PRs are created, review tasks are assigned by role",
+        "4. Agents perform specialized reviews in parallel",
+        "5. Monitor agent coordination through the developer dashboard",
+    ]
 
-        if not choice or choice == "1":
-            await show_reviewer_personas()
+    for step in next_steps:
+        print(f"   {step}")
 
-        if not choice or choice == "2":
-            await test_single_persona_review()
+    print(f"\n Developer Dashboard: http://localhost:8000/dev")
+    print(f" Agent Status: http://localhost:8000/api/agents/status")
 
-        if not choice or choice == "3":
-            await demonstrate_all_personas()
-
-        if choice == "4":
-            confirm = (
-                input("\nThis will post reviews to PR #1. Continue? (y/N): ")
-                .strip()
-                .lower()
-            )
-            if confirm == "y":
-                await test_multi_role_review_on_current_pr()
-            else:
-                print("Skipped actual PR test.")
-
-        print("\n" + "=" * 60)
-        print("TEST COMPLETED")
-        print("=" * 60)
-        print("\nNext steps:")
-        print(
-            "1. The multi-role review system is integrated into autonomous_server.py"
-        )
-        print(
-            "2. When agents create PRs, they automatically get multi-perspective reviews"
-        )
-        print("3. Each reviewer provides expertise-focused feedback")
-        print(
-            "4. Reviews help ensure code quality, security, and business alignment"
-        )
-
-    except KeyboardInterrupt:
-        print("\nTest interrupted by user.")
-    except Exception as e:
-        print(f"\nTest error: {e}")
+    print("\n" + "=" * 60)
+    print("DEMO COMPLETED")
+    print("=" * 60)
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()

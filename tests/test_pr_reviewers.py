@@ -9,7 +9,6 @@ import pytest
 from src.pr_reviewers import (
     PRReviewSystem,
     ReviewerPersona,
-    review_pr_with_multiple_roles,
 )
 
 # Add src to path
@@ -321,25 +320,3 @@ class TestPRReviewers:
         assert "APPROVED" in result
         assert "Engineering review content" in result
         assert "Infrastructure review content" in result
-
-    @pytest.mark.asyncio
-    async def test_review_pr_with_multiple_roles(self):
-        """Test the main review function"""
-        mock_return_value = {
-            "success": True,
-            "decision": "APPROVED",
-            "all_approved": True,
-            "approval_count": "4/4",
-            "reviews": {},
-            "consolidated": "Test consolidated review",
-            "review_decisions": {},
-        }
-
-        with patch(
-            "src.pr_reviewers.pr_review_system.conduct_multi_role_review",
-            return_value=mock_return_value,
-        ):
-            result = await review_pr_with_multiple_roles("owner", "repo", 123)
-            assert result["success"] is True
-            assert result["decision"] == "APPROVED"
-            assert "reviews" in result
