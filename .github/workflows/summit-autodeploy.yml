@@ -120,8 +120,16 @@ jobs:
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        # Use registry cache for better performance than GitHub Actions cache
+        cache-from: |
+          type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:cache
+          type=gha
+        cache-to: |
+          type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:cache,mode=max
+          type=gha,mode=max
+        # Build arguments for optimization
+        build-args: |
+          BUILDKIT_INLINE_CACHE=1
         
     - name: Generate SBOM
       uses: anchore/sbom-action@v0

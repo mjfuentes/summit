@@ -1,0 +1,135 @@
+# Git files and history
+.git
+.gitignore
+.gitattributes
+.github
+
+# Documentation
+*.md
+docs/
+*.rst
+
+# Python cache and build artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Testing
+.coverage
+.pytest_cache/
+.tox/
+.nox/
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+htmlcov/
+.cache
+nosetests.xml
+coverage.json
+
+# Development files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Database files (exclude local development databases)
+*.db
+*.sqlite
+*.sqlite3
+data/summit_local.db
+
+# Logs
+*.log
+logs/
+task_logs/
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Node.js (if any frontend assets)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+
+# PyCharm
+.idea/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# profiling data
+.prof
+
+# AI model caches (can be large)
+.cache/
+models/
+checkpoints/
+
+# Screenshots and test artifacts
+screenshots/
+test-results/
+playwright-report/
+
+# Local configuration
+config/local*
+
+# Backup files
+*.bak
+*.backup 

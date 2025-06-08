@@ -1,0 +1,42 @@
+# Development and testing dependencies
+# Install with: pip install -r requirements.txt -r dev-requirements.txt
+
+# Testing framework
+pytest>=7.4.3
+pytest-asyncio>=0.21.1
+pytest-cov>=4.1.0
+pytest-xdist>=3.0.0
+selenium>=4.15.0
+
+# Code formatting and linting
+black>=23.11.0
+pylint>=2.17.0
+mypy>=1.0.0
+flake8>=6.0.0
+isort>=5.12.0
+autopep8>=2.0.4
+pre-commit>=3.6.0
+
+# Development utilities
+deptry>=0.12.0
+
+# Documentation generation
+sphinx>=7.0.0
+
+# Data visualization (for development/analysis)
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# AI/ML dependencies (heavy - only for local development)
+# RunPod integration for GPU deployment
+runpod>=1.7.0
+
+# PyTorch for GPU support (only install locally if needed)
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Transformers and quantization for open source models
+transformers>=4.36.0
+accelerate>=0.25.0
+bitsandbytes>=0.41.0
+sentencepiece>=0.1.99 
