@@ -1,0 +1,28 @@
+{
+  "defaultAgent": "coder",
+  "localEndpoint": "https://api.runpod.ai/v2/26xsjcfv6hlyqe/run",
+  "localApiKey": "rpa_3IUUA0KEUIG29RZYZO9RCP9UL4J44TWKW95382S82dxyzo",
+  "agents": {
+    "coder": {
+      "model": "llama-3.1-8b-instruct",
+      "reasoningEffort": "high",
+      "temperature": 0.7,
+      "maxTokens": 2048
+    }
+  },
+  "tools": {
+    "bash": {
+      "enabled": true,
+      "timeout": 30
+    },
+    "read": {
+      "enabled": true
+    },
+    "write": {
+      "enabled": true
+    },
+    "search": {
+      "enabled": true
+    }
+  }
+} 
