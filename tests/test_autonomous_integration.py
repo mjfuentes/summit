@@ -72,9 +72,14 @@ def event_loop():
 @pytest.fixture(scope="module")
 async def db_session(event_loop):
     """Fixture to initialize and clean up the database for tests."""
-    from src.database import close_database, db_manager, init_database
+    from src.unified_database import (
+        close_database,
+        get_database,
+        init_database,
+    )
 
     await init_database()
+    db_manager = await get_database()
     yield db_manager
     await close_database()
 
@@ -107,7 +112,7 @@ class TestAutonomousIntegration:
         if src_path not in sys.path:
             sys.path.insert(0, src_path)
 
-        from database import DatabaseManager
+        from unified_database import UnifiedDatabaseManager as DatabaseManager
 
         db_manager = DatabaseManager("sqlite+aiosqlite:///:memory:")
         await db_manager.init_database()
@@ -361,7 +366,9 @@ if __name__ == "__main__":
             with patch.object(
                 autonomous_server, "get_database", return_value=test_db
             ):
-                with patch("database.get_database", return_value=test_db):
+                with patch(
+                    "unified_database.get_database", return_value=test_db
+                ):
                     # Import here to avoid circular imports
                     from web.autonomous_server import run_autonomous_task
 
@@ -436,7 +443,7 @@ if __name__ == "__main__":
             from web.autonomous_server import run_autonomous_task
 
             # Test with mocked database getter
-            with patch("database.get_database", return_value=test_db):
+            with patch("unified_database.get_database", return_value=test_db):
                 # 1. Test with missing Dockerfile
                 with patch("os.path.exists", return_value=False):
                     task_id_1 = "test-task-no-dockerfile"

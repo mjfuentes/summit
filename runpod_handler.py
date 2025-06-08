@@ -21,8 +21,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from cost_tracker import CostTracker
-from database import DatabaseManager
 from summit import Summit
+from unified_database import get_database, init_database
 
 # Add src to path
 sys.path.insert(0, "/workspace/src")

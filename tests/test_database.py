@@ -11,7 +11,7 @@ import pytest
 import pytest_asyncio
 
 # Import database components
-from src.database import DatabaseManager
+from src.unified_database import UnifiedDatabaseManager as DatabaseManager
 
 # Add source to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))

@@ -6,7 +6,7 @@ Provides helper functions to update tasks in the database consistently.
 
 from typing import Any, Dict, List, Optional
 
-from database import get_database
+from unified_database import get_database
 
 
 async def update_task_status(
@@ -52,6 +52,18 @@ async def update_task_log_file(task_id: str, log_file_path: str):
     await db.update_task(task_id, {"log_file": log_file_path})
 
 
+async def get_task_by_id(task_id: str):
+    """Get task by ID"""
+    db = await get_database()
+    return await db.get_task(task_id)
+
+
+async def get_all_active_tasks():
+    """Get all active tasks"""
+    db = await get_database()
+    return await db.get_active_tasks()
+
+
 async def mark_task_completed(
     task_id: str, success: bool, full_logs: Optional[str] = None
 ):
@@ -64,6 +76,14 @@ async def mark_task_completed(
     if full_logs:
         updates["full_logs"] = full_logs
     await db.update_task(task_id, updates)
+
+
+async def mark_task_failed(task_id: str, error: str):
+    """Mark task as failed"""
+    db = await get_database()
+    await db.update_task(
+        task_id, {"status": "failed", "error": error, "is_active": False}
+    )
 
 
 async def get_task_data(task_id: str) -> Optional[Dict[str, Any]]:

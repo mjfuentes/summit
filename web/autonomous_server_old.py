@@ -88,8 +88,6 @@ def bootstrap_dependencies():
 
 # Bootstrap will be called only when running the server directly
 
-# Import database functionality
-from database import close_database, get_database, init_database
 from task_manager import (
     add_task_log,
     get_task_data,
@@ -98,6 +96,9 @@ from task_manager import (
     update_task_log_file,
     update_task_status,
 )
+
+# Import database functionality
+from unified_database import close_database, get_database, init_database
 
 app = FastAPI(title="Summit Autonomous AI", version="2.0.0")
 
@@ -1879,13 +1880,12 @@ async def retrigger_all_failed_tasks():
     Retrigger all failed tasks at once.
     Useful for batch recovery after fixing infrastructure issues.
     """
-    from database import Task  # Import Task model for the query
+    from unified_database import Task  # Import Task model for the query
 
     db = await get_database()
 
     try:
         # Get all tasks with failed status
-        from database import Task
 
         async with db.get_session() as session:
             from sqlalchemy import select
@@ -1987,8 +1987,6 @@ async def get_failed_tasks():
     db = await get_database()
 
     try:
-        from database import Task
-
         async with db.get_session() as session:
             from sqlalchemy import select
 
