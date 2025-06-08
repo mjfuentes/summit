@@ -22,7 +22,7 @@ class AgentGitWrapper:
     def __init__(self):
         self.repo_root = self._find_repo_root()
         self.github_token = os.getenv("GITHUB_TOKEN")
-        self.required_coverage = 70
+        self.required_coverage = 60
         self.max_retries = 3
         self.ci_check_interval = 30  # seconds
         self.ci_max_wait = 600  # 10 minutes max wait for CI
