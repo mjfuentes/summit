@@ -48,6 +48,17 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         SUMMIT_READONLY_MODE: true
         
+    - name: Run autonomous integration tests
+      run: |
+        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        # Run autonomous tests separately to catch server startup issues
+        python -m pytest tests/test_autonomous_integration.py::TestAutonomousIntegration::test_autonomous_server_syntax -v --no-cov
+        python -m pytest tests/test_autonomous_integration.py::TestAutonomousIntegration::test_autonomous_server_startup -v --no-cov
+      env:
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SUMMIT_READONLY_MODE: true
+        
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
       with:
@@ -109,13 +120,42 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         
-    - name: Test server startup
+    - name: Test server startup with comprehensive checks
       run: |
         export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-        timeout 30s python web/autonomous_server.py &
-        sleep 10
+        cd web
+        
+        # Test 1: Check import and syntax
+        python -c "import autonomous_server; print(' Import successful')" || exit 1
+        
+        # Test 2: Test FastAPI app creation
+        python -c "from autonomous_server import app; print(' FastAPI app created successfully')" || exit 1
+        
+        # Test 3: Test server startup with better error handling
+        timeout 30s python autonomous_server.py &
+        SERVER_PID=$!
+        
+        # Wait for server to start
+        echo " Waiting for server to start..."
+        for i in {1..20}; do
+          if curl -s -f http://localhost:8000/health > /dev/null 2>&1; then
+            echo " Server started successfully"
+            break
+          fi
+          echo "   Attempt $i/20..."
+          sleep 1
+        done
+        
+        # Test health endpoint
         curl -f http://localhost:8000/health || exit 1
-        pkill -f autonomous_server.py || true
+        echo " Health check passed"
+        
+        # Test API status endpoint
+        curl -f http://localhost:8000/api/summit/status || exit 1
+        echo " API status check passed"
+        
+        # Cleanup
+        kill $SERVER_PID 2>/dev/null || pkill -f autonomous_server.py || true
       env:
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
