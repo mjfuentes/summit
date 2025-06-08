@@ -22,12 +22,16 @@ if [ "$ANTHROPIC_API_KEY" = "test-key" ] && [ "$TASK_DESCRIPTION" = "echo 'Hello
     echo "User: $(whoami)"
     echo "======================================================"
     
-    # Simulate a short task that completes successfully
+    # Simulate a task that runs long enough for CI/CD detection
     echo "[$(date '+%H:%M:%S')] Simulating development task..."
-    sleep 3
     echo "[$(date '+%H:%M:%S')] Task simulation: Creating test output..."
     echo "Hello OpenCode! Container test successful." > test_output.txt
     echo "[$(date '+%H:%M:%S')] Test file created: test_output.txt"
+    
+    # Run for 15 seconds to ensure CI/CD test can detect the running container
+    echo "[$(date '+%H:%M:%S')] Running test simulation for 15 seconds..."
+    sleep 15
+    
     echo "[$(date '+%H:%M:%S')] Test mode task completed successfully"
     echo "SUMMIT_TASK_COMPLETE: CI/CD test finished successfully"
     exit 0
