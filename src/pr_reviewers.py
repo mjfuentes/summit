@@ -419,9 +419,8 @@ Respond in this exact JSON format:
 
                     review_decisions[role] = sentiment["decision"]
                     print(
-                        f"{role} review: {
-                            sentiment['decision']} (confidence: {
-                            sentiment['confidence']:.2f})"
+                        f"{role} review: {sentiment['decision']} "
+                        f"(confidence: {sentiment['confidence']:.2f})"
                     )
 
         # Determine overall approval statu
