@@ -1,4 +1,4 @@
-name: Claude Code Deployment
+name: OpenCode Deployment
 
 on:
   push:
@@ -129,6 +129,7 @@ jobs:
       with:
         context: ./web
         file: ./web/Dockerfile.autonomous
+        platforms: linux/amd64
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
