@@ -1,0 +1,142 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opencode-agent
+  namespace: summit
+  labels:
+    app: opencode-agent
+    component: ai-agent
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: opencode-agent
+  template:
+    metadata:
+      labels:
+        app: opencode-agent
+    spec:
+      serviceAccountName: summit-agent-sa
+      containers:
+      - name: opencode
+        image: opencodeinterpreter/opencode:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: PORT
+          value: "8080"
+        - name: GOOGLE_CLOUD_PROJECT
+          value: "summit-ai-platform"
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: "/var/secrets/google/key.json"
+        - name: PYTHONPATH
+          value: "/app/src"
+        - name: RUNPOD_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: summit-secrets
+              key: runpod-api-key
+        - name: RUNPOD_ENDPOINT_ID
+          value: "26xsjcfv6hlyqe"
+        - name: MODEL_NAME
+          value: "meta-llama/Llama-3.1-8B-Instruct"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+        - name: google-cloud-key
+          mountPath: /var/secrets/google
+          readOnly: true
+        - name: app-code
+          mountPath: /app
+      volumes:
+      - name: workspace
+        emptyDir: {}
+      - name: google-cloud-key
+        secret:
+          secretName: google-cloud-key
+      - name: app-code
+        configMap:
+          name: summit-app-code
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: opencode-service
+  namespace: summit
+spec:
+  selector:
+    app: opencode-agent
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080
+  type: ClusterIP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: opencode-hpa
+  namespace: summit
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: opencode-agent
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: summit-app-code
+  namespace: summit
+data:
+  cloud_task_manager.py: |
+    # Cloud Task Manager code will be mounted here
+  agent_worker.py: |
+    # Agent Worker code will be mounted here 

@@ -1,0 +1,175 @@
+name: Deploy Infrastructure
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'infrastructure/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'infrastructure/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+        - staging
+        - production
+
+env:
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+  CLUSTER_NAME: summit-cluster
+  CLUSTER_REGION: us-central1
+
+jobs:
+  terraform-plan:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: 1.6.0
+
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+    - name: Setup gcloud CLI
+      uses: google-github-actions/setup-gcloud@v2
+
+    - name: Terraform Init
+      working-directory: infrastructure/terraform
+      run: terraform init
+
+    - name: Terraform Plan
+      working-directory: infrastructure/terraform
+      run: |
+        terraform plan \
+          -var="project_id=${{ env.GCP_PROJECT_ID }}" \
+          -var="region=${{ env.CLUSTER_REGION }}" \
+          -var="cluster_name=${{ env.CLUSTER_NAME }}"
+
+  terraform-apply:
+    name: Terraform Apply
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: 1.6.0
+
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+    - name: Setup gcloud CLI
+      uses: google-github-actions/setup-gcloud@v2
+
+    - name: Terraform Init
+      working-directory: infrastructure/terraform
+      run: terraform init
+
+    - name: Terraform Apply
+      working-directory: infrastructure/terraform
+      run: |
+        terraform apply -auto-approve \
+          -var="project_id=${{ env.GCP_PROJECT_ID }}" \
+          -var="region=${{ env.CLUSTER_REGION }}" \
+          -var="cluster_name=${{ env.CLUSTER_NAME }}"
+
+  deploy-opencode:
+    name: Deploy OpenCode
+    runs-on: ubuntu-latest
+    needs: terraform-apply
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+    - name: Setup gcloud CLI
+      uses: google-github-actions/setup-gcloud@v2
+
+    - name: Get GKE credentials
+      run: |
+        gcloud container clusters get-credentials ${{ env.CLUSTER_NAME }} \
+          --region ${{ env.CLUSTER_REGION }} \
+          --project ${{ env.GCP_PROJECT_ID }}
+
+    - name: Deploy OpenCode to Kubernetes
+      run: |
+        # Update secrets with actual values
+        kubectl create secret generic summit-secrets \
+          --from-literal=runpod-api-key="${{ secrets.RUNPOD_API_KEY }}" \
+          --from-literal=huggingface-token="${{ secrets.HUGGINGFACE_TOKEN }}" \
+          --from-literal=github-token="${{ secrets.GITHUB_TOKEN }}" \
+          --namespace=summit \
+          --dry-run=client -o yaml | kubectl apply -f -
+        
+        # Deploy OpenCode
+        kubectl apply -f infrastructure/kubernetes/shared/namespace.yaml
+        kubectl apply -f infrastructure/kubernetes/opencode/deployment.yaml
+        
+        # Wait for deployment
+        kubectl wait --for=condition=available --timeout=300s deployment/opencode-agent -n summit
+
+    - name: Verify Deployment
+      run: |
+        kubectl get pods -n summit -l app=opencode-agent
+        kubectl get services -n summit
+        
+        # Test health endpoint
+        kubectl port-forward service/opencode-service 8080:80 -n summit &
+        sleep 10
+        curl -f http://localhost:8080/health || echo "Health check failed"
+
+  manual-deploy:
+    name: Manual Deploy
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+    - name: Setup gcloud CLI
+      uses: google-github-actions/setup-gcloud@v2
+
+    - name: Get GKE credentials
+      run: |
+        gcloud container clusters get-credentials ${{ env.CLUSTER_NAME }} \
+          --region ${{ env.CLUSTER_REGION }} \
+          --project ${{ env.GCP_PROJECT_ID }}
+
+    - name: Deploy to ${{ github.event.inputs.environment }}
+      run: |
+        echo "Deploying to ${{ github.event.inputs.environment }}"
+        ./infrastructure/scripts/deploy-opencode.sh 
