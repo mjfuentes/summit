@@ -83,6 +83,7 @@ jobs:
     outputs:
       image-tag: ${{ steps.meta.outputs.tags }}
       image-digest: ${{ steps.build.outputs.digest }}
+      primary-tag: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
     
     steps:
     - name: Checkout code
@@ -124,14 +125,14 @@ jobs:
     - name: Generate SBOM
       uses: anchore/sbom-action@v0
       with:
-        image: ${{ steps.meta.outputs.tags }}
+        image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
         format: spdx-json
         output-file: /tmp/sbom.spdx.json
         
     - name: Scan image for vulnerabilities
       uses: anchore/scan-action@v3
       with:
-        image: ${{ steps.meta.outputs.tags }}
+        image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
         fail-build: false
         severity-cutoff: high
 
@@ -158,7 +159,7 @@ jobs:
     - name: Deploy to production server
       run: |
         echo "Deploying Summit AI to production..."
-        echo "Image: ${{ needs.build.outputs.image-tag }}"
+        echo "Image: ${{ needs.build.outputs.primary-tag }}"
         
         # Example deployment commands (customize for your infrastructure):
         # 1. SSH to production server
@@ -171,7 +172,7 @@ jobs:
         # For demonstration - you would replace this with actual deployment
         echo "Production deployment commands would go here"
         echo "Examples:"
-        echo "  ssh user@server 'docker pull ${{ needs.build.outputs.image-tag }}'"
+        echo "  ssh user@server 'docker pull ${{ needs.build.outputs.primary-tag }}'"
         echo "  ssh user@server 'docker-compose up -d --no-deps summit-web'"
         echo "  ssh user@server 'curl -f http://localhost:8000/health || exit 1'"
         
@@ -194,7 +195,7 @@ jobs:
       run: |
         echo " Summit AI deployed successfully!"
         echo "Version: ${{ github.sha }}"
-        echo "Image: ${{ needs.build.outputs.image-tag }}"
+        echo "Image: ${{ needs.build.outputs.primary-tag }}"
         echo "Deployment time: $(date)"
 
   # New job to enable auto-merge on PRs
