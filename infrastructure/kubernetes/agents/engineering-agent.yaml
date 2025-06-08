@@ -1,0 +1,238 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: engineering-agent
+  namespace: summit
+  labels:
+    app: engineering-agent
+    component: ai-agent
+    role: engineering
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: engineering-agent
+  template:
+    metadata:
+      labels:
+        app: engineering-agent
+        role: engineering
+    spec:
+      serviceAccountName: summit-agent-sa
+      imagePullSecrets:
+      - name: ghcr-login-secret
+      initContainers:
+      # Initialize repository once at startup
+      - name: repo-init
+        image: alpine/git:latest
+        command: ["/bin/sh"]
+        args:
+        - -c
+        - |
+          echo "Initializing repository for engineering agent..."
+          cd /workspace
+          git clone --depth 10 ${REPO_URL:-https://github.com/mjfuentes/summit.git} .
+          git config user.name "Summit Engineering Agent"
+          git config user.email "engineering-agent@summit.ai"
+          git config pull.rebase false
+          echo "Repository initialized"
+        volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+      containers:
+      - name: engineering-agent
+        image: ghcr.io/mjfuentes/summit/agent:latest
+        command: ["python"]
+        args: ["/app/src/agent_lifecycle.py"]
+        env:
+        - name: AGENT_ROLE
+          value: "engineering"
+        - name: WORKFLOW_STAGE
+          value: "second"
+        - name: DATABASE_URL
+          value: "postgresql+asyncpg://summit:summit123@localhost:5432/summit"
+        - name: WORKSPACE_PATH
+          value: "/workspace"
+        - name: PYTHONPATH
+          value: "/app/src"
+        - name: AGENT_HEARTBEAT_INTERVAL
+          value: "60"
+        - name: GIT_CLEANUP_ENABLED
+          value: "true"
+        - name: ANTHROPIC_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: summit-secrets
+              key: anthropic-api-key
+        - name: GITHUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: summit-secrets
+              key: github-token
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "400m"
+        livenessProbe:
+          exec:
+            command:
+            - python
+            - -c
+            - "import requests; requests.get('http://localhost:8080/health')"
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          exec:
+            command:
+            - python
+            - -c
+            - "import os; exit(0 if os.path.exists('/tmp/agent-ready') else 1)"
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+        - name: app-code
+          mountPath: /app
+        - name: git-scripts
+          mountPath: /scripts
+      # Cloud SQL Proxy sidecar for database access
+      - name: cloud-sql-proxy
+        image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.8.0
+        args:
+          - "--structured-logs"
+          - "--port=5432"
+          - "PROJECT_ID:us-central1:summit-postgres"
+        securityContext:
+          runAsNonRoot: true
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "10m"
+          limits:
+            memory: "64Mi"
+            cpu: "50m"
+      volumes:
+      - name: workspace
+        persistentVolumeClaim:
+          claimName: engineering-workspace
+      - name: app-code
+        configMap:
+          name: summit-agent-code
+      - name: git-scripts
+        configMap:
+          name: git-cleanup-scripts
+          defaultMode: 0755
+---
+# Persistent volume for Engineering agent workspace
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: engineering-workspace
+  namespace: summit
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+# Git cleanup scripts for engineering agent
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: git-cleanup-scripts
+  namespace: summit
+data:
+  cleanup-git.sh: |
+    #!/bin/bash
+    set -e
+    
+    echo " Starting git cleanup for task: ${TASK_ID}"
+    cd /workspace
+    
+    # Step 1: Reset any local changes
+    echo "  Resetting local changes..."
+    git reset --hard HEAD
+    
+    # Step 2: Clean untracked files
+    echo "  Cleaning untracked files..."
+    git clean -fd
+    
+    # Step 3: Return to main branch
+    echo "  Switching to main branch..."
+    git checkout main 2>/dev/null || git checkout master
+    
+    # Step 4: Get latest changes (fast)
+    echo "  Pulling latest changes..."
+    git pull origin main --depth 1 2>/dev/null || git pull origin master --depth 1
+    
+    # Step 5: Create fresh feature branch
+    if [ -n "${TASK_ID}" ]; then
+        BRANCH_NAME="feature/task-${TASK_ID}"
+        echo "  Creating feature branch: ${BRANCH_NAME}"
+        git checkout -b "${BRANCH_NAME}"
+    fi
+    
+    echo " Git cleanup complete - ready for task ${TASK_ID}"
+    
+  reset-agent.sh: |
+    #!/bin/bash
+    set -e
+    
+    echo " Full agent reset..."
+    
+    # Git cleanup
+    /scripts/cleanup-git.sh
+    
+    # Clean temp directories
+    echo "  Cleaning temp directories..."
+    rm -rf /tmp/agent-* || true
+    rm -rf /workspace/.cache/* || true
+    rm -rf /workspace/temp/* || true
+    
+    # Reset environment
+    echo "  Resetting environment..."
+    unset TASK_ID CURRENT_BRANCH || true
+    
+    echo " Agent reset complete"
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: engineering-agent-hpa
+  namespace: summit
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: engineering-agent
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+  - type: External
+    external:
+      metric:
+        name: pubsub.googleapis.com|subscription|num_undelivered_messages
+        selector:
+          matchLabels:
+            resource.labels.subscription_id: "engineering-tasks"
+      target:
+        type: AverageValue
+        averageValue: "2"
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60 

@@ -2,6 +2,17 @@
 
 This directory contains all infrastructure-as-code for deploying Summit and its components.
 
+## TODOs and Future Improvements
+
+### Task Distribution Architecture
+Current: Cloud Tasks with HTTP webhooks to agents
+Future: Consider migration to system with better backpressure handling:
+- Pub/Sub with pull subscriptions (agents pull messages)
+- Database polling with atomic claiming and load awareness
+- Custom queue system with agent capacity monitoring
+
+Current setup works but has limitations around backpressure when agents are overwhelmed.
+
 ## Architecture Overview
 
 ```
