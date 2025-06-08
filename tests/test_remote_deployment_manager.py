@@ -32,7 +32,8 @@ class TestRemoteDeploymentManager:
         """Test RemoteDeploymentManager initialization"""
         manager = RemoteDeploymentManager()
         assert manager.deployments == {}
-        assert "render" in manager.supported_platforms
+        # Render support has been removed from CI/CD pipeline
+        assert "render" not in manager.supported_platforms
 
     @pytest.mark.asyncio
     async def test_deploy_to_render_success(self):
@@ -132,21 +133,16 @@ class TestRemoteDeploymentManager:
 
     @pytest.mark.asyncio
     async def test_deploy_claude_code_instance_render(self):
-        """Test deploying Claude Code instance to Render"""
+        """Test deploying Claude Code instance to Render (should fail - render removed)"""
         manager = RemoteDeploymentManager()
 
-        with patch.object(manager, "deploy_to_render") as mock_deploy:
-            mock_deploy.return_value = {
-                "success": True,
-                "deployment_id": "test-id",
-            }
-
-            result = await manager.deploy_claude_code_instance(
+        # Render is no longer supported, so this should raise an error
+        with pytest.raises(
+            DeploymentError, match="Unsupported platform: render"
+        ):
+            await manager.deploy_claude_code_instance(
                 "render", "Test task", "https://github.com/test/repo"
             )
-
-            assert result["success"] is True
-            mock_deploy.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_deploy_claude_code_instance_unsupported_platform(self):

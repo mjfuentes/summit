@@ -24,7 +24,7 @@ class RemoteDeploymentManager:
 
     def __init__(self):
         self.deployments = {}
-        self.supported_platforms = ["render"]
+        self.supported_platforms = []  # Render support removed
 
     async def deploy_to_render(
         self,

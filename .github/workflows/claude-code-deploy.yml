@@ -220,96 +220,19 @@ jobs:
           exit 1
         fi
 
-  deploy:
-    name: Deploy to Render
-    runs-on: ubuntu-latest
-    needs: [build, test]
-    if: github.ref == 'refs/heads/main'
-    
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      
-    - name: Deploy to Render
-      env:
-        RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-        RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
-        IMAGE_URL: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-      run: |
-        echo " Deploying OpenCode to Render..."
-        
-        # Prepare deployment script
-        cat > deploy_to_render.py << 'EOF'
-        import os
-        import requests
-        import json
-        import time
-        
-        api_key = os.environ.get('RENDER_API_KEY')
-        service_id = os.environ.get('RENDER_SERVICE_ID') 
-        image_url = os.environ.get('IMAGE_URL')
-        
-        if not all([api_key, service_id, image_url]):
-            print("Missing required environment variables")
-            exit(1)
-            
-        headers = {
-            'Authorization': f'Bearer {api_key}',
-            'Content-Type': 'application/json'
-        }
-        
-        # Update service with new image
-        update_data = {
-            'service': {
-                'image': {
-                    'imageUrl': image_url
-                }
-            }
-        }
-        
-        response = requests.patch(
-            f'https://api.render.com/v1/services/{service_id}',
-            headers=headers,
-            json=update_data
-        )
-        
-        if response.status_code == 200:
-            print(f" Deployment initiated successfully")
-            print(f"Image: {image_url}")
-        else:
-            print(f" Deployment failed: {response.status_code}")
-            print(response.text)
-            exit(1)
-        EOF
-        
-        python deploy_to_render.py
-        
-    - name: Health check
-      run: |
-        echo " Running post-deployment health check..."
-        # Add health check logic here once service is deployed
-        echo " Health check placeholder - add actual endpoint check"
-        
-    - name: Cleanup build context
-      run: |
-        cd web
-        # Clean up copied files
-        rm -f requirements.txt
-        chmod +x opencode_task.sh
-        echo " Cleaned up build context"
-
   cleanup:
     name: Cleanup
     runs-on: ubuntu-latest
-    needs: [deploy]
+    needs: [build, test]
     if: always()
     
     steps:
     - name: Summary
       run: |
-        echo " OpenCode Deployment Summary"
+        echo " OpenCode Build Summary"
         echo "=================================="
-        echo "Status: ${{ needs.deploy.result }}"
+        echo "Build Status: ${{ needs.build.result }}"
+        echo "Test Status: ${{ needs.test.result }}"
         echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-        echo "Deployment: ${{ github.sha }}"
+        echo "Commit: ${{ github.sha }}"
         echo "Timestamp: $(date)" 

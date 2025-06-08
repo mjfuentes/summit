@@ -171,64 +171,11 @@ def check_github_workflows():
     return all_good
 
 
-async def check_render_deployments():
-    """Check Render.com deployments"""
+def check_render_deployments():
+    """Render.com support removed from CI/CD pipeline"""
     print_section("Render.com Deployment Status")
-
-    render_api_key = os.getenv("RENDER_API_KEY")
-    if not render_api_key:
-        print_error("RENDER_API_KEY not set - cannot check Render deployments")
-        return False
-
-    try:
-        # Import the remote deployment manager
-        sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
-        from remote_deployment_manager import RemoteDeploymentManager
-
-        manager = RemoteDeploymentManager()
-        deployments = await manager.list_deployments()
-
-        if not deployments:
-            print_warning("No Render deployments found")
-            return True
-
-        all_good = True
-        for deployment in deployments:
-            name = deployment.get("service_name", "unknown")
-            status = deployment.get("status", "unknown")
-            url = deployment.get("service_url", "N/A")
-
-            print(f"\nService: {name}")
-
-            if status in ["live", "deployed", "running"]:
-                print_success(f"Status: {status}")
-            else:
-                print_error(f"Status: {status}")
-                all_good = False
-
-            if url != "N/A":
-                print(f"  URL: {url}")
-
-                # Test health endpoint
-                try:
-                    response = requests.get(f"{url}/health", timeout=10)
-                    if response.status_code == 200:
-                        print_success("Health check passed")
-                    else:
-                        print_warning(
-                            f"Health check failed: {response.status_code}"
-                        )
-                except requests.RequestException as e:
-                    print_warning(f"Health check failed: {e}")
-
-        return all_good
-
-    except ImportError as e:
-        print_error(f"Could not import deployment manager: {e}")
-        return False
-    except Exception as e:
-        print_error(f"Error checking Render deployments: {e}")
-        return False
+    print_warning("Render.com support has been removed from CI/CD pipeline")
+    return True
 
 
 async def check_runpod_deployments():
@@ -419,7 +366,6 @@ def check_deployment_health():
     # List of health endpoints to check
     health_endpoints = [
         "http://localhost:8000/health",  # Local development
-        "https://summit.onrender.com/health",  # Render deployment
     ]
 
     all_good = True
@@ -525,7 +471,6 @@ Examples:
   %(prog)s                          # Run all validation checks
   
 Environment Variables:
-  RENDER_API_KEY                    # Required for Render deployment checks
   RUNPOD_API_KEY                    # Required for RunPod deployment checks
   ANTHROPIC_API_KEY                 # Required for service health checks
         """,

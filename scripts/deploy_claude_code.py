@@ -269,7 +269,7 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  %(prog)s deploy                    # Deploy to Render.com with monitoring
+  %(prog)s deploy                    # Deploy to RunPod with monitoring
   %(prog)s deploy --no-monitor       # Deploy without monitoring
   %(prog)s status                    # Show deployment status
   %(prog)s validate                  # Validate environment setup
@@ -285,9 +285,9 @@ Examples:
     deploy_parser = subparsers.add_parser("deploy", help="Deploy Claude Code")
     deploy_parser.add_argument(
         "--platform",
-        choices=["render", "runpod"],
-        default="render",
-        help="Deployment platform (default: render)",
+        choices=["runpod"],
+        default="runpod",
+        help="Deployment platform (default: runpod)",
     )
     deploy_parser.add_argument(
         "--no-monitor",
