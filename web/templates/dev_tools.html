@@ -3,112 +3,237 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Summit AI - Developer Tools</title>
+    <title>Summit AI - Developer Dashboard</title>
     <link rel="stylesheet" href="/static/css/dev_tools.css">
+    <!-- Chart.js for graphics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
-    <a href="/" class="back-link">← Back to Chat</a>
-    
+    <div class="top-bar">
+        <a href="/" class="back-link">
+            <i class="fas fa-arrow-left"></i> Back to Chat
+        </a>
+        <div class="auto-refresh">
+            <label class="switch">
+                <input type="checkbox" id="autoRefresh" checked>
+                <span class="slider"></span>
+            </label>
+            <span>Auto-refresh (30s)</span>
+        </div>
+    </div>
+
     <div class="header">
-        <div class="logo">Summit AI - Developer Tools</div>
-        <nav class="nav-links">
-            <a href="#" class="nav-link active">Dashboard</a>
-            <a href="#" class="nav-link">Tasks</a>
-            <a href="#" class="nav-link">Monitoring</a>
-            <a href="#" class="nav-link">Settings</a>
-        </nav>
+        <div class="logo">
+            <i class="fas fa-robot"></i>
+            Summit AI - Developer Dashboard
+        </div>
+        <div class="status-badges">
+            <div class="badge" id="systemStatus">
+                <i class="fas fa-circle"></i>
+                <span>System Status</span>
+            </div>
+            <div class="badge" id="lastUpdate">
+                <i class="fas fa-clock"></i>
+                <span>Last Updated: --</span>
+            </div>
+        </div>
     </div>
-    
+
     <div class="container">
-        <div class="dashboard-grid">
-            <div class="card">
-                <div class="card-title">System Status</div>
-                <div class="metric">
-                    <span class="metric-label">
-                        <span class="status-indicator status-operational"></span>
-                        Summit Agent
-                    </span>
-                    <span class="metric-value">Operational</span>
+        <!-- System Overview Cards -->
+        <div class="overview-grid">
+            <div class="card overview-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-tachometer-alt"></i> System Health</h3>
                 </div>
-                <div class="metric">
-                    <span class="metric-label">
-                        <span class="status-indicator status-operational"></span>
-                        Cloud Tasks
-                    </span>
-                    <span class="metric-value">Connected</span>
-                </div>
-                <div class="metric">
-                    <span class="metric-label">
-                        <span class="status-indicator status-operational"></span>
-                        Database
-                    </span>
-                    <span class="metric-value">Online</span>
-                </div>
-                <div class="metric">
-                    <span class="metric-label">Test Coverage</span>
-                    <span class="metric-value">61.9%</span>
+                <div class="health-metrics" id="healthMetrics">
+                    <div class="health-item">
+                        <div class="health-icon"><i class="fas fa-database"></i></div>
+                        <div class="health-info">
+                            <span class="health-label">Database</span>
+                            <span class="health-status" id="dbStatus">--</span>
+                        </div>
+                    </div>
+                    <div class="health-item">
+                        <div class="health-icon"><i class="fas fa-users"></i></div>
+                        <div class="health-info">
+                            <span class="health-label">Agents</span>
+                            <span class="health-status" id="agentsStatus">--</span>
+                        </div>
+                    </div>
+                    <div class="health-item">
+                        <div class="health-icon"><i class="fas fa-tasks"></i></div>
+                        <div class="health-info">
+                            <span class="health-label">Task Queue</span>
+                            <span class="health-status" id="queueStatus">--</span>
+                        </div>
+                    </div>
                 </div>
             </div>
-            
-            <div class="card">
-                <div class="card-title">Task Statistics</div>
-                <div class="metric">
-                    <span class="metric-label">Active Tasks</span>
-                    <span class="metric-value">0</span>
+
+            <div class="card overview-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-chart-line"></i> Task Statistics</h3>
                 </div>
-                <div class="metric">
-                    <span class="metric-label">Queued Tasks</span>
-                    <span class="metric-value">0</span>
-                </div>
-                <div class="metric">
-                    <span class="metric-label">Completed Today</span>
-                    <span class="metric-value">3</span>
-                </div>
-                <div class="metric">
-                    <span class="metric-label">Success Rate</span>
-                    <span class="metric-value">94.2%</span>
+                <div class="stats-grid" id="taskStats">
+                    <div class="stat-item">
+                        <div class="stat-number" id="totalTasks">--</div>
+                        <div class="stat-label">Total Tasks</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number" id="activeTasks">--</div>
+                        <div class="stat-label">Active</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number" id="completedTasks">--</div>
+                        <div class="stat-label">Completed</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number" id="successRate">--%</div>
+                        <div class="stat-label">Success Rate</div>
+                    </div>
                 </div>
             </div>
-            
+
             <div class="card">
-                <div class="card-title">Recent Activity</div>
-                <div class="task-list">
-                    <div class="task-item">
-                        <div class="task-info">
-                            <div class="task-title">Fixed GitHub Actions authentication</div>
-                            <div class="task-meta">2 hours ago</div>
+                <h3><i class="fas fa-users"></i> Agent Summary</h3>
+                <div id="agentSummary" class="agent-summary">
+                    <div class="agent-roles">
+                        <div class="role-item">
+                            <div class="role-icon product"><i class="fas fa-lightbulb"></i></div>
+                            <div class="role-info">
+                                <span class="role-name">Product</span>
+                                <span class="role-count" id="productAgents">0</span>
+                            </div>
                         </div>
-                        <span class="task-status status-completed">Completed</span>
+                        <div class="role-item">
+                            <div class="role-icon engineering"><i class="fas fa-code"></i></div>
+                            <div class="role-info">
+                                <span class="role-name">Engineering</span>
+                                <span class="role-count" id="engineeringAgents">0</span>
+                            </div>
+                        </div>
+                        <div class="role-item">
+                            <div class="role-icon quality"><i class="fas fa-check-circle"></i></div>
+                            <div class="role-info">
+                                <span class="role-name">Quality Control</span>
+                                <span class="role-count" id="qualityAgents">0</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="task-item">
-                        <div class="task-info">
-                            <div class="task-title">Updated coverage requirements</div>
-                            <div class="task-meta">3 hours ago</div>
-                        </div>
-                        <span class="task-status status-completed">Completed</span>
-                    </div>
-                    <div class="task-item">
-                        <div class="task-info">
-                            <div class="task-title">Implemented Cloud Tasks infrastructure</div>
-                            <div class="task-meta">1 day ago</div>
-                        </div>
-                        <span class="task-status status-completed">Completed</span>
+                    <div class="agent-status-summary">
+                        <span id="totalAgents">0</span> total agents, 
+                        <span id="activeAgents">0</span> active
                     </div>
                 </div>
             </div>
         </div>
-        
-        <div class="card">
-            <div class="card-title">Quick Actions</div>
-            <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
-                <button class="btn">Create New Task</button>
-                <button class="btn btn-secondary">View All Tasks</button>
-                <button class="btn btn-secondary">System Logs</button>
-                <button class="btn btn-secondary">Performance Metrics</button>
+
+        <!-- Charts Section -->
+        <div class="charts-grid">
+            <div class="card">
+                <h3><i class="fas fa-chart-line"></i> Task Timeline (7 days)</h3>
+                <div class="chart-container">
+                    <canvas id="taskTimelineChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3><i class="fas fa-pie-chart"></i> Task Status Distribution</h3>
+                <div class="chart-container">
+                    <canvas id="taskStatusChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Information Sections -->
+        <div class="details-grid">
+            <!-- Agent Details -->
+            <div class="card details-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-users-cog"></i> Agent Details</h3>
+                    <button class="refresh-btn" onclick="refreshAgentData()">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+                <div class="table-container">
+                    <table class="data-table" id="agentTable">
+                        <thead>
+                            <tr>
+                                <th>Agent ID</th>
+                                <th>Role</th>
+                                <th>Status</th>
+                                <th>Tasks Completed</th>
+                                <th>Success Rate</th>
+                                <th>Uptime</th>
+                                <th>Last Heartbeat</th>
+                            </tr>
+                        </thead>
+                        <tbody id="agentTableBody">
+                            <!-- Agent data will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Activity Section -->
+            <div class="card">
+                <div class="activity-header">
+                    <h3><i class="fas fa-history"></i> Recent Activity</h3>
+                    <span class="activity-refresh">
+                        <button onclick="loadRecentActivity()" class="btn-icon" title="Refresh">
+                            <i class="fas fa-sync"></i>
+                        </button>
+                    </span>
+                </div>
+                <div id="activityFeed" class="activity-feed">
+                    <!-- Activity items will be dynamically loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card actions-card">
+            <div class="card-header">
+                <h3><i class="fas fa-bolt"></i> Quick Actions</h3>
+            </div>
+            <div class="actions-grid">
+                <button class="action-btn primary" onclick="createNewTask()">
+                    <i class="fas fa-plus"></i>
+                    Create New Task
+                </button>
+                <button class="action-btn secondary" onclick="viewAllTasks()">
+                    <i class="fas fa-list"></i>
+                    View All Tasks
+                </button>
+                <button class="action-btn secondary" onclick="viewSystemLogs()">
+                    <i class="fas fa-file-alt"></i>
+                    System Logs
+                </button>
+                <button class="action-btn secondary" onclick="exportData()">
+                    <i class="fas fa-download"></i>
+                    Export Data
+                </button>
+                <button class="action-btn warning" onclick="retriggerFailedTasks()">
+                    <i class="fas fa-redo"></i>
+                    Retrigger Failed Tasks
+                </button>
+                <button class="action-btn danger" onclick="cleanupOldTasks()">
+                    <i class="fas fa-trash"></i>
+                    Cleanup Old Tasks
+                </button>
             </div>
         </div>
     </div>
-    
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <span>Loading dashboard data...</span>
+    </div>
+
     <script src="/static/js/dev_tools.js"></script>
 </body>
 </html> 
