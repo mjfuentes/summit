@@ -22,6 +22,8 @@ spec:
       containers:
       - name: opencode
         image: ghcr.io/mjfuentes/summit/opencode:latest
+        command: ["/bin/bash"]
+        args: ["-c", "ttyd -p 8080 -W /workspace bash"]
         ports:
         - containerPort: 8080
         env:
@@ -50,14 +52,12 @@ spec:
             memory: "64Mi"
             cpu: "50m"
         livenessProbe:
-          httpGet:
-            path: /health
+          tcpSocket:
             port: 8080
           initialDelaySeconds: 30
           periodSeconds: 10
         readinessProbe:
-          httpGet:
-            path: /health
+          tcpSocket:
             port: 8080
           initialDelaySeconds: 5
           periodSeconds: 5
