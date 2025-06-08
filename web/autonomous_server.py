@@ -193,6 +193,10 @@ class TaskStatus(BaseModel):
     container_id: Optional[str] = None
 
 
+class ChatRequest(BaseModel):
+    message: str
+
+
 @app.on_event("startup")
 async def startup_event():
     """Initialize database on startup"""

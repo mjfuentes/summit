@@ -10,6 +10,13 @@ runpod>=1.7.0
 torch>=2.0.0
 torchvision>=0.15.0
 
+# Transformers and quantization for open source models
+transformers>=4.36.0
+accelerate>=0.25.0
+bitsandbytes>=0.41.0
+sentencepiece>=0.1.99
+protobuf>=3.20.0
+
 # Web requests for GitHub API
 requests>=2.31.0
 types-requests>=2.31.0
