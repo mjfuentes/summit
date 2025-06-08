@@ -160,8 +160,8 @@ jobs:
           -var="region=${{ env.CLUSTER_REGION }}" \
           -var="cluster_name=${{ env.CLUSTER_NAME }}"
 
-  deploy-opencode:
-    name: Deploy OpenCode
+  deploy-applications:
+    name: Deploy Applications
     runs-on: ubuntu-latest
     needs: terraform-apply
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -204,27 +204,42 @@ jobs:
       with:
         project_id: ${{ env.GCP_PROJECT_ID }}
 
+    - name: Configure Docker for GCR
+      run: |
+        gcloud auth configure-docker
+
+    - name: Build and Push Summit API Image
+      run: |
+        # Build Summit API image
+        docker build -f infrastructure/docker/Dockerfile.summit-api -t gcr.io/${{ env.GCP_PROJECT_ID }}/summit-api:latest .
+        docker push gcr.io/${{ env.GCP_PROJECT_ID }}/summit-api:latest
+
     - name: Get GKE credentials
       run: |
         gcloud container clusters get-credentials ${{ env.CLUSTER_NAME }} \
           --region ${{ env.CLUSTER_REGION }} \
           --project ${{ env.GCP_PROJECT_ID }}
 
-    - name: Deploy OpenCode to Kubernetes
+    - name: Deploy Applications to Kubernetes
       env:
         RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
         HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       run: |
         # Create namespace if it doesn't exist
         kubectl apply -f infrastructure/kubernetes/shared/namespace.yaml
         
+        # Deploy shared resources
+        kubectl apply -f infrastructure/kubernetes/shared/service-account.yaml
+        
         # Update secrets with actual values (only if secrets are available)
-        if [ -n "${RUNPOD_API_KEY}" ] || [ -n "${HUGGINGFACE_TOKEN}" ] || [ -n "${GITHUB_TOKEN}" ]; then
+        if [ -n "${RUNPOD_API_KEY}" ] || [ -n "${HUGGINGFACE_TOKEN}" ] || [ -n "${GITHUB_TOKEN}" ] || [ -n "${ANTHROPIC_API_KEY}" ]; then
           kubectl create secret generic summit-secrets \
             --from-literal=runpod-api-key="${RUNPOD_API_KEY:-placeholder}" \
             --from-literal=huggingface-token="${HUGGINGFACE_TOKEN:-placeholder}" \
             --from-literal=github-token="${GITHUB_TOKEN:-placeholder}" \
+            --from-literal=anthropic-api-key="${ANTHROPIC_API_KEY:-placeholder}" \
             --namespace=summit \
             --dry-run=client -o yaml | kubectl apply -f -
         else
@@ -233,22 +248,31 @@ jobs:
             --from-literal=runpod-api-key="placeholder" \
             --from-literal=huggingface-token="placeholder" \
             --from-literal=github-token="placeholder" \
+            --from-literal=anthropic-api-key="placeholder" \
             --namespace=summit \
             --dry-run=client -o yaml | kubectl apply -f -
         fi
         
-        # Deploy OpenCode
+        # Deploy OpenCode agents
         kubectl apply -f infrastructure/kubernetes/opencode/deployment.yaml
         
-        # Wait for deployment
-        kubectl wait --for=condition=available --timeout=300s deployment/opencode-agent -n summit || echo "Deployment timeout - checking status"
+        # Deploy Summit API
+        kubectl apply -f infrastructure/kubernetes/summit-app/deployment.yaml
+        
+        # Wait for deployments
+        kubectl wait --for=condition=available --timeout=300s deployment/opencode-agent -n summit || echo "OpenCode deployment timeout - checking status"
+        kubectl wait --for=condition=available --timeout=300s deployment/summit-app -n summit || echo "Summit API deployment timeout - checking status"
 
     - name: Verify Deployment
       run: |
         echo "Checking deployment status..."
-        kubectl get pods -n summit -l app=opencode-agent
+        kubectl get pods -n summit
         kubectl get services -n summit
+        kubectl get deployments -n summit
+        echo "OpenCode agent status:"
         kubectl describe deployment/opencode-agent -n summit
+        echo "Summit API status:"
+        kubectl describe deployment/summit-app -n summit
 
   manual-deploy:
     name: Manual Deploy
@@ -298,6 +322,16 @@ jobs:
       with:
         project_id: ${{ env.GCP_PROJECT_ID }}
 
+    - name: Configure Docker for GCR
+      run: |
+        gcloud auth configure-docker
+
+    - name: Build and Push Summit API Image
+      run: |
+        # Build Summit API image
+        docker build -f infrastructure/docker/Dockerfile.summit-api -t gcr.io/${{ env.GCP_PROJECT_ID }}/summit-api:latest .
+        docker push gcr.io/${{ env.GCP_PROJECT_ID }}/summit-api:latest
+
     - name: Manual Terraform Apply
       working-directory: infrastructure/terraform
       run: |
@@ -307,11 +341,12 @@ jobs:
           -var="region=${{ env.CLUSTER_REGION }}" \
           -var="cluster_name=${{ env.CLUSTER_NAME }}"
 
-    - name: Manual Deploy OpenCode
+    - name: Manual Deploy Applications
       env:
         RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
         HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       run: |
         # Get GKE credentials
         gcloud container clusters get-credentials ${{ env.CLUSTER_NAME }} \
@@ -321,20 +356,29 @@ jobs:
         # Create namespace if it doesn't exist
         kubectl apply -f infrastructure/kubernetes/shared/namespace.yaml
         
+        # Deploy shared resources
+        kubectl apply -f infrastructure/kubernetes/shared/service-account.yaml
+        
         # Update secrets with actual values
         kubectl create secret generic summit-secrets \
           --from-literal=runpod-api-key="${RUNPOD_API_KEY:-placeholder}" \
           --from-literal=huggingface-token="${HUGGINGFACE_TOKEN:-placeholder}" \
           --from-literal=github-token="${GITHUB_TOKEN:-placeholder}" \
+          --from-literal=anthropic-api-key="${ANTHROPIC_API_KEY:-placeholder}" \
           --namespace=summit \
           --dry-run=client -o yaml | kubectl apply -f -
         
-        # Deploy OpenCode
+        # Deploy OpenCode agents
         kubectl apply -f infrastructure/kubernetes/opencode/deployment.yaml
         
-        # Wait for deployment
-        kubectl wait --for=condition=available --timeout=300s deployment/opencode-agent -n summit || echo "Deployment timeout - checking status"
+        # Deploy Summit API
+        kubectl apply -f infrastructure/kubernetes/summit-app/deployment.yaml
+        
+        # Wait for deployments
+        kubectl wait --for=condition=available --timeout=300s deployment/opencode-agent -n summit || echo "OpenCode deployment timeout - checking status"
+        kubectl wait --for=condition=available --timeout=300s deployment/summit-app -n summit || echo "Summit API deployment timeout - checking status"
         
         # Verify deployment
-        kubectl get pods -n summit -l app=opencode-agent
-        kubectl get services -n summit 
+        kubectl get pods -n summit
+        kubectl get services -n summit
+        kubectl get deployments -n summit 
