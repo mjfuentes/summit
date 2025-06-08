@@ -42,11 +42,11 @@ print(f"[DEBUG] Script location: {current_dir}")
 
 # Import core modules with error handling
 try:
-    from database import close_database, get_database, init_database
+    from unified_database import close_database, get_database, init_database
 
-    print("[DEBUG] Successfully imported database module")
+    print("[DEBUG] Successfully imported unified database module")
 except ImportError as e:
-    print(f"[ERROR] Failed to import database module: {e}")
+    print(f"[ERROR] Failed to import unified database module: {e}")
     print(f"[DEBUG] Python path: {sys.path}")
     raise
 
@@ -1745,7 +1745,7 @@ async def retrigger_all_failed_tasks():
     """
     from sqlalchemy import delete, select
 
-    from database import Task  # Import Task model for the query
+    from unified_database import Task  # Import Task model for the query
 
     db = await get_database()
 
@@ -1898,7 +1898,7 @@ async def get_failed_tasks():
     db = await get_database()
 
     try:
-        from database import Task
+        from unified_database import Task
 
         async with db.get_session() as session:
             from sqlalchemy import select
@@ -1949,7 +1949,7 @@ async def cleanup_old_tasks(days_old: int = 7):
 
         from sqlalchemy import delete, select
 
-        from database import Task
+        from unified_database import Task
 
         # Get count of tasks to be deleted before deletion
         cutoff_date = datetime.utcnow() - timedelta(days=days_old)

@@ -5,11 +5,12 @@ import sys
 
 import pytest
 from fastapi.testclient import TestClient
-from standalone_server import app
 
 # Add web directory to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "web"))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+
+from standalone_server import app
 
 # Import the app but don't create TestClient at module level
 

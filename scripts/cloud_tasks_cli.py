@@ -14,7 +14,8 @@ import click
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from cloud_task_manager import CloudTaskManager, TaskPriority
+from src.database_models import TaskPriority, init_database_manager
+from src.unified_database import UnifiedDatabaseManager
 
 
 @click.group()
@@ -27,9 +28,9 @@ from cloud_task_manager import CloudTaskManager, TaskPriority
 def cli(ctx, project_id, location, queue_name):
     """Summit Cloud Tasks CLI"""
     ctx.ensure_object(dict)
-    ctx.obj["task_manager"] = CloudTaskManager(
-        project_id=project_id, location=location, queue_name=queue_name
-    )
+    # Note: Cloud Tasks functionality moved to unified database system
+    # This CLI needs to be updated for the new architecture
+    ctx.obj["task_manager"] = None
 
 
 @cli.command()
