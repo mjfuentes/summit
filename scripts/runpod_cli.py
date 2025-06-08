@@ -6,6 +6,10 @@ Comprehensive command-line interface for managing RunPod endpoints,
 testing connections, monitoring performance, and integrating with OpenCode.
 """
 
+from src.runpod_opencode_client import (
+    create_runpod_client,
+    test_runpod_connection,
+)
 import argparse
 import asyncio
 import json
@@ -15,11 +19,6 @@ from pathlib import Path
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from src.runpod_opencode_client import (
-    create_runpod_client,
-    test_runpod_connection,
-)
 
 
 class RunPodCLI:

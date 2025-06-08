@@ -185,7 +185,7 @@ Summit's Advice: """
         elif self.model_info["model_type"] == "code_llama":
             # Code Llama format optimized for code tasks
             if context:
-                prompt = f"""[INST] You are Summit, an AI coding assistant. 
+                prompt = f"""[INST] You are Summit, an AI coding assistant.
 
 Context: {context}
 
@@ -195,7 +195,7 @@ Provide practical coding advice and solutions. [/INST]
 
 Summit's Advice: """
             else:
-                prompt = f"""[INST] You are Summit, an AI coding assistant. 
+                prompt = f"""[INST] You are Summit, an AI coding assistant.
 
 Task: {question}
 
@@ -289,7 +289,7 @@ Summit's Advice: """
         """Analyze code quality and suggest improvements"""
         analysis_prompt = f"""Analyze this {language} code and provide:
 1. Code quality assessment
-2. Potential bugs or issues  
+2. Potential bugs or issues
 3. Performance improvements
 4. Best practices recommendations
 

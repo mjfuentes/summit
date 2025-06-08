@@ -51,9 +51,11 @@ def setup_branch_protection(
                 "Security Scan",  # From ci.yml - security job
             ],
         },
-        "enforce_admins": False,  # Allow admins to bypass (for emergency fixes)
+        # Allow admins to bypass (for emergency fixes)
+        "enforce_admins": False,
         "required_pull_request_reviews": {
-            "required_approving_review_count": 0,  # No human reviews required (AI handles this)
+            # No human reviews required (AI handles this)
+            "required_approving_review_count": 0,
             "dismiss_stale_reviews": True,
             "require_code_owner_reviews": False,
             "require_last_push_approval": False,

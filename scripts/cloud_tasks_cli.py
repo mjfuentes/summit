@@ -2,6 +2,7 @@
 """
 Cloud Tasks CLI - Command line interface for Summit Cloud Tasks management
 """
+from cloud_task_manager import CloudTaskManager, TaskPriority
 import asyncio
 import json
 import os
@@ -13,8 +14,6 @@ import click
 
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
-from cloud_task_manager import CloudTaskManager, TaskPriority
 
 
 @click.group()

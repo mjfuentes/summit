@@ -692,7 +692,8 @@ if __name__ == "__main__":
                 if is_critical:
                     critical_errors.append(log_entry)
 
-            # This test should FAIL because we expect to find missing resource errors
+            # This test should FAIL because we expect to find missing resource
+            # errors
             assert len(critical_errors) > 0, (
                 f"Expected to find critical errors for missing resources, but found none. "
                 f"All logs: {[f'{log['level']}: {log['message']}' for log in logs]}"

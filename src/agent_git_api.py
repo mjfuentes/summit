@@ -103,7 +103,8 @@ class AgentGitAPI:
             if not self.update_from_remote():
                 print(" Warning: Could not update main branch")
 
-            # Create feature branch name from PR title with timestamp for uniqueness
+            # Create feature branch name from PR title with timestamp for
+            # uniqueness
             import re
             import time
 

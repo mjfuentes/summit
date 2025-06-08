@@ -214,7 +214,8 @@ class GitHubCICDManager:
                 repo_url, branch, limit=20
             )
 
-            # Filter runs that match the PR's head SHA or are pull_request events
+            # Filter runs that match the PR's head SHA or are pull_request
+            # events
             pr_runs = []
             for run in workflow_runs:
                 if (

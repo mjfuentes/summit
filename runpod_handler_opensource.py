@@ -7,6 +7,8 @@ serverless infrastructure using open source models like Llama 3.1, Code Llama,
 and Mistral for cost-effective AI operations.
 """
 
+from open_source_models import RunPodOpenSourceHandler
+from cost_tracker import CostTracker
 import asyncio
 import json
 import logging
@@ -24,8 +26,6 @@ from fastapi.middleware.cors import CORSMiddleware
 # Add src to path
 sys.path.insert(0, "/workspace/src")
 
-from cost_tracker import CostTracker
-from open_source_models import RunPodOpenSourceHandler
 
 # Configure logging
 logging.basicConfig(

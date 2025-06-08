@@ -3,14 +3,13 @@
 Create PR for frontend validation infrastructure with Render.com previews
 """
 
+from agent_git_api import create_pr
 import os
 import sys
 from datetime import datetime
 
 # Add src to path
 sys.path.insert(0, "src")
-
-from agent_git_api import create_pr
 
 
 def main():
@@ -19,7 +18,7 @@ def main():
     # Create a comprehensive PR description
     pr_description = """# Frontend Validation Infrastructure with Render.com Previews
 
-**Branch:** main → feature/frontend-validation  
+**Branch:** main → feature/frontend-validation
 **Created:** {timestamp}
 
 ## Summary

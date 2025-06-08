@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 
+from remote_deployment_manager import (
+    DeploymentError,
+    RemoteDeploymentManager,
+)
 import os
 import sys
 from unittest.mock import AsyncMock, Mock, patch
@@ -11,11 +15,6 @@ repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 src_path = os.path.join(repo_root, "src")
 if src_path not in sys.path:
     sys.path.insert(0, src_path)
-
-from remote_deployment_manager import (
-    DeploymentError,
-    RemoteDeploymentManager,
-)
 
 
 class TestDeploymentError:
@@ -217,7 +216,8 @@ class TestMainCLI:
 
                 from remote_deployment_manager import main
 
-                # Test would run main() but we'll just verify the manager is created
+                # Test would run main() but we'll just verify the manager is
+                # created
                 assert mock_manager_class is not None
 
 
@@ -414,7 +414,8 @@ class TestDeploymentStatusAndManagement:
             manager, "get_deployment_status", side_effect=status_responses
         ):
             with patch("asyncio.sleep"):
-                # This would normally run indefinitely, but our mock will complete
+                # This would normally run indefinitely, but our mock will
+                # complete
                 await manager.monitor_deployment("test-id", check_interval=1)
 
     @pytest.mark.asyncio

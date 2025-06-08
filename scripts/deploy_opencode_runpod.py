@@ -6,6 +6,9 @@ This script sets up OpenCode with Llama 3.1 or other open source models
 on RunPod infrastructure as an alternative to Claude Code.
 """
 
+from runpod_integration import RunPodConfig, RunPodDeploymentManager
+from opencode_integration import OpenCodeConfig, SummitOpenCodeIntegration
+from open_source_models import OpenSourceModelManager
 import asyncio
 import json
 import os
@@ -14,10 +17,6 @@ from pathlib import Path
 
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
-from open_source_models import OpenSourceModelManager
-from opencode_integration import OpenCodeConfig, SummitOpenCodeIntegration
-from runpod_integration import RunPodConfig, RunPodDeploymentManager
 
 
 async def main():
@@ -184,7 +183,7 @@ async def start_model_server():
     manager = OpenSourceModelManager('{selected['model']}')
     await manager.load_model()
     print('Model server ready')
-    
+
     # Keep running
     while True:
         await asyncio.sleep(60)

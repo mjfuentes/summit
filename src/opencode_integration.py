@@ -184,7 +184,7 @@ class OpenCodeManager:
 **Working Directory:** {self.config.working_directory}
 
 ## Context
-You are working as part of Summit AI's autonomous development system. 
+You are working as part of Summit AI's autonomous development system.
 Your goal is to complete the specified task efficiently and professionally.
 
 ## Available Tools

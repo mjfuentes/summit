@@ -3,6 +3,7 @@
 Create PR for remote Claude Code deployment infrastructure
 """
 
+from agent_git_api import create_pr
 import os
 import subprocess
 import sys
@@ -10,8 +11,6 @@ from datetime import datetime
 
 # Add src to path
 sys.path.insert(0, "src")
-
-from agent_git_api import create_pr
 
 
 def main():
@@ -25,7 +24,7 @@ def main():
         commit_sha = subprocess.check_output(
             ["git", "rev-parse", "HEAD"], text=True
         ).strip()
-    except:
+    except BaseException:
         current_branch = "main"
         commit_sha = "unknown"
 
@@ -35,8 +34,8 @@ def main():
         """
 # {title}
 
-**Branch:** {branch}  
-**Commit:** {commit_sha}  
+**Branch:** {branch}
+**Commit:** {commit_sha}
 **Created:** {timestamp}
 
 ## Summary
@@ -70,7 +69,7 @@ def main():
         ),
         changes="""- Fixed datetime import error in autonomous_server.py that was causing task completion failures
 - Created automated GitHub Actions workflow for building and publishing Claude Code containers
-- Built remote deployment manager with support for Render.com and RunPod platforms  
+- Built remote deployment manager with support for Render.com and RunPod platforms
 - Developed comprehensive deployment guide with step-by-step setup instructions
 - Created CLI deployment tool for managing remote Claude Code deployments
 - Implemented container image publishing to GitHub Container Registry
@@ -80,7 +79,7 @@ def main():
         files_modified="""- `web/autonomous_server.py` - Fixed datetime import error in task completion
 - `.github/workflows/claude-code-deploy.yml` - New automated deployment workflow
 - `src/remote_deployment_manager.py` - Remote deployment management system
-- `RENDER_DEPLOYMENT_GUIDE.md` - Comprehensive deployment documentation  
+- `RENDER_DEPLOYMENT_GUIDE.md` - Comprehensive deployment documentation
 - `scripts/deploy_claude_code.py` - CLI tool for deployment management""",
         quality_assurance=(
             "All changes tested locally. Container build process validated. Deployment workflow "

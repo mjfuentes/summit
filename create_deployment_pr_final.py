@@ -3,14 +3,13 @@
 Create PR for remote Claude Code deployment infrastructure
 """
 
+from agent_git_api import create_pr
 import os
 import sys
 from datetime import datetime
 
 # Add src to path
 sys.path.insert(0, "src")
-
-from agent_git_api import create_pr
 
 
 def main():
@@ -19,8 +18,8 @@ def main():
     # Create a comprehensive PR description
     pr_description = """# Remote Claude Code Deployment Infrastructure
 
-**Branch:** main → feature/remote-deployment  
-**Commit:** 82bdeadf  
+**Branch:** main → feature/remote-deployment
+**Commit:** 82bdeadf
 **Created:** {timestamp}
 
 ## Summary
