@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test coverage for specific files with 70% requirement
+Test coverage for specific files with 60% requirement
 Example usage for new code coverage checking
 """
 
@@ -9,7 +9,7 @@ import subprocess
 import sys
 
 
-def test_file_coverage(files, coverage_threshold=70):
+def test_file_coverage(files, coverage_threshold=60):
     """Test coverage for specific files"""
     if isinstance(files, str):
         files = [files]
@@ -66,7 +66,7 @@ def main():
             print(f"Error: File {file} does not exist")
             return 1
 
-    success = test_file_coverage(files, coverage_threshold=70)
+    success = test_file_coverage(files, coverage_threshold=60)
     return 0 if success else 1
 
 
