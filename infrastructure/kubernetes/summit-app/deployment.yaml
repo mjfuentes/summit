@@ -18,7 +18,23 @@ spec:
     spec:
       imagePullSecrets:
       - name: ghcr-login-secret
+      serviceAccountName: summit-ksa
       containers:
+      - name: cloud-sql-proxy
+        image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.8.0
+        args:
+          - "--structured-logs"
+          - "--port=5432"
+          - "PROJECT_ID:us-central1:summit-postgres"
+        securityContext:
+          runAsNonRoot: true
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "10m"
+          limits:
+            memory: "64Mi"
+            cpu: "50m"
       - name: summit
         image: ghcr.io/mjfuentes/summit:latest
         ports:
@@ -27,7 +43,7 @@ spec:
         - name: ENVIRONMENT
           value: "production"
         - name: DATABASE_URL
-          value: "sqlite:///app/summit.db"
+          value: "postgresql+asyncpg://summit:summit123@localhost:5432/summit"
         - name: OPENCODE_ENDPOINT
           value: "http://opencode-service.summit.svc.cluster.local"
         - name: RUNPOD_API_KEY

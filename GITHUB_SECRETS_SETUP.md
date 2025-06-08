@@ -96,7 +96,7 @@ base64 -w 0 github-actions-key.json         # Linux
 ### With Proper Secrets
 - Full infrastructure deployment will proceed
 - Kubernetes cluster will be created/updated
-- Cloud Tasks and Firestore will be provisioned
+- Cloud Tasks and PostgreSQL database will be provisioned
 - OpenCode agents will be deployed
 
 ## Troubleshooting

@@ -36,12 +36,12 @@ def cli(ctx, project_id, location, queue_name):
 @cli.command()
 @click.pass_context
 async def init(ctx):
-    """Initialize Cloud Tasks queue and Firestore"""
+    """Initialize Cloud Tasks queue"""
     task_manager = ctx.obj["task_manager"]
 
     try:
         await task_manager.initialize()
-        click.echo(" Cloud Tasks queue and Firestore initialized successfully")
+        click.echo(" Cloud Tasks queue initialized successfully")
     except Exception as e:
         click.echo(f" Initialization failed: {e}", err=True)
         sys.exit(1)

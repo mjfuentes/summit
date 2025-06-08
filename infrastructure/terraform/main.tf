@@ -45,7 +45,7 @@ resource "google_project_service" "apis" {
     "monitoring.googleapis.com",
     "logging.googleapis.com",
     "cloudtasks.googleapis.com",
-    "firestore.googleapis.com"
+    "sqladmin.googleapis.com"
   ])
   
   project = var.project_id
@@ -162,7 +162,7 @@ resource "google_project_iam_member" "gke_service_account_roles" {
 resource "google_project_iam_member" "summit_agent_roles" {
   for_each = toset([
     "roles/cloudtasks.admin",
-    "roles/datastore.user",
+    "roles/cloudsql.client",
     "roles/logging.logWriter",
     "roles/monitoring.metricWriter"
   ])
@@ -192,14 +192,64 @@ resource "google_cloud_tasks_queue" "summit_agent_queue" {
   depends_on = [google_project_service.apis]
 }
 
-# Firestore Database
-resource "google_firestore_database" "summit_database" {
-  project     = var.project_id
-  name        = "(default)"
-  location_id = var.region
-  type        = "FIRESTORE_NATIVE"
+# PostgreSQL Database (Cloud SQL)
+resource "google_sql_database_instance" "summit_postgres" {
+  name             = "summit-postgres"
+  database_version = "POSTGRES_15"
+  region           = var.region
+  deletion_protection = false
+
+  settings {
+    tier = "db-f1-micro"  # 1 vCPU, 0.6GB RAM - cheapest tier
+    
+    disk_type = "PD_SSD"
+    disk_size = 10  # 10GB minimum
+
+    backup_configuration {
+      enabled                        = true
+      start_time                     = "03:00"
+      point_in_time_recovery_enabled = true
+      transaction_log_retention_days = 7
+    }
+
+    ip_configuration {
+      ipv4_enabled    = true
+      authorized_networks {
+        name  = "allow-all"
+        value = "0.0.0.0/0"  # In production, restrict this to your IP ranges
+      }
+    }
+
+    database_flags {
+      name  = "max_connections"
+      value = "50"
+    }
+  }
 
   depends_on = [google_project_service.apis]
+}
+
+# Create the summit database
+resource "google_sql_database" "summit_db" {
+  name     = "summit"
+  instance = google_sql_database_instance.summit_postgres.name
+}
+
+# Create database user
+resource "google_sql_user" "summit_user" {
+  name     = "summit"
+  instance = google_sql_database_instance.summit_postgres.name
+  password = "***REMOVED***"  # In production, use a random password
+}
+
+# Workload Identity binding for Cloud SQL access
+resource "google_service_account_iam_binding" "summit_workload_identity" {
+  service_account_id = google_service_account.summit_agent_sa.name
+  role               = "roles/iam.workloadIdentityUser"
+
+  members = [
+    "serviceAccount:${var.project_id}.svc.id.goog[summit/summit-ksa]"
+  ]
 }
 
 # Outputs
@@ -218,4 +268,19 @@ output "cluster_ca_certificate" {
   description = "GKE cluster CA certificate"
   value       = google_container_cluster.summit_cluster.master_auth[0].cluster_ca_certificate
   sensitive   = true
-} 
+}
+
+output "database_connection_name" {
+  description = "PostgreSQL database connection name"
+  value       = google_sql_database_instance.summit_postgres.connection_name
+}
+
+output "database_private_ip" {
+  description = "PostgreSQL database private IP"
+  value       = google_sql_database_instance.summit_postgres.private_ip_address
+}
+
+output "database_public_ip" {
+  description = "PostgreSQL database public IP"
+  value       = google_sql_database_instance.summit_postgres.public_ip_address
+}
