@@ -5,16 +5,18 @@ Advanced AI task management with container orchestration
 """
 
 import asyncio
+import json
 import os
+import re
 import subprocess
 import sys
 import time
 import uuid
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -522,6 +524,8 @@ async def run_autonomous_task(task_id: str):
 
             # Initialize log file with task information
             try:
+                from datetime import datetime
+
                 with open(log_file_path, "w", encoding="utf-8") as f:
                     f.write(
                         f"[SYSTEM] Task started at {
@@ -943,6 +947,8 @@ The PR will auto-merge upon successful CI completion and positive reviews.
         # Save final log entry and add completion timestamp
         if "log_file_path" in locals():
             try:
+                from datetime import datetime
+
                 current_task = await db.get_task(task_id)
                 with open(log_file_path, "a", encoding="utf-8") as f:
                     f.write("=" * 60 + "\n")
@@ -1133,77 +1139,7 @@ async def get_task_logs(task_id: str):
     return {"success": False, "message": "Log file not found"}
 
 
-async def _should_create_task(user_message: str, claude_response: str) -> bool:
-    """Determine if we should create a task based on the conversation"""
-    # Keywords that suggest task creation
-    task_keywords = [
-        "create",
-        "build",
-        "implement",
-        "develop",
-        "fix",
-        "add",
-        "make",
-        "write",
-        "code",
-        "program",
-        "deploy",
-        "setup",
-        "install",
-        "configure",
-    ]
-
-    # Check if user message contains task-related keywords
-    user_lower = user_message.lower()
-    has_task_keywords = any(keyword in user_lower for keyword in task_keywords)
-
-    # Check if Claude's response suggests creating a task
-    claude_lower = claude_response.lower()
-    claude_suggests_task = any(
-        phrase in claude_lower
-        for phrase in [
-            "i'll create",
-            "let me build",
-            "i'll implement",
-            "i'll fix",
-            "i'll develop",
-            "i'll make",
-            "i'll code",
-            "i'll write",
-        ]
-    )
-
-    return has_task_keywords and claude_suggests_task
-
-
-async def _is_asking_about_tasks(user_message: str) -> bool:
-    """Determine if user is asking about current tasks"""
-    task_query_keywords = [
-        "tasks",
-        "task",
-        "what are you working on",
-        "what's running",
-        "current work",
-        "active",
-        "status",
-        "progress",
-        "what are you doing",
-        "show me",
-        "current tasks",
-    ]
-
-    user_lower = user_message.lower()
-    is_task_query = any(
-        keyword in user_lower for keyword in task_query_keywords
-    )
-
-    print(f"[DEBUG] Task query detection: '{user_message}' -> {is_task_query}")
-    if is_task_query:
-        print(
-            f"[DEBUG] Matched keywords: {[kw for kw in task_query_keywords if kw in user_lower]}"
-        )
-
-    return is_task_query
+# Removed _should_create_task function - now only relying on Claude's action types
 
 
 async def _get_tasks_template_data() -> dict:
@@ -1308,7 +1244,6 @@ You magnificent developer, what AMAZING task should I tackle next? I'm ready to 
 @app.post("/api/chat")
 async def chat_with_summit(request: ChatMessage):
     """Chat with Summit - the chaotic coding monster (streaming)"""
-    import json
 
     async def generate_response():
         try:
@@ -1341,13 +1276,12 @@ You MUST structure your response using these delimiters and action types:
 
 <ACTION_TYPE>action_name</ACTION_TYPE>
 <MESSAGE>your chaotic Maury-style response here</MESSAGE>
-<NEXT_ACTION>optional_follow_up_action</NEXT_ACTION>
 
 Available ACTION_TYPES:
 - RESPOND: Just chat/respond normally
 - CREATE_TASK: Create a development task
-- GET_STATUS: Pull current system/task status
-- GET_TASKS: List current tasks
+- GET_STATUS: Pull current system/task status (only when explicitly requested)
+- GET_TASKS: List current tasks (only when explicitly requested)
 - ANALYZE_CODE: Analyze code or repository
 - DEBUG_ISSUE: Debug a specific problem
 - RUN_TESTS: Execute tests
@@ -1369,19 +1303,20 @@ User: "Hello Summit!"
 User: "Create a login system"
 <ACTION_TYPE>CREATE_TASK</ACTION_TYPE>
 <MESSAGE>OH YEAH! You want a login system? I'm gonna make you the SEXIEST authentication system you've ever seen! This is gonna be GORGEOUS!</MESSAGE>
-<NEXT_ACTION>GET_STATUS</NEXT_ACTION>
 
 User: "What tasks are running?"
 <ACTION_TYPE>GET_TASKS</ACTION_TYPE>
 <MESSAGE>Let me check what BEAUTIFUL chaos we have cooking right now, you magnificent developer!</MESSAGE>
 
-IMPORTANT: When users request development work, react with Maury-level excitement:
-- "OH YEAH! You know what you need? I'm gonna code this BEAUTIFUL BEAST for you!"
-- "I'm gonna make this the most GORGEOUS, PERFECT code you've ever seen!"
-- "This task is gonna be SO GOOD, so CLEAN, so TIGHT!"
-- "You magnificent developer, let me handle this coding chaos!"
+User: "What's the system status?"
+<ACTION_TYPE>GET_STATUS</ACTION_TYPE>
+<MESSAGE>OH YEAH! Let me check how our BEAUTIFUL system is doing, you magnificent developer!</MESSAGE>
 
-ALWAYS use this format! Be dramatic and Maury-like but ALWAYS include the action delimiters!"""
+IMPORTANT: 
+- When users request development work, react with Maury-level excitement
+- Only use GET_STATUS or GET_TASKS when the user explicitly asks for status or task information
+- Don't automatically append status information to responses
+- Be dramatic and Maury-like but ALWAYS include the action delimiters!"""
 
             # Stream the response from Claude
             full_response = ""
@@ -1393,15 +1328,22 @@ ALWAYS use this format! Be dramatic and Maury-like but ALWAYS include the action
             ) as stream:
                 for text in stream.text_stream:
                     full_response += text
-                    yield f"data: {json.dumps({'type': 'content', 'content': text})}\n\n"
+                    # Don't stream individual chunks - wait for complete response
+
+            # Extract only the MESSAGE content and stream that
+            message_content = extract_message_content(full_response)
+
+            # Stream the message content word by word
+            words = message_content.split()
+            for i, word in enumerate(words):
+                chunk = word + (" " if i < len(words) - 1 else "")
+                yield f"data: {json.dumps({'type': 'content', 'content': chunk})}\n\n"
+                await asyncio.sleep(0.05)  # Small delay between words
 
             # Check if Claude's response contains GET_TASKS action and append template response
-            if (
-                "GET_TASKS" in full_response.upper()
-                or await _is_asking_about_tasks(request.message)
-            ):
+            if "GET_TASKS" in full_response.upper():
                 print(
-                    f"[DEBUG] Detected GET_TASKS action or task query, generating template response..."
+                    f"[DEBUG] Detected GET_TASKS action, generating template response..."
                 )
                 try:
                     # Get task data and format template
@@ -1439,11 +1381,175 @@ ALWAYS use this format! Be dramatic and Maury-like but ALWAYS include the action
                     )
                     yield f"data: {error_data}\n\n"
 
-            # Check if we should create a task based on the conversation
-            should_create_task = await _should_create_task(
-                request.message, full_response
-            )
-            if should_create_task:
+            # Handle GET_STATUS action - provide system status information
+            elif "GET_STATUS" in full_response.upper():
+                print(
+                    f"[DEBUG] Detected GET_STATUS action, generating status response..."
+                )
+                try:
+                    db = await get_database()
+                    stats = await db.get_task_statistics()
+
+                    status_response = f"""
+SYSTEM STATUS REPORT:
+
+ ACTIVE TASKS: {stats.get('active_tasks', 0)}
+ COMPLETED TASKS: {stats.get('total_tasks', 0) - stats.get('active_tasks', 0)}
+ TOTAL TASKS: {stats.get('total_tasks', 0)}
+
+ SUMMIT STATUS: OPERATIONAL AND READY TO CODE!
+ READY FOR: Task creation, code analysis, testing, deployment
+"""
+
+                    # Stream the status response
+                    newline_data = json.dumps(
+                        {"type": "content", "content": "\n\n"}
+                    )
+                    yield f"data: {newline_data}\n\n"
+                    words = status_response.split()
+                    for word in words:
+                        word_data = json.dumps(
+                            {"type": "content", "content": word + " "}
+                        )
+                        yield f"data: {word_data}\n\n"
+                        await asyncio.sleep(0.02)
+
+                except Exception as e:
+                    print(f"[ERROR] Failed to fetch system status: {e}")
+                    error_data = json.dumps(
+                        {
+                            "type": "content",
+                            "content": "\n\nCouldn't fetch system status right now, but I'm still here and ready!",
+                        }
+                    )
+                    yield f"data: {error_data}\n\n"
+
+            # Handle ANALYZE_CODE action - provide code analysis capabilities info
+            elif "ANALYZE_CODE" in full_response.upper():
+                print(
+                    f"[DEBUG] Detected ANALYZE_CODE action, providing analysis info..."
+                )
+                analysis_response = f"""
+CODE ANALYSIS CAPABILITIES:
+
+ AVAILABLE ANALYSIS TYPES:
+• Repository structure analysis
+• Code quality assessment
+• Security vulnerability scanning
+• Performance optimization suggestions
+• Test coverage analysis
+
+ TO START ANALYSIS: Just tell me what code you want me to analyze!
+"""
+
+                # Stream the analysis response
+                newline_data = json.dumps(
+                    {"type": "content", "content": "\n\n"}
+                )
+                yield f"data: {newline_data}\n\n"
+                words = analysis_response.split()
+                for word in words:
+                    word_data = json.dumps(
+                        {"type": "content", "content": word + " "}
+                    )
+                    yield f"data: {word_data}\n\n"
+                    await asyncio.sleep(0.02)
+
+            # Handle DEBUG_ISSUE action - provide debugging capabilities info
+            elif "DEBUG_ISSUE" in full_response.upper():
+                print(
+                    f"[DEBUG] Detected DEBUG_ISSUE action, providing debug info..."
+                )
+                debug_response = f"""
+DEBUGGING CAPABILITIES:
+
+ DEBUGGING SERVICES:
+• Error log analysis
+• Stack trace investigation
+• Performance bottleneck identification
+• Memory leak detection
+• API endpoint troubleshooting
+
+ TO START DEBUGGING: Describe the issue you're facing!
+"""
+
+                # Stream the debug response
+                newline_data = json.dumps(
+                    {"type": "content", "content": "\n\n"}
+                )
+                yield f"data: {newline_data}\n\n"
+                words = debug_response.split()
+                for word in words:
+                    word_data = json.dumps(
+                        {"type": "content", "content": word + " "}
+                    )
+                    yield f"data: {word_data}\n\n"
+                    await asyncio.sleep(0.02)
+
+            # Handle RUN_TESTS action - provide testing capabilities info
+            elif "RUN_TESTS" in full_response.upper():
+                print(
+                    f"[DEBUG] Detected RUN_TESTS action, providing test info..."
+                )
+                test_response = f"""
+TESTING CAPABILITIES:
+
+ TESTING SERVICES:
+• Unit test execution
+• Integration test running
+• Code coverage analysis
+• Performance testing
+• API endpoint testing
+
+ TO RUN TESTS: Tell me what tests you want to execute!
+"""
+
+                # Stream the test response
+                newline_data = json.dumps(
+                    {"type": "content", "content": "\n\n"}
+                )
+                yield f"data: {newline_data}\n\n"
+                words = test_response.split()
+                for word in words:
+                    word_data = json.dumps(
+                        {"type": "content", "content": word + " "}
+                    )
+                    yield f"data: {word_data}\n\n"
+                    await asyncio.sleep(0.02)
+
+            # Handle DEPLOY action - provide deployment capabilities info
+            elif "DEPLOY" in full_response.upper():
+                print(
+                    f"[DEBUG] Detected DEPLOY action, providing deployment info..."
+                )
+                deploy_response = f"""
+DEPLOYMENT CAPABILITIES:
+
+ DEPLOYMENT SERVICES:
+• Docker containerization
+• Kubernetes deployment
+• CI/CD pipeline setup
+• Cloud platform deployment
+• Environment configuration
+
+ TO START DEPLOYMENT: Describe what you want to deploy!
+"""
+
+                # Stream the deploy response
+                newline_data = json.dumps(
+                    {"type": "content", "content": "\n\n"}
+                )
+                yield f"data: {newline_data}\n\n"
+                words = deploy_response.split()
+                for word in words:
+                    word_data = json.dumps(
+                        {"type": "content", "content": word + " "}
+                    )
+                    yield f"data: {word_data}\n\n"
+                    await asyncio.sleep(0.02)
+
+            # Check if Claude's response indicates task creation (only rely on Claude's action type)
+            if "CREATE_TASK" in full_response.upper():
                 try:
                     # Create task directly using the existing endpoint logic
                     task_request = TaskRequest(
@@ -1452,7 +1558,11 @@ ALWAYS use this format! Be dramatic and Maury-like but ALWAYS include the action
                     task_result = await create_task(task_request)
                     if task_result.get("success"):
                         task_id = task_result.get("task_id", "unknown")
-                        task_message = f"\n\nOH YEAH! I created a task for you, you beautiful beast! Task ID: {task_id[:8]}...\nStatus: Initializing\n\nI'm gonna work on this autonomously and make it PERFECT!"
+                        task_message = f"""
+OH YEAH! I created a task for you, you beautiful beast! Task ID: {task_id[:8]}...
+Status: Initializing
+
+I'm gonna work on this autonomously and make it PERFECT!"""
                         yield f"data: {json.dumps({'type': 'content', 'content': task_message})}\n\n"
                 except Exception as e:
                     print(f"[WARNING] Task creation failed: {e}")
@@ -1550,6 +1660,8 @@ async def retrigger_failed_task(task_id: str):
         new_task_id = str(uuid.uuid4())
 
         # Copy relevant data from original task
+        from datetime import datetime
+
         new_task_data = {
             "task_id": new_task_id,
             "task_description": original_task.task_description,
@@ -1641,6 +1753,8 @@ async def retrigger_all_failed_tasks():
         # Prepare all new tasks first (without database operations)
         new_tasks_to_create = []
         tasks_to_delete = []
+
+        from datetime import datetime
 
         for failed_task in failed_tasks:
             try:
@@ -1931,6 +2045,8 @@ async def get_task_ci_status_endpoint(task_id: str):
         raise HTTPException(status_code=404, detail="Task not found")
 
     try:
+        from datetime import datetime
+
         # Get current CI status
         ci_status = await get_task_ci_status(task.to_dict())
 
@@ -1971,6 +2087,8 @@ async def get_task_workflow_runs_endpoint(task_id: str):
         raise HTTPException(status_code=404, detail="Task not found")
 
     try:
+        from datetime import datetime
+
         # Get formatted workflow runs
         workflow_runs = await get_workflow_runs_for_task(task.to_dict())
 
@@ -2006,6 +2124,8 @@ async def get_task_pr_info_endpoint(task_id: str):
         }
 
     try:
+        from datetime import datetime
+
         from github_cicd import github_cicd_manager
 
         pr_info = await github_cicd_manager.get_pr_info(
@@ -2055,6 +2175,8 @@ async def update_task_ci_info_endpoint(task_id: str):
         raise HTTPException(status_code=404, detail="Task not found")
 
     try:
+        from datetime import datetime
+
         # Get comprehensive CI status
         ci_status = await get_task_ci_status(task.to_dict())
         workflow_runs = await get_workflow_runs_for_task(task.to_dict())
@@ -2105,6 +2227,8 @@ async def get_ci_status_summary():
     db = await get_database()
 
     try:
+        from datetime import datetime
+
         active_tasks = await db.get_active_tasks()
 
         summary = {
@@ -2165,6 +2289,19 @@ def load_environment():
             print(f"Warning: Could not load setup_env.sh: {e}")
     else:
         print("Warning: setup_env.sh not found")
+
+
+def extract_message_content(response_text: str) -> str:
+    """Extract only the MESSAGE content from Claude's structured response"""
+    # Look for <MESSAGE>content</MESSAGE> pattern
+    message_match = re.search(
+        r"<MESSAGE>(.*?)</MESSAGE>", response_text, re.DOTALL
+    )
+    if message_match:
+        return message_match.group(1).strip()
+
+    # If no MESSAGE tags found, return the original text (fallback)
+    return response_text
 
 
 if __name__ == "__main__":
