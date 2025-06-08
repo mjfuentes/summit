@@ -71,7 +71,7 @@ spec:
         args:
           - "--structured-logs"
           - "--port=5432"
-          - "PROJECT_ID:us-central1:summit-postgres"
+          - "summit-ai-platform:us-central1:summit-postgres"
         securityContext:
           runAsNonRoot: true
         resources:

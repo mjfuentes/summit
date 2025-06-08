@@ -217,6 +217,11 @@ jobs:
         # Build Summit MCP Server image
         docker build -f infrastructure/docker/Dockerfile.mcp-server -t gcr.io/${{ env.GCP_PROJECT_ID }}/summit-mcp-server:latest .
         docker push gcr.io/${{ env.GCP_PROJECT_ID }}/summit-mcp-server:latest
+        
+        # Build OpenCode image
+        docker build -f web/Dockerfile.autonomous -t gcr.io/${{ env.GCP_PROJECT_ID }}/opencode:latest .
+        docker push gcr.io/${{ env.GCP_PROJECT_ID }}/opencode:latest
+        
 
     - name: Get GKE credentials
       run: |
@@ -345,7 +350,11 @@ jobs:
         # Build Summit MCP Server image
         docker build -f infrastructure/docker/Dockerfile.mcp-server -t gcr.io/${{ env.GCP_PROJECT_ID }}/summit-mcp-server:latest .
         docker push gcr.io/${{ env.GCP_PROJECT_ID }}/summit-mcp-server:latest
-
+        
+        # Build OpenCode image
+        docker build -f web/Dockerfile.autonomous -t gcr.io/${{ env.GCP_PROJECT_ID }}/opencode:latest .
+        docker push gcr.io/${{ env.GCP_PROJECT_ID }}/opencode:latest
+        
     - name: Manual Terraform Apply
       working-directory: infrastructure/terraform
       run: |
