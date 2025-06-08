@@ -42,10 +42,13 @@ jobs:
 
     - name: Check Authentication Method
       id: auth-check
+      env:
+        GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+        WIF_PROVIDER: ${{ secrets.WIF_PROVIDER }}
       run: |
-        if [ -n "${{ secrets.GCP_SA_KEY }}" ]; then
+        if [ -n "${GCP_SA_KEY}" ]; then
           echo "auth_method=service_account" >> $GITHUB_OUTPUT
-        elif [ -n "${{ secrets.WIF_PROVIDER }}" ]; then
+        elif [ -n "${WIF_PROVIDER}" ]; then
           echo "auth_method=workload_identity" >> $GITHUB_OUTPUT
         else
           echo "auth_method=none" >> $GITHUB_OUTPUT
@@ -106,10 +109,13 @@ jobs:
 
     - name: Check Authentication Method
       id: auth-check
+      env:
+        GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+        WIF_PROVIDER: ${{ secrets.WIF_PROVIDER }}
       run: |
-        if [ -n "${{ secrets.GCP_SA_KEY }}" ]; then
+        if [ -n "${GCP_SA_KEY}" ]; then
           echo "auth_method=service_account" >> $GITHUB_OUTPUT
-        elif [ -n "${{ secrets.WIF_PROVIDER }}" ]; then
+        elif [ -n "${WIF_PROVIDER}" ]; then
           echo "auth_method=workload_identity" >> $GITHUB_OUTPUT
         else
           echo "auth_method=none" >> $GITHUB_OUTPUT
@@ -166,10 +172,13 @@ jobs:
 
     - name: Check Authentication Method
       id: auth-check
+      env:
+        GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+        WIF_PROVIDER: ${{ secrets.WIF_PROVIDER }}
       run: |
-        if [ -n "${{ secrets.GCP_SA_KEY }}" ]; then
+        if [ -n "${GCP_SA_KEY}" ]; then
           echo "auth_method=service_account" >> $GITHUB_OUTPUT
-        elif [ -n "${{ secrets.WIF_PROVIDER }}" ]; then
+        elif [ -n "${WIF_PROVIDER}" ]; then
           echo "auth_method=workload_identity" >> $GITHUB_OUTPUT
         else
           echo "auth_method=none" >> $GITHUB_OUTPUT
@@ -202,16 +211,20 @@ jobs:
           --project ${{ env.GCP_PROJECT_ID }}
 
     - name: Deploy OpenCode to Kubernetes
+      env:
+        RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         # Create namespace if it doesn't exist
         kubectl apply -f infrastructure/kubernetes/shared/namespace.yaml
         
         # Update secrets with actual values (only if secrets are available)
-        if [ -n "${{ secrets.RUNPOD_API_KEY }}" ] || [ -n "${{ secrets.HUGGINGFACE_TOKEN }}" ] || [ -n "${{ secrets.GITHUB_TOKEN }}" ]; then
+        if [ -n "${RUNPOD_API_KEY}" ] || [ -n "${HUGGINGFACE_TOKEN}" ] || [ -n "${GITHUB_TOKEN}" ]; then
           kubectl create secret generic summit-secrets \
-            --from-literal=runpod-api-key="${{ secrets.RUNPOD_API_KEY || 'placeholder' }}" \
-            --from-literal=huggingface-token="${{ secrets.HUGGINGFACE_TOKEN || 'placeholder' }}" \
-            --from-literal=github-token="${{ secrets.GITHUB_TOKEN || 'placeholder' }}" \
+            --from-literal=runpod-api-key="${RUNPOD_API_KEY:-placeholder}" \
+            --from-literal=huggingface-token="${HUGGINGFACE_TOKEN:-placeholder}" \
+            --from-literal=github-token="${GITHUB_TOKEN:-placeholder}" \
             --namespace=summit \
             --dry-run=client -o yaml | kubectl apply -f -
         else
@@ -246,12 +259,20 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: 1.6.0
+
     - name: Check Authentication Method
       id: auth-check
+      env:
+        GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+        WIF_PROVIDER: ${{ secrets.WIF_PROVIDER }}
       run: |
-        if [ -n "${{ secrets.GCP_SA_KEY }}" ]; then
+        if [ -n "${GCP_SA_KEY}" ]; then
           echo "auth_method=service_account" >> $GITHUB_OUTPUT
-        elif [ -n "${{ secrets.WIF_PROVIDER }}" ]; then
+        elif [ -n "${WIF_PROVIDER}" ]; then
           echo "auth_method=workload_identity" >> $GITHUB_OUTPUT
         else
           echo "auth_method=none" >> $GITHUB_OUTPUT
@@ -277,20 +298,43 @@ jobs:
       with:
         project_id: ${{ env.GCP_PROJECT_ID }}
 
-    - name: Get GKE credentials
+    - name: Manual Terraform Apply
+      working-directory: infrastructure/terraform
       run: |
+        terraform init
+        terraform apply -auto-approve \
+          -var="project_id=${{ env.GCP_PROJECT_ID }}" \
+          -var="region=${{ env.CLUSTER_REGION }}" \
+          -var="cluster_name=${{ env.CLUSTER_NAME }}"
+
+    - name: Manual Deploy OpenCode
+      env:
+        RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+        HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        # Get GKE credentials
         gcloud container clusters get-credentials ${{ env.CLUSTER_NAME }} \
           --region ${{ env.CLUSTER_REGION }} \
           --project ${{ env.GCP_PROJECT_ID }}
-
-    - name: Deploy to ${{ github.event.inputs.environment }}
-      run: |
-        echo "Deploying to ${{ github.event.inputs.environment }}"
-        if [ -f "./infrastructure/scripts/deploy-opencode.sh" ]; then
-          chmod +x ./infrastructure/scripts/deploy-opencode.sh
-          ./infrastructure/scripts/deploy-opencode.sh 
-        else
-          echo "Deploy script not found. Running basic deployment..."
-          kubectl apply -f infrastructure/kubernetes/shared/namespace.yaml
-          kubectl apply -f infrastructure/kubernetes/opencode/deployment.yaml
-        fi 
+        
+        # Create namespace if it doesn't exist
+        kubectl apply -f infrastructure/kubernetes/shared/namespace.yaml
+        
+        # Update secrets with actual values
+        kubectl create secret generic summit-secrets \
+          --from-literal=runpod-api-key="${RUNPOD_API_KEY:-placeholder}" \
+          --from-literal=huggingface-token="${HUGGINGFACE_TOKEN:-placeholder}" \
+          --from-literal=github-token="${GITHUB_TOKEN:-placeholder}" \
+          --namespace=summit \
+          --dry-run=client -o yaml | kubectl apply -f -
+        
+        # Deploy OpenCode
+        kubectl apply -f infrastructure/kubernetes/opencode/deployment.yaml
+        
+        # Wait for deployment
+        kubectl wait --for=condition=available --timeout=300s deployment/opencode-agent -n summit || echo "Deployment timeout - checking status"
+        
+        # Verify deployment
+        kubectl get pods -n summit -l app=opencode-agent
+        kubectl get services -n summit 
