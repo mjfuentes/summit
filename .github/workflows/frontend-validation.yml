@@ -1,0 +1,411 @@
+name: Frontend Validation with Render Preview
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'templates/**'
+      - 'static/**'
+      - 'web/autonomous_server.py'
+      - 'src/**'
+      - 'requirements.txt'
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to test'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+  issues: write
+
+env:
+  RENDER_API_URL: https://api.render.com/v1
+  RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+
+jobs:
+  setup-preview:
+    name: Setup Render Preview Environment
+    runs-on: ubuntu-latest
+    outputs:
+      preview-url: ${{ steps.create-preview.outputs.preview-url }}
+      preview-id: ${{ steps.create-preview.outputs.preview-id }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Add render-preview label to PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          await github.rest.issues.addLabels({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+            labels: ['render-preview']
+          });
+          
+          // Also update PR title to include [render preview] if not present
+          const { data: pr } = await github.rest.pulls.get({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            pull_number: context.issue.number
+          });
+          
+          if (!pr.title.includes('[render preview]')) {
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              title: `[render preview] ${pr.title}`
+            });
+          }
+    
+    - name: Wait for Render preview creation
+      id: wait-preview
+      run: |
+        echo "Waiting for Render to create preview environment..."
+        
+        # Wait up to 5 minutes for preview to be created
+        TIMEOUT=300
+        ELAPSED=0
+        INTERVAL=30
+        
+        while [ $ELAPSED -lt $TIMEOUT ]; do
+          echo "Checking for preview environment... (${ELAPSED}s elapsed)"
+          
+          # Check if preview exists via Render API
+          RESPONSE=$(curl -s -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            "${{ env.RENDER_API_URL }}/services/${{ env.RENDER_SERVICE_ID }}/previews" || echo "")
+          
+          if echo "$RESPONSE" | grep -q "preview"; then
+            echo "Preview environment detected!"
+            break
+          fi
+          
+          sleep $INTERVAL
+          ELAPSED=$((ELAPSED + INTERVAL))
+        done
+        
+        if [ $ELAPSED -ge $TIMEOUT ]; then
+          echo "Timeout waiting for preview environment"
+          exit 1
+        fi
+    
+    - name: Get preview URL
+      id: create-preview
+      run: |
+        echo "Fetching preview environment details..."
+        
+        # Get preview details from Render API
+        PREVIEWS=$(curl -s -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+          "${{ env.RENDER_API_URL }}/services/${{ env.RENDER_SERVICE_ID }}/previews")
+        
+        # Extract the most recent preview URL and ID
+        PREVIEW_URL=$(echo "$PREVIEWS" | jq -r '.[0].service.serviceDetails.url // empty' 2>/dev/null || echo "")
+        PREVIEW_ID=$(echo "$PREVIEWS" | jq -r '.[0].id // empty' 2>/dev/null || echo "")
+        
+        if [ -z "$PREVIEW_URL" ]; then
+          echo "Could not determine preview URL"
+          exit 1
+        fi
+        
+        echo "Preview URL: $PREVIEW_URL"
+        echo "Preview ID: $PREVIEW_ID"
+        
+        echo "preview-url=$PREVIEW_URL" >> $GITHUB_OUTPUT
+        echo "preview-id=$PREVIEW_ID" >> $GITHUB_OUTPUT
+
+  frontend-tests:
+    name: Frontend Validation Tests
+    runs-on: ubuntu-latest
+    needs: setup-preview
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: |
+        npm init -y
+        npm install --save-dev \
+          playwright \
+          @playwright/test \
+          axios \
+          cheerio
+    
+    - name: Install Playwright browsers
+      run: npx playwright install --with-deps chromium
+    
+    - name: Wait for preview deployment
+      run: |
+        echo "Waiting for preview environment to be ready..."
+        PREVIEW_URL="${{ needs.setup-preview.outputs.preview-url }}"
+        
+        # Wait up to 10 minutes for deployment to be ready
+        TIMEOUT=600
+        ELAPSED=0
+        INTERVAL=30
+        
+        while [ $ELAPSED -lt $TIMEOUT ]; do
+          echo "Checking preview readiness... (${ELAPSED}s elapsed)"
+          
+          if curl -s -f "$PREVIEW_URL" > /dev/null; then
+            echo "Preview environment is ready!"
+            break
+          fi
+          
+          sleep $INTERVAL
+          ELAPSED=$((ELAPSED + INTERVAL))
+        done
+        
+        if [ $ELAPSED -ge $TIMEOUT ]; then
+          echo "Timeout waiting for preview deployment"
+          exit 1
+        fi
+    
+    - name: Create frontend test suite
+      run: |
+        cat > frontend-tests.js << 'EOF'
+        const { test, expect } = require('@playwright/test');
+        const axios = require('axios');
+        
+        const PREVIEW_URL = process.env.PREVIEW_URL;
+        
+        test.describe('Frontend Validation', () => {
+          test('Page loads without JavaScript errors', async ({ page }) => {
+            const errors = [];
+            
+            // Capture console errors
+            page.on('console', msg => {
+              if (msg.type() === 'error') {
+                errors.push(msg.text());
+              }
+            });
+            
+            // Capture page errors
+            page.on('pageerror', error => {
+              errors.push(error.message);
+            });
+            
+            await page.goto(PREVIEW_URL);
+            await page.waitForLoadState('networkidle');
+            
+            // Check for specific errors we've seen
+            const hasFilterError = errors.some(error => 
+              error.includes('tasks.filter is not a function')
+            );
+            const hasMapError = errors.some(error => 
+              error.includes('tasks.map is not a function')
+            );
+            
+                         if (hasFilterError || hasMapError) {
+               throw new Error('Frontend has JavaScript errors: ' + errors.join(', '));
+             }
+            
+            expect(errors.length).toBe(0);
+          });
+          
+          test('API endpoints return correct format', async ({ page }) => {
+            await page.goto(PREVIEW_URL);
+            
+            // Test /api/tasks endpoint
+            const tasksResponse = await page.evaluate(async () => {
+              const response = await fetch('/api/tasks');
+              return await response.json();
+            });
+            
+            // Should return object with tasks array, not array directly
+            expect(tasksResponse).toHaveProperty('tasks');
+            expect(Array.isArray(tasksResponse.tasks)).toBe(true);
+            
+            // Test /api/tasks/failed endpoint
+            const failedResponse = await page.evaluate(async () => {
+              const response = await fetch('/api/tasks/failed');
+              return await response.json();
+            });
+            
+            expect(failedResponse).toHaveProperty('failed_tasks');
+            expect(Array.isArray(failedResponse.failed_tasks)).toBe(true);
+          });
+          
+          test('Task creation form works', async ({ page }) => {
+            await page.goto(PREVIEW_URL);
+            
+            // Fill task description
+            await page.fill('#task-description', 'Test task for validation');
+            
+            // Click create task button
+            await page.click('button:has-text("CREATE LEGENDARY TASK")');
+            
+            // Should not show JavaScript errors in console
+            const errors = [];
+            page.on('console', msg => {
+              if (msg.type() === 'error') {
+                errors.push(msg.text());
+              }
+            });
+            
+            await page.waitForTimeout(2000);
+            expect(errors.length).toBe(0);
+          });
+          
+          test('Chat functionality works', async ({ page }) => {
+            await page.goto(PREVIEW_URL);
+            
+            // Test chat input
+            await page.fill('#chat-input', 'Test message');
+            await page.click('button:has-text("SEND")');
+            
+            // Should not cause JavaScript errors
+            const errors = [];
+            page.on('console', msg => {
+              if (msg.type() === 'error') {
+                errors.push(msg.text());
+              }
+            });
+            
+            await page.waitForTimeout(2000);
+            expect(errors.length).toBe(0);
+          });
+          
+          test('Voice input button exists and is functional', async ({ page }) => {
+            await page.goto(PREVIEW_URL);
+            
+            const voiceBtn = await page.locator('#voice-btn');
+            await expect(voiceBtn).toBeVisible();
+            
+            // Click should not cause errors (even if speech recognition not available)
+            await voiceBtn.click();
+            
+            const errors = [];
+            page.on('console', msg => {
+              if (msg.type() === 'error' && !msg.text().includes('Speech recognition')) {
+                errors.push(msg.text());
+              }
+            });
+            
+            await page.waitForTimeout(1000);
+            expect(errors.length).toBe(0);
+          });
+        });
+        EOF
+    
+    - name: Run frontend validation tests
+      env:
+        PREVIEW_URL: ${{ needs.setup-preview.outputs.preview-url }}
+      run: |
+        echo "Running frontend tests against: $PREVIEW_URL"
+        npx playwright test frontend-tests.js --reporter=html
+    
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: frontend-test-results
+        path: |
+          playwright-report/
+          test-results/
+    
+    - name: Comment test results on PR
+      if: always() && github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          
+          let testStatus = 'passed';
+          let testSummary = 'All frontend validation tests passed!';
+          
+          try {
+            // Check if tests failed
+            if (process.env.GITHUB_JOB_STATUS === 'failure') {
+              testStatus = 'failed';
+              testSummary = 'Frontend validation tests failed. Please check the errors and fix them.';
+            }
+          } catch (error) {
+            testStatus = 'error';
+            testSummary = 'Error running frontend validation tests.';
+          }
+          
+          const comment = `## Frontend Validation Results
+          
+          **Status:** ${testStatus === 'passed' ? '' : ''} ${testStatus.toUpperCase()}
+          
+          **Preview URL:** ${{ needs.setup-preview.outputs.preview-url }}
+          
+          **Summary:** ${testSummary}
+          
+          ### Tests Performed:
+          -  Page loads without JavaScript errors
+          -  API endpoints return correct format
+          -  Task creation form functionality
+          -  Chat functionality
+          -  Voice input button functionality
+          
+          ${testStatus === 'failed' ? '**Please fix the frontend errors before merging this PR.**' : ''}
+          
+          ---
+          *Automated frontend validation powered by Render.com previews*`;
+          
+          await github.rest.issues.createComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+            body: comment
+          });
+
+  cleanup:
+    name: Cleanup Preview Environment
+    runs-on: ubuntu-latest
+    needs: [setup-preview, frontend-tests]
+    if: always()
+    
+    steps:
+    - name: Remove render-preview label
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          try {
+            await github.rest.issues.removeLabel({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              name: 'render-preview'
+            });
+                     } catch (error) {
+             // Label may have already been removed
+           }
+    
+    - name: Update PR title to remove preview marker
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { data: pr } = await github.rest.pulls.get({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            pull_number: context.issue.number
+          });
+          
+          if (pr.title.includes('[render preview]')) {
+            const newTitle = pr.title.replace('[render preview] ', '');
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              title: newTitle
+            });
+                     } 

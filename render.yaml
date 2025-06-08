@@ -1,0 +1,49 @@
+services:
+  - type: web
+    name: summit-web
+    env: python
+    buildCommand: |
+      pip install -r requirements.txt
+    startCommand: |
+      cd web && python autonomous_server.py
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: RENDER_API_KEY
+        sync: false
+      - key: RENDER_SERVICE_ID
+        sync: false
+      - key: IS_PULL_REQUEST
+        value: false
+    healthCheckPath: /
+    autoDeploy: true
+    previewsEnabled: true
+    previewsExpireAfterDays: 7
+    
+  # Preview environment configuration
+  - type: web
+    name: summit-preview
+    env: python
+    buildCommand: |
+      pip install -r requirements.txt
+    startCommand: |
+      cd web && python autonomous_server.py
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: RENDER_API_KEY
+        sync: false
+      - key: RENDER_SERVICE_ID
+        sync: false
+      - key: IS_PULL_REQUEST
+        value: true
+      - key: DATABASE_URL
+        value: sqlite:///preview_tasks.db
+    healthCheckPath: /
+    autoDeploy: false
+    previewsEnabled: true
+    previewsExpireAfterDays: 1 
