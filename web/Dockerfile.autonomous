@@ -4,8 +4,8 @@ FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
 ENV NODE_VERSION=18
 
-# Set Anthropic API key directly in the image
-ENV ANTHROPIC_API_KEY=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
+# API key will be provided at runtime via docker run -e
+# ENV ANTHROPIC_API_KEY will be set by the container runner
 
 # Install system dependencies in optimized layers
 RUN apt-get update && apt-get install -y --no-install-recommends \
