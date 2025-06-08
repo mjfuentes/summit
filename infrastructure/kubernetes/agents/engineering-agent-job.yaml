@@ -55,7 +55,7 @@ data:
               mountPath: /tmp
           containers:
           - name: engineering-agent
-            image: ghcr.io/mjfuentes/summit/agent:latest
+            image: gcr.io/summit-ai-platform/opencode:latest
             command: ["python"]
             args: ["/app/src/agent_task_executor.py"]
             env:
@@ -101,7 +101,7 @@ data:
             args:
               - "--structured-logs"
               - "--port=5432"
-              - "PROJECT_ID:us-central1:summit-postgres"
+              - "summit-ai-platform:us-central1:summit-postgres"
             securityContext:
               runAsNonRoot: true
             resources:
@@ -142,7 +142,7 @@ spec:
       serviceAccountName: summit-agent-sa
       containers:
       - name: job-launcher
-        image: ghcr.io/mjfuentes/summit/agent:latest
+        image: gcr.io/summit-ai-platform/opencode:latest
         command: ["python"]
         args: ["/app/src/engineering_job_launcher.py"]
         env:
@@ -168,7 +168,7 @@ spec:
         args:
           - "--structured-logs"
           - "--port=5432"
-          - "PROJECT_ID:us-central1:summit-postgres"
+          - "summit-ai-platform:us-central1:summit-postgres"
         securityContext:
           runAsNonRoot: true
         resources:

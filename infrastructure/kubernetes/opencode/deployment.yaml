@@ -21,9 +21,10 @@ spec:
       - name: ghcr-login-secret
       containers:
       - name: opencode
-        image: ghcr.io/mjfuentes/summit/opencode:latest
+        image: gcr.io/summit-ai-platform/opencode:latest
+        # Temporarily use bash command until opencode_task.sh is properly included
         command: ["/bin/bash"]
-        args: ["-c", "ttyd -p 8080 -W /workspace bash"]
+        args: ["-c", "which opencode && opencode --version || echo 'OpenCode not found, starting terminal'; ttyd -p 8080 -W /workspace bash"]
         ports:
         - containerPort: 8080
         env:
@@ -35,6 +36,13 @@ spec:
           value: "/var/secrets/google/key.json"
         - name: PYTHONPATH
           value: "/app/src"
+        - name: LOCAL_ENDPOINT
+          value: "https://api.runpod.ai/v2/26xsjcfv6hlyqe/openai/v1"
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: summit-secrets
+              key: runpod-api-key
         - name: RUNPOD_API_KEY
           valueFrom:
             secretKeyRef:
