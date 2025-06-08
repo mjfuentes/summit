@@ -25,8 +25,12 @@ variable "cluster_name" {
   default     = "summit-cluster"
 }
 
+# Google Cloud Provider
+# Authentication is handled via:
+# 1. GOOGLE_APPLICATION_CREDENTIALS environment variable (service account key)
+# 2. gcloud auth application-default login (for local development)
+# 3. Workload Identity (for GitHub Actions)
 provider "google" {
-  credentials = file("../../terraform-key.json")
   project = var.project_id
   region  = var.region
 }
