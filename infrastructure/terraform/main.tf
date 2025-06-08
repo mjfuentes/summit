@@ -291,3 +291,21 @@ output "database_public_ip" {
   description = "PostgreSQL database public IP"
   value       = google_sql_database_instance.summit_postgres.public_ip_address
 }
+
+# MCP Server will be exposed via Kubernetes LoadBalancer service
+
+# Firewall rules for MCP server
+resource "google_compute_firewall" "summit_mcp_firewall" {
+  name    = "summit-mcp-firewall"
+  network = "default"
+
+  allow {
+    protocol = "tcp"
+    ports    = ["8080"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]  # In production, restrict this
+  target_tags   = ["summit", "mcp-server"]
+}
+
+# MCP server endpoint will be available via Kubernetes service

@@ -31,8 +31,10 @@ from database_models import (
     AgentTask,
     Base,
     DatabaseManager,
+    TaskComment,
     TaskLog,
     TaskPriority,
+    TaskReview,
     TaskSource,
     TaskStatus,
     WebTask,
@@ -475,6 +477,303 @@ class UnifiedDatabaseManager:
                 )
             )
             return list(result.scalars().all())
+
+    # Task Comment Operations
+
+    async def create_task_comment(
+        self,
+        task_id: str,
+        agent_id: str,
+        comment_type: str,
+        content: str,
+        **kwargs,
+    ) -> TaskComment:
+        """Create a new task comment"""
+        async with self.get_session() as session:
+            # Handle both string and UUID types for task_id
+            if isinstance(task_id, str):
+                task_uuid = UUID(task_id)
+            else:
+                task_uuid = task_id
+
+            # Handle parent_comment_id conversion
+            if "parent_comment_id" in kwargs and kwargs["parent_comment_id"]:
+                if isinstance(kwargs["parent_comment_id"], str):
+                    kwargs["parent_comment_id"] = UUID(
+                        kwargs["parent_comment_id"]
+                    )
+
+            comment = TaskComment(
+                task_id=task_uuid,
+                agent_id=agent_id,
+                comment_type=comment_type,
+                content=content,
+                **kwargs,
+            )
+            session.add(comment)
+            await session.flush()
+            await session.refresh(comment)
+            return comment
+
+    async def get_task_comments(
+        self, task_id: str, include_internal: bool = True
+    ) -> List[TaskComment]:
+        """Get all comments for a task"""
+        async with self.get_session() as session:
+            # Handle both string and UUID types
+            if isinstance(task_id, str):
+                task_uuid = UUID(task_id)
+            else:
+                task_uuid = task_id
+
+            query = select(TaskComment).where(TaskComment.task_id == task_uuid)
+
+            if not include_internal:
+                query = query.where(TaskComment.is_internal.is_(False))
+
+            query = query.order_by(TaskComment.created_at)
+
+            result = await session.execute(query)
+            return list(result.scalars().all())
+
+    async def get_comment_by_id(
+        self, comment_id: str
+    ) -> Optional[TaskComment]:
+        """Get a specific comment by ID"""
+        async with self.get_session() as session:
+            # Handle both string and UUID types
+            if isinstance(comment_id, str):
+                comment_uuid = UUID(comment_id)
+            else:
+                comment_uuid = comment_id
+
+            result = await session.execute(
+                select(TaskComment).where(TaskComment.id == comment_uuid)
+            )
+            return result.scalar_one_or_none()
+
+    async def update_task_comment(
+        self, comment_id: str, updates: Dict[str, Any]
+    ) -> Optional[TaskComment]:
+        """Update a task comment"""
+        async with self.get_session() as session:
+            # Handle both string and UUID types
+            if isinstance(comment_id, str):
+                comment_uuid = UUID(comment_id)
+            else:
+                comment_uuid = comment_id
+
+            # Add updated_at timestamp
+            updates["updated_at"] = datetime.utcnow()
+
+            result = await session.execute(
+                update(TaskComment)
+                .where(TaskComment.id == comment_uuid)
+                .values(**updates)
+                .returning(TaskComment)
+            )
+            comment = result.scalar_one_or_none()
+            return comment
+
+    async def delete_task_comment(self, comment_id: str) -> bool:
+        """Delete a task comment"""
+        async with self.get_session() as session:
+            # Handle both string and UUID types
+            if isinstance(comment_id, str):
+                comment_uuid = UUID(comment_id)
+            else:
+                comment_uuid = comment_id
+
+            result = await session.execute(
+                delete(TaskComment).where(TaskComment.id == comment_uuid)
+            )
+            return result.rowcount > 0
+
+    # Task Review Operations
+
+    async def create_task_review(
+        self,
+        task_id: str,
+        reviewer_agent_id: str,
+        review_type: str,
+        decision: str,
+        summary: str,
+        **kwargs,
+    ) -> TaskReview:
+        """Create a new task review"""
+        async with self.get_session() as session:
+            # Handle both string and UUID types for task_id
+            if isinstance(task_id, str):
+                task_uuid = UUID(task_id)
+            else:
+                task_uuid = task_id
+
+            review = TaskReview(
+                task_id=task_uuid,
+                reviewer_agent_id=reviewer_agent_id,
+                review_type=review_type,
+                decision=decision,
+                summary=summary,
+                **kwargs,
+            )
+            session.add(review)
+            await session.flush()
+            await session.refresh(review)
+            return review
+
+    async def get_task_reviews(
+        self, task_id: str, review_type: Optional[str] = None
+    ) -> List[TaskReview]:
+        """Get all reviews for a task"""
+        async with self.get_session() as session:
+            # Handle both string and UUID types
+            if isinstance(task_id, str):
+                task_uuid = UUID(task_id)
+            else:
+                task_uuid = task_id
+
+            query = select(TaskReview).where(TaskReview.task_id == task_uuid)
+
+            if review_type:
+                query = query.where(TaskReview.review_type == review_type)
+
+            query = query.order_by(TaskReview.created_at.desc())
+
+            result = await session.execute(query)
+            return list(result.scalars().all())
+
+    async def get_review_by_id(self, review_id: str) -> Optional[TaskReview]:
+        """Get a specific review by ID"""
+        async with self.get_session() as session:
+            # Handle both string and UUID types
+            if isinstance(review_id, str):
+                review_uuid = UUID(review_id)
+            else:
+                review_uuid = review_id
+
+            result = await session.execute(
+                select(TaskReview).where(TaskReview.id == review_uuid)
+            )
+            return result.scalar_one_or_none()
+
+    async def update_task_review(
+        self, review_id: str, updates: Dict[str, Any]
+    ) -> Optional[TaskReview]:
+        """Update a task review"""
+        async with self.get_session() as session:
+            # Handle both string and UUID types
+            if isinstance(review_id, str):
+                review_uuid = UUID(review_id)
+            else:
+                review_uuid = review_id
+
+            # Add updated_at timestamp
+            updates["updated_at"] = datetime.utcnow()
+
+            result = await session.execute(
+                update(TaskReview)
+                .where(TaskReview.id == review_uuid)
+                .values(**updates)
+                .returning(TaskReview)
+            )
+            review = result.scalar_one_or_none()
+            return review
+
+    # Task Operations with Comments and Reviews
+
+    async def get_task_with_collaboration_data(
+        self, task_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """Get task with all comments and reviews"""
+        task = await self.get_agent_task(task_id)
+        if not task:
+            return None
+
+        comments = await self.get_task_comments(task_id)
+        reviews = await self.get_task_reviews(task_id)
+
+        task_dict = task.to_dict()
+        task_dict["comments"] = [comment.to_dict() for comment in comments]
+        task_dict["reviews"] = [review.to_dict() for review in reviews]
+
+        return task_dict
+
+    async def get_agent_task_activity(
+        self, agent_id: str, limit: int = 50
+    ) -> Dict[str, Any]:
+        """Get recent task activity for an agent"""
+        async with self.get_session() as session:
+            # Get recent comments
+            comment_result = await session.execute(
+                select(TaskComment)
+                .where(TaskComment.agent_id == agent_id)
+                .order_by(TaskComment.created_at.desc())
+                .limit(limit)
+            )
+            comments = list(comment_result.scalars().all())
+
+            # Get recent reviews
+            review_result = await session.execute(
+                select(TaskReview)
+                .where(TaskReview.reviewer_agent_id == agent_id)
+                .order_by(TaskReview.created_at.desc())
+                .limit(limit)
+            )
+            reviews = list(review_result.scalars().all())
+
+            return {
+                "agent_id": agent_id,
+                "recent_comments": [comment.to_dict() for comment in comments],
+                "recent_reviews": [review.to_dict() for review in reviews],
+                "total_comments": len(comments),
+                "total_reviews": len(reviews),
+            }
+
+    async def update_agent_task(
+        self, task_id: str, updates: Dict[str, Any]
+    ) -> Optional[AgentTask]:
+        """Update an agent task with new data"""
+        async with self.get_session() as session:
+            # Handle both string and UUID types
+            if isinstance(task_id, str):
+                task_uuid = UUID(task_id)
+            else:
+                task_uuid = task_id
+
+            # Add updated_at timestamp
+            updates["updated_at"] = datetime.utcnow()
+
+            result = await session.execute(
+                update(AgentTask)
+                .where(AgentTask.id == task_uuid)
+                .values(**updates)
+                .returning(AgentTask)
+            )
+            task = result.scalar_one_or_none()
+            return task
+
+    async def create_agent_task(self, task_data: Dict[str, Any]) -> AgentTask:
+        """Create a new agent task"""
+        async with self.get_session() as session:
+            task = AgentTask(**task_data)
+            session.add(task)
+            await session.flush()
+            await session.refresh(task)
+            return task
+
+    async def delete_agent_task(self, task_id: str) -> bool:
+        """Delete an agent task"""
+        async with self.get_session() as session:
+            # Handle both string and UUID types
+            if isinstance(task_id, str):
+                task_uuid = UUID(task_id)
+            else:
+                task_uuid = task_id
+
+            result = await session.execute(
+                delete(AgentTask).where(AgentTask.id == task_uuid)
+            )
+            return result.rowcount > 0
 
 
 # Global unified database manager instance

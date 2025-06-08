@@ -37,14 +37,11 @@ except ImportError as e:
     print(f"[DEBUG] Failed to import unified database: {e}")
 
 try:
-    from pr_reviewers import multi_role_pr_review
+    import pr_reviewers
 
     print("[DEBUG] Successfully imported pr_reviewers module")
 except ImportError as e:
     print(f"[DEBUG] Failed to import pr_reviewers: {e}")
-
-    def multi_role_pr_review(*args, **kwargs):
-        return {"error": "PR review module not available"}
 
 
 try:
@@ -79,13 +76,6 @@ except ImportError:
         "Warning: ",
         "Summit module not available - PR creation will be disabled",
     )
-
-    def review_pr_with_multiple_roles(*args, **kwargs):
-        return {
-            "success": False,
-            "error": "Summit module not available in this environment",
-            "message": "PR review functionality requires Summit module",
-        }
 
     def create_pull_request(*args, **kwargs):
         return {
@@ -173,8 +163,16 @@ app.add_middleware(
 )
 
 # Mount static files and templates
-app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
+static_dir = os.path.join(os.path.dirname(__file__), "static")
+templates_dir = os.path.join(os.path.dirname(__file__), "templates")
+
+# Only mount static files if directory exists
+if os.path.exists(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+else:
+    print(f"Warning: Static directory not found at {static_dir}")
+
+templates = Jinja2Templates(directory=templates_dir)
 
 
 # Pydantic models for agent system only
