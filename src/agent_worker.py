@@ -4,7 +4,6 @@ Handles task execution from Cloud Tasks
 """
 
 import asyncio
-import json
 import logging
 import os
 import socket
@@ -17,8 +16,6 @@ from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 from pydantic import BaseModel
 
 from cloud_task_manager import (
-    CloudTaskManager,
-    TaskPriority,
     TaskStatus,
     task_manager,
 )
@@ -95,7 +92,9 @@ class AgentWorker:
 
             self.current_task = task_id
             logger.info(
-                f"Agent {self.agent_id} executing task {task_id} of type {task_request.type}"
+                f"Agent {
+                    self.agent_id} executing task {task_id} of type {
+                    task_request.type}"
             )
 
             # Reset agent state before task execution
@@ -115,7 +114,8 @@ class AgentWorker:
             execution_time = (datetime.utcnow() - start_time).total_seconds()
 
             logger.info(
-                f"Task {task_id} completed successfully in {execution_time:.2f}s"
+                f"Task {task_id} completed successfully in {
+                    execution_time:.2f}s"
             )
 
             return TaskResult(

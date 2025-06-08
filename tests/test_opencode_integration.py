@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 """Tests for OpenCode integration"""
 
-import asyncio
-import json
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, mock_open, patch
+from unittest.mock import AsyncMock, mock_open, patch
 
 import pytest
 

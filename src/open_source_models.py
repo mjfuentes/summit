@@ -15,12 +15,10 @@ Features:
 """
 
 import asyncio
-import json
 import logging
-import os
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 import torch
 from transformers import (
@@ -185,7 +183,7 @@ Summit's Advice: """
         elif self.model_info["model_type"] == "code_llama":
             # Code Llama format optimized for code tasks
             if context:
-                prompt = f"""[INST] You are Summit, an AI coding assistant. 
+                prompt = f"""[INST] You are Summit, an AI coding assistant.
 
 Context: {context}
 
@@ -195,7 +193,7 @@ Provide practical coding advice and solutions. [/INST]
 
 Summit's Advice: """
             else:
-                prompt = f"""[INST] You are Summit, an AI coding assistant. 
+                prompt = f"""[INST] You are Summit, an AI coding assistant.
 
 Task: {question}
 
@@ -272,7 +270,11 @@ Summit's Advice: """
             )
 
             # Add cost info to response
-            response += f"\n\n[Model: {self.model_id} | Cost: ${cost:.6f} | Time: {processing_time:.2f}s | Daily spent: ${self.cost_tracker.get_daily_spent():.4f}]"
+            response += f"\n\n[Model: {
+                self.model_id} | Cost: ${
+                cost:.6f} | Time: {
+                processing_time:.2f}s | Daily spent: ${
+                self.cost_tracker.get_daily_spent():.4f}]"
 
             self.logger.info(
                 f"Generated response in {processing_time:.2f}s "
@@ -289,7 +291,7 @@ Summit's Advice: """
         """Analyze code quality and suggest improvements"""
         analysis_prompt = f"""Analyze this {language} code and provide:
 1. Code quality assessment
-2. Potential bugs or issues  
+2. Potential bugs or issues
 3. Performance improvements
 4. Best practices recommendations
 
