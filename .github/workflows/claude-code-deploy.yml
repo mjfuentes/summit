@@ -142,6 +142,36 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     steps:
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Verify image availability
+      run: |
+        echo " Verifying image availability..."
+        IMAGE_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+        echo "Checking image: $IMAGE_TAG"
+        
+        # Wait a moment for image to be available in registry
+        sleep 5
+        
+        # Check if image exists in registry
+        if docker manifest inspect "$IMAGE_TAG" > /dev/null 2>&1; then
+          echo " Image found in registry"
+        else
+          echo " Image not found in registry, retrying in 10 seconds..."
+          sleep 10
+          if docker manifest inspect "$IMAGE_TAG" > /dev/null 2>&1; then
+            echo " Image found in registry after retry"
+          else
+            echo " Image still not available in registry"
+            exit 1
+          fi
+        fi
+        
     - name: Test container startup
       run: |
         echo " Testing container startup..."
