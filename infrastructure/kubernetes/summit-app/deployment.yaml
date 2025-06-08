@@ -1,0 +1,122 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: summit-app
+  namespace: summit
+  labels:
+    app: summit-app
+    component: web-api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: summit-app
+  template:
+    metadata:
+      labels:
+        app: summit-app
+    spec:
+      containers:
+      - name: summit
+        image: summit:latest  # Will be built from Dockerfile
+        ports:
+        - containerPort: 8000
+        env:
+        - name: ENVIRONMENT
+          value: "production"
+        - name: DATABASE_URL
+          value: "sqlite:///app/summit.db"
+        - name: OPENCODE_ENDPOINT
+          value: "http://opencode-service.summit.svc.cluster.local"
+        - name: RUNPOD_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: summit-secrets
+              key: runpod-api-key
+        - name: GITHUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: summit-secrets
+              key: github-token
+        - name: ANTHROPIC_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: summit-secrets
+              key: anthropic-api-key
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: summit-data
+          mountPath: /app/data
+      volumes:
+      - name: summit-data
+        persistentVolumeClaim:
+          claimName: summit-data-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: summit-service
+  namespace: summit
+spec:
+  selector:
+    app: summit-app
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8000
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: summit-data-pvc
+  namespace: summit
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: summit-ingress
+  namespace: summit
+  annotations:
+    kubernetes.io/ingress.class: "gce"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  tls:
+  - hosts:
+    - summit.yourdomain.com
+    secretName: summit-tls
+  rules:
+  - host: summit.yourdomain.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: summit-service
+            port:
+              number: 80 

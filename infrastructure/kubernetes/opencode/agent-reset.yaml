@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agent-reset-scripts
+  namespace: summit
+data:
+  reset-agent.sh: |
+    #!/bin/bash
+    set -e
+    
+    echo " Resetting agent state..."
+    
+    # 1. Reset Git repository to master/main
+    if [ -d "/workspace/.git" ]; then
+        cd /workspace
+        git reset --hard HEAD
+        git clean -fd
+        git checkout main || git checkout master
+        git pull origin main || git pull origin master
+        echo " Git reset to clean master"
+    fi
+    
+    # 2. Clean temporary files
+    rm -rf /tmp/*
+    rm -rf /workspace/temp/*
+    rm -rf /workspace/.cache/*
+    
+    # 3. Reset environment variables (if needed)
+    unset TASK_ID
+    unset CURRENT_BRANCH
+    
+    # 4. Clear any running processes (except agent itself)
+    pkill -f "python.*task" || true
+    
+    echo " Agent state reset complete"
+    
+  health-check.sh: |
+    #!/bin/bash
+    # Health check script
+    
+    # Check if agent is responsive
+    if curl -f http://localhost:8080/health > /dev/null 2>&1; then
+        echo "healthy"
+        exit 0
+    else
+        echo "unhealthy"
+        exit 1 
