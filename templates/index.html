@@ -501,7 +501,7 @@ EXAMPLES:
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        description: description,
+                        task_description: description,
                         backend: 'claude_code',
                         model: 'claude-3-5-sonnet-20241022'
                     }),
@@ -524,7 +524,10 @@ EXAMPLES:
         async function loadTasks() {
             try {
                 const response = await fetch('/api/tasks');
-                const tasks = await response.json();
+                const data = await response.json();
+                
+                // Handle both old format (array) and new format (object with tasks property)
+                const tasks = Array.isArray(data) ? data : (data.tasks || []);
                 
                 // Filter for active tasks (running, initializing, or pending)
                 const activeTasks = tasks.filter(task => 
@@ -544,12 +547,15 @@ EXAMPLES:
             try {
                 const response = await fetch('/api/tasks/failed');
                 if (response.ok) {
-                    const failedTasks = await response.json();
+                    const data = await response.json();
+                    // Handle API response format
+                    const failedTasks = data.failed_tasks || data.tasks || data || [];
                     displayFailedTasks(failedTasks);
                 } else {
                     // If endpoint doesn't exist, filter failed tasks from all tasks
                     const allTasksResponse = await fetch('/api/tasks');
-                    const allTasks = await allTasksResponse.json();
+                    const allData = await allTasksResponse.json();
+                    const allTasks = Array.isArray(allData) ? allData : (allData.tasks || []);
                     const failedTasks = allTasks.filter(task => task.status === 'failed');
                     displayFailedTasks(failedTasks);
                 }
