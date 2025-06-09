@@ -1,3 +1,5 @@
+# 2025-06-09: FastMCP Migration
+
 # Migration to FastMCP Server
 
 ## Overview
