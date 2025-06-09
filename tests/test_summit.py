@@ -15,7 +15,7 @@ from summit import (
     get_anthropic_client,
     get_codespace_status,
     get_github_headers,
-    get_github_repo_info,
+    get_repository_url,
     list_user_codespaces,
     plan_capability_implementation,
     start_codespace,
@@ -62,17 +62,17 @@ class TestSummit:
             headers = get_github_headers()
             assert headers is None
 
-    def test_get_github_repo_info_from_env(self):
+    def test_get_repository_url_from_env(self):
         """Test getting repo info from environment variables"""
         with patch.dict(
             os.environ,
             {"GITHUB_OWNER": "test-owner", "GITHUB_REPO": "test-repo"},
         ):
-            owner, repo = get_github_repo_info()
+            owner, repo = get_repository_url()
             assert owner == "test-owner"
             assert repo == "test-repo"
 
-    def test_get_github_repo_info_from_git_ssh(self):
+    def test_get_repository_url_from_git_ssh(self):
         """Test getting repo info from git remote SSH URL"""
         with patch.dict(os.environ, {}, clear=True):
             with patch("subprocess.run") as mock_run:
@@ -80,12 +80,15 @@ class TestSummit:
                 mock_run.return_value.stdout = (
                     "git@github.com:test-owner/test-repo.git\n"
                 )
+                with patch(
+                    "summit.get_git_executable_path",
+                    return_value="/usr/bin/git",
+                ):
+                    owner, repo = get_repository_url()
+                    assert owner == "test-owner"
+                    assert repo == "test-repo"
 
-                owner, repo = get_github_repo_info()
-                assert owner == "test-owner"
-                assert repo == "test-repo"
-
-    def test_get_github_repo_info_from_git_https(self):
+    def test_get_repository_url_from_git_https(self):
         """Test getting repo info from git remote HTTPS URL"""
         with patch.dict(os.environ, {}, clear=True):
             with patch("subprocess.run") as mock_run:
@@ -93,20 +96,26 @@ class TestSummit:
                 mock_run.return_value.stdout = (
                     "https://github.com/test-owner/test-repo.git\n"
                 )
+                with patch(
+                    "summit.get_git_executable_path",
+                    return_value="/usr/bin/git",
+                ):
+                    owner, repo = get_repository_url()
+                    assert owner == "test-owner"
+                    assert repo == "test-repo"
 
-                owner, repo = get_github_repo_info()
-                assert owner == "test-owner"
-                assert repo == "test-repo"
-
-    def test_get_github_repo_info_failure(self):
+    def test_get_repository_url_failure(self):
         """Test getting repo info when git command fails"""
         with patch.dict(os.environ, {}, clear=True):
             with patch("subprocess.run") as mock_run:
                 mock_run.return_value.returncode = 1
-
-                owner, repo = get_github_repo_info()
-                assert owner is None
-                assert repo is None
+                with patch(
+                    "summit.get_git_executable_path",
+                    return_value="/usr/bin/git",
+                ):
+                    owner, repo = get_repository_url()
+                    assert owner is None
+                    assert repo is None
 
     @pytest.mark.asyncio
     async def test_get_advice_from_claude_success(self):
@@ -303,17 +312,21 @@ class TestSummit:
         """Test planning capability implementation successfully"""
         mock_client = Mock()
         mock_message = Mock()
-        mock_message.content = [Mock(text="Implementation plan")]
+        mock_content_item = Mock()
+        mock_content_item.text = "Test plan response"
+        mock_message.content = [mock_content_item]
+        mock_message.usage.input_tokens = 50
+        mock_message.usage.output_tokens = 100
         mock_client.messages.create.return_value = mock_message
 
         with patch("summit.get_anthropic_client", return_value=mock_client):
             with patch(
-                "summit.get_github_repo_info", return_value=("owner", "repo")
+                "summit.get_repository_url", return_value=("owner", "repo")
             ):
                 result = await plan_capability_implementation(
-                    "test capability"
+                    "test capability", "test role"
                 )
-                assert "Implementation plan" in result
+                assert "Test plan response" in result
                 mock_client.messages.create.assert_called_once()
 
     @pytest.mark.asyncio
@@ -332,7 +345,7 @@ def test_summit_basic_functionality():
     assert hasattr(summit, "cost_tracker")
     assert callable(get_anthropic_client)
     assert callable(get_github_headers)
-    assert callable(get_github_repo_info)
+    assert callable(get_repository_url)
 
 
 if __name__ == "__main__":

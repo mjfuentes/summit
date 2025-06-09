@@ -83,8 +83,38 @@ def get_github_headers():
     }
 
 
-def get_github_repo_info():
-    """Get GitHub repository information from environment or git config"""
+def get_git_executable_path() -> Optional[str]:
+    """Get the full path to the git executable safely"""
+    try:
+        # Use which/where to get the full path to git
+        if os.name == "nt":  # Windows
+            cmd = ["where", "git"]
+        else:  # Unix/Linux/MacOS
+            cmd = ["which", "git"]
+
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, check=True
+        )
+
+        if result.stdout:
+            # Return the first path found (strip newlines)
+            return result.stdout.strip().split("\n")[0]
+        return None
+    except (subprocess.SubprocessError, FileNotFoundError):
+        logger.warning("Git executable not found in PATH")
+        # Fallback to common locations
+        for path in [
+            "/usr/bin/git",
+            "/usr/local/bin/git",
+            "C:\\Program Files\\Git\\bin\\git.exe",
+        ]:
+            if os.path.exists(path):
+                return path
+        return None
+
+
+def get_repository_url() -> Optional[str]:
+    """Get the repository URL from git or environment variables"""
     # Try environment variables first
     owner = os.getenv("GITHUB_OWNER")
     repo = os.getenv("GITHUB_REPO")
@@ -94,8 +124,16 @@ def get_github_repo_info():
 
     # Try to extract from git remote
     try:
+        # Get git executable with full path for security
+        git_path = get_git_executable_path()
+        if not git_path:
+            logger.warning(
+                "Git executable not found, can't determine repository URL"
+            )
+            return None
+
         result = subprocess.run(
-            ["git", "remote", "get-url", "origin"],
+            [git_path, "remote", "get-url", "origin"],
             capture_output=True,
             text=True,
             cwd=os.path.dirname(__file__),
@@ -442,7 +480,7 @@ Recent Calls:"""
 
         try:
             # Get repository information
-            owner, repo = get_github_repo_info()
+            owner, repo = get_repository_url()
             if not owner or not repo:
                 return [
                     types.TextContent(
@@ -593,8 +631,10 @@ Use summit_cleanup_environment to remove it when no longer needed."""
             # Stop the codespace first (if running)
             try:
                 await stop_codespace(codespace_name)
-            except Exception:
-                pass  # Might already be stopped
+            except Exception as e:
+                logger.debug(
+                    f"Error stopping codespace (may already be stopped): {str(e)}"
+                )  # Log instead of silently passing
 
             # Delete the codespace
             await delete_codespace(codespace_name)
@@ -1504,7 +1544,7 @@ async def plan_capability_implementation(
         return "Summit needs an ANTHROPIC_API_KEY to plan capability implementations."
 
     # Get current codebase context
-    owner, repo = get_github_repo_info()
+    owner, repo = get_repository_url()
     if not owner or not repo:
         codebase_context = "Working with local Summit codebase"
     else:

@@ -351,14 +351,15 @@ async def test_heartbeat_functionality(lifecycle_manager):
         lifecycle_manager, "_update_agent_status", new_callable=AsyncMock
     ) as mock_update:
         # Simulate time passing beyond heartbeat interval
-        from datetime import timedelta
+        from datetime import datetime as dt
+        from datetime import timedelta, timezone
 
-        lifecycle_manager.pod_state.last_heartbeat = (
-            datetime.utcnow()
-            - timedelta(seconds=lifecycle_manager.heartbeat_interval * 2)
-        )
+        # Use timezone-aware datetime object
+        lifecycle_manager.pod_state.last_heartbeat = dt.now(
+            timezone.utc
+        ) - timedelta(seconds=lifecycle_manager.heartbeat_interval * 2)
 
-        await lifecycle_manager._send_heartbeat()
+        await lifecycle_manager.send_heartbeat()
 
         # Verify status update was called
         mock_update.assert_called_once()
