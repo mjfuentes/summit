@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 """
+ARCHIVED: This test file is deprecated and has been archived.
+It tested the old MCP server implementation that has been replaced by FastMCP.
+
 Test suite for MCP task management endpoints
 Tests the new task collaboration features for agent coordination
 """

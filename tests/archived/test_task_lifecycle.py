@@ -1,4 +1,9 @@
-"""Test task lifecycle management functionality."""
+"""
+ARCHIVED: This test file is deprecated and has been archived.
+It tested the old MCP task lifecycle implementation that has been replaced by FastMCP.
+
+Test task lifecycle management functionality.
+"""
 
 import json
 from datetime import datetime, timedelta

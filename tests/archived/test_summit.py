@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+"""
+ARCHIVED: This test file is deprecated and has been archived.
+It tested the old Summit MCP server that has been replaced by FastMCP.
+
+Test suite for Summit MCP server
+"""
 
 import os
 import sys

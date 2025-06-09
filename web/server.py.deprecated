@@ -1,0 +1,597 @@
+#!/usr/bin/env python3
+# Testing autonomous Claude Code
+# Summit Web API Server
+"""
+Summit Web API - FastAPI server that exposes Summit's capabilities via REST endpoints
+"""
+
+import os
+import sys
+from typing import Any, Dict, Optional
+
+import uvicorn
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
+
+from config import setup_environment
+from summit import handle_call_tool
+
+# Add the current directory to the path for imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+
+
+# Set up environment variables
+setup_environment()
+
+# Initialize FastAPI app
+app = FastAPI(
+    title="Summit AI API",
+    description="REST API for Summit AI Advisor with self-modification capabilities",
+    version="1.0.0",
+)
+
+# Add CORS middleware for web browser access
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# Pydantic models for request/response validation
+class AdviceRequest(BaseModel):
+    question: str
+    context: Optional[str] = None
+
+
+class ShareRequest(BaseModel):
+    content: str
+    category: Optional[str] = "general"
+    context: Optional[str] = None
+
+
+class LearnRequest(BaseModel):
+    query: str
+    focus: Optional[str] = None
+    max_results: Optional[int] = 5
+
+
+class AnalyticsRequest(BaseModel):
+    include_suggestions: Optional[bool] = False
+
+
+class SoundCloudConfigRequest(BaseModel):
+    access_token: str
+
+
+class SoundCloudSearchRequest(BaseModel):
+    query: str
+    limit: Optional[int] = 10
+
+
+class ApiResponse(BaseModel):
+    success: bool
+    data: Any
+    message: Optional[str] = None
+
+
+# Error handler
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=500,
+        content={
+            "success": False,
+            "data": None,
+            "message": f"Internal error: {str(exc)}",
+        },
+    )
+
+
+# Root endpoint with HTML interface
+@app.get("/", response_class=HTMLResponse)
+async def root():
+    """Serve the main web interface"""
+    html_content = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Summit AI Advisor</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        .card h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #555;
+        }
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s ease;
+        }
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: transform 0.2s ease;
+            width: 100%;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .response {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .loading {
+            color: #667eea;
+            font-style: italic;
+        }
+        .error {
+            background: #fee;
+            border-left-color: #e74c3c;
+            color: #c0392b;
+        }
+        .status-card {
+            grid-column: 1 / -1;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            text-align: center;
+        }
+        .status-item h4 {
+            font-size: 2rem;
+            margin-bottom: 5px;
+        }
+        .status-item p {
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Summit AI Advisor</h1>
+            <p>An autonomous AI system specializing in AI development, coding, and architecture</p>
+        </div>
+        
+        <div class="cards-grid">
+            <div class="status-card card">
+                <h3>System Status</h3>
+                <div id="statusContainer" class="status-grid">
+                    <div class="status-item">
+                        <h4 id="apiUsage">--</h4>
+                        <p>API Tokens</p>
+                    </div>
+                    <div class="status-item">
+                        <h4 id="costTotal">--</h4>
+                        <p>Cost</p>
+                    </div>
+                    <div class="status-item">
+                        <h4 id="uptime">--</h4>
+                        <p>Uptime</p>
+                    </div>
+                </div>
+            </div>
+        
+            <div class="card">
+                <h3>Ask for Advice</h3>
+                <div class="form-group">
+                    <label for="questionInput">Question</label>
+                    <textarea id="questionInput" rows="4" placeholder="Ask a question about AI development, coding, or architecture..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="contextInput">Context (optional)</label>
+                    <textarea id="contextInput" rows="2" placeholder="Add any relevant context..."></textarea>
+                </div>
+                <button id="adviceBtn" class="btn">Get Advice</button>
+                <div id="adviceResponse" class="response" style="display: none;"></div>
+            </div>
+        
+            <div class="card">
+                <h3>Analytics</h3>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="includeSuggestions"> Include Suggestions
+                    </label>
+                </div>
+                <button id="analyticsBtn" class="btn">Get Analytics</button>
+                <div id="analyticsResponse" class="response" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Fetch status on load
+        document.addEventListener('DOMContentLoaded', async () => {
+            await fetchStatus();
+            setInterval(fetchStatus, 60000); // Update every minute
+        });
+
+        async function fetchStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Parse the markdown format to extract values
+                    const statusText = data.data;
+                    
+                    // Extract API usage
+                    const apiUsageMatch = statusText.match(/API Usage: ([\d,]+) tokens/);
+                    if (apiUsageMatch) {
+                        document.getElementById('apiUsage').textContent = apiUsageMatch[1];
+                    }
+                    
+                    // Extract cost
+                    const costMatch = statusText.match(/\(\$([\d.]+)\)/);
+                    if (costMatch) {
+                        document.getElementById('costTotal').textContent = '$' + costMatch[1];
+                    }
+                    
+                    // Extract uptime
+                    const uptimeMatch = statusText.match(/Uptime: (\d+) days, (\d+) hours, (\d+) minutes/);
+                    if (uptimeMatch) {
+                        const days = parseInt(uptimeMatch[1]);
+                        const hours = parseInt(uptimeMatch[2]);
+                        const minutes = parseInt(uptimeMatch[3]);
+                        
+                        if (days > 0) {
+                            document.getElementById('uptime').textContent = `${days}d ${hours}h`;
+                        } else if (hours > 0) {
+                            document.getElementById('uptime').textContent = `${hours}h ${minutes}m`;
+                        } else {
+                            document.getElementById('uptime').textContent = `${minutes}m`;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching status:', error);
+            }
+        }
+
+        // Advice button functionality
+        document.getElementById('adviceBtn').addEventListener('click', async () => {
+            const questionInput = document.getElementById('questionInput');
+            const contextInput = document.getElementById('contextInput');
+            const responseDiv = document.getElementById('adviceResponse');
+            
+            if (!questionInput.value.trim()) {
+                responseDiv.textContent = 'Please enter a question';
+                responseDiv.style.display = 'block';
+                responseDiv.classList.add('error');
+                return;
+            }
+            
+            // Show loading
+            responseDiv.textContent = 'Getting advice...';
+            responseDiv.style.display = 'block';
+            responseDiv.classList.remove('error');
+            responseDiv.classList.add('loading');
+            
+            try {
+                const response = await fetch('/api/advice', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        question: questionInput.value,
+                        context: contextInput.value,
+                    }),
+                });
+                
+                const data = await response.json();
+                
+                responseDiv.classList.remove('loading');
+                if (data.success) {
+                    responseDiv.textContent = data.data;
+                } else {
+                    responseDiv.textContent = data.message || 'An error occurred';
+                    responseDiv.classList.add('error');
+                }
+            } catch (error) {
+                responseDiv.classList.remove('loading');
+                responseDiv.classList.add('error');
+                responseDiv.textContent = 'Network error: ' + error.message;
+            }
+        });
+
+        // Analytics button functionality
+        document.getElementById('analyticsBtn').addEventListener('click', async () => {
+            const includeSuggestions = document.getElementById('includeSuggestions').checked;
+            const responseDiv = document.getElementById('analyticsResponse');
+            
+            // Show loading
+            responseDiv.textContent = 'Fetching analytics...';
+            responseDiv.style.display = 'block';
+            responseDiv.classList.remove('error');
+            responseDiv.classList.add('loading');
+            
+            try {
+                const response = await fetch('/api/analytics', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        include_suggestions: includeSuggestions,
+                    }),
+                });
+                
+                const data = await response.json();
+                
+                responseDiv.classList.remove('loading');
+                if (data.success) {
+                    responseDiv.textContent = data.data;
+                } else {
+                    responseDiv.textContent = data.message || 'An error occurred';
+                    responseDiv.classList.add('error');
+                }
+            } catch (error) {
+                responseDiv.classList.remove('loading');
+                responseDiv.classList.add('error');
+                responseDiv.textContent = 'Network error: ' + error.message;
+            }
+        });
+    </script>
+</body>
+</html>
+"""
+    return HTMLResponse(content=html_content)
+
+
+@app.post("/api/advice", response_model=ApiResponse)
+async def get_advice(request: AdviceRequest):
+    """Get advice from Summit"""
+    try:
+        result = await handle_call_tool(
+            "summit_advice",
+            {"question": request.question, "context": request.context},
+        )
+        return ApiResponse(success=True, data=result[0].text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/status", response_model=ApiResponse)
+async def get_status():
+    """Get Summit status"""
+    try:
+        result = await handle_call_tool("summit_status", {})
+        return ApiResponse(success=True, data=result[0].text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/cost-report", response_model=ApiResponse)
+async def get_cost_report():
+    """Get cost report"""
+    try:
+        result = await handle_call_tool("summit_cost_report", {})
+        return ApiResponse(success=True, data=result[0].text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/share", response_model=ApiResponse)
+async def share_knowledge(request: ShareRequest):
+    """Share knowledge with Summit"""
+    try:
+        result = await handle_call_tool(
+            "summit_share_knowledge",
+            {
+                "content": request.content,
+                "category": request.category,
+                "context": request.context,
+            },
+        )
+        return ApiResponse(success=True, data=result[0].text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/learn", response_model=ApiResponse)
+async def learn_from_knowledge(request: LearnRequest):
+    """Learn from knowledge base"""
+    try:
+        result = await handle_call_tool(
+            "summit_learn_from_knowledge",
+            {
+                "query": request.query,
+                "focus": request.focus,
+                "max_results": request.max_results,
+            },
+        )
+        return ApiResponse(success=True, data=result[0].text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/analytics", response_model=ApiResponse)
+async def get_analytics(request: AnalyticsRequest):
+    """Get usage analytics"""
+    try:
+        result = await handle_call_tool(
+            "summit_analytics", {"include_suggestions": request.include_suggestions}
+        )
+        return ApiResponse(success=True, data=result[0].text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/insights", response_model=ApiResponse)
+async def get_insights():
+    """Get insights from usage patterns"""
+    try:
+        result = await handle_call_tool("summit_insights", {})
+        return ApiResponse(success=True, data=result[0].text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/soundcloud/config", response_model=ApiResponse)
+async def configure_soundcloud(request: SoundCloudConfigRequest):
+    """Configure SoundCloud integration"""
+    try:
+        result = await handle_call_tool(
+            "soundcloud_config", {"access_token": request.access_token}
+        )
+        return ApiResponse(success=True, data=result[0].text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/soundcloud/config", response_model=ApiResponse)
+async def get_soundcloud_config():
+    """Get SoundCloud configuration status"""
+    try:
+        result = await handle_call_tool("soundcloud_get_config", {})
+        return ApiResponse(success=True, data=result[0].text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/soundcloud/search", response_model=ApiResponse)
+async def search_soundcloud(request: SoundCloudSearchRequest):
+    """Search for tracks on SoundCloud"""
+    try:
+        result = await handle_call_tool(
+            "soundcloud_search", {"query": request.query, "limit": request.limit}
+        )
+        return ApiResponse(success=True, data=result[0].text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/soundcloud/stream/{track_id}")
+async def stream_soundcloud_track(track_id: str):
+    """Get a streamable URL for a SoundCloud track"""
+    try:
+        result = await handle_call_tool(
+            "soundcloud_get_stream_url", {"track_id": track_id}
+        )
+        # Extract the URL from the response
+        stream_url = None
+        for line in result[0].text.split("\n"):
+            if line.startswith("Stream URL: "):
+                stream_url = line.replace("Stream URL: ", "").strip()
+                break
+
+        if not stream_url:
+            raise ValueError("Could not extract stream URL from response")
+
+        # Return JSON with the URL instead of redirecting
+        return {"success": True, "data": {"stream_url": stream_url}}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/health")
+async def health_check():
+    """Simple health check endpoint"""
+    return {"status": "healthy"}
+
+
+# Mount static files for the web UI
+app.mount("/static", StaticFiles(directory="web/static"), name="static")
+
+
+def start_server():
+    """Start the FastAPI server"""
+    uvicorn.run(
+        "web.server:app",
+        host="0.0.0.0",
+        port=int(os.getenv("PORT", "8000")),
+        reload=True,
+    )
+
+
+if __name__ == "__main__":
+    start_server()

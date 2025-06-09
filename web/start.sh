@@ -15,13 +15,13 @@ if [ ! -z "$EXISTING_PIDS" ]; then
 fi
 
 # Check if we're in the right directory
-if [ ! -f "server.py" ]; then
-    echo "ERROR: server.py not found in current directory"
-    echo "   Make sure you're running this from the Summit web directory"
+if [ ! -f "autonomous_server.py" ]; then
+    echo "ERROR: autonomous_server.py not found in current directory"
+    echo "Please run this script from the 'web' directory"
     exit 1
 fi
 
-echo "Found server.py"
+echo "Found autonomous_server.py"
 
 # Check if dependencies are installed
 echo "Checking dependencies..."
@@ -46,5 +46,13 @@ echo ""
 echo "Starting server... (Press Ctrl+C to stop)"
 echo ""
 
+# Create .env file if it doesn't exist
+if [ ! -f ".env" ]; then
+    echo "Creating default .env file"
+    echo "ANTHROPIC_API_KEY=" > .env
+    echo "PORT=8000" >> .env
+    echo "LOG_LEVEL=info" >> .env
+fi
+
 # Start server (already in web directory)
-python3 standalone_server.py 
+python3 autonomous_server.py 
