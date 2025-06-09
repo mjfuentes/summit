@@ -55,7 +55,7 @@ class UnifiedDatabaseManager:
             database_url = os.getenv("DATABASE_URL")
 
             if not database_url:
-                # Detect CI/CD environments and development environments
+                # Detect environment type
                 is_ci = any(
                     os.getenv(var)
                     for var in [
@@ -69,8 +69,19 @@ class UnifiedDatabaseManager:
                     ]
                 )
 
+                # Detect production/Kubernetes environment
+                is_production = any(
+                    [
+                        os.getenv("ENVIRONMENT") == "production",
+                        os.getenv(
+                            "KUBERNETES_SERVICE_HOST"
+                        ),  # Running in Kubernetes
+                        os.getenv("NODE_ENV") == "production",
+                    ]
+                )
+
                 if is_ci:
-                    # Use SQLite for CI/CD environments
+                    # Use SQLite for CI/CD environments only
                     db_dir = os.path.join(
                         os.path.dirname(os.path.dirname(__file__)), "data"
                     )
@@ -78,6 +89,12 @@ class UnifiedDatabaseManager:
                     database_url = f"sqlite+aiosqlite:///{db_dir}/summit_ci.db"
                     print(
                         f"CI environment detected, using SQLite: {database_url}"
+                    )
+                elif is_production:
+                    # Production must use PostgreSQL - no fallback
+                    raise RuntimeError(
+                        "Production environment detected but DATABASE_URL not set. "
+                        "PostgreSQL connection is required for production deployments."
                     )
                 else:
                     # For local development, try PostgreSQL first, fallback to SQLite
@@ -90,7 +107,7 @@ class UnifiedDatabaseManager:
                             f"Local development, attempting PostgreSQL: {database_url}"
                         )
                     except ImportError:
-                        # Fall back to SQLite for development
+                        # Fall back to SQLite for development only
                         db_dir = os.path.join(
                             os.path.dirname(os.path.dirname(__file__)), "data"
                         )
@@ -103,19 +120,39 @@ class UnifiedDatabaseManager:
                         )
 
         # Initialize the global database manager
-        # If PostgreSQL connection fails, we'll catch it in init_database
         init_database_manager(database_url)
         self.db_manager = get_database_manager()
 
     async def init_database(self):
-        """Initialize all database tables with PostgreSQL fallback to SQLite"""
+        """Initialize all database tables - PostgreSQL only for production"""
+        # Check if we're in production environment
+        is_production = any(
+            [
+                os.getenv("ENVIRONMENT") == "production",
+                os.getenv("KUBERNETES_SERVICE_HOST"),  # Running in Kubernetes
+                os.getenv("NODE_ENV") == "production",
+            ]
+        )
+
         try:
             await self.db_manager.init_database()
+            print(
+                f"Database initialized successfully: {self.db_manager.database_url}"
+            )
         except Exception as e:
-            # If PostgreSQL connection fails, fallback to SQLite
-            if "postgresql" in self.db_manager.database_url.lower():
+            if is_production:
+                # In production, fail fast - no SQLite fallback
+                print(
+                    f"FATAL: Database initialization failed in production environment: {e}"
+                )
+                print(
+                    "PostgreSQL connection is required for production. Check your DATABASE_URL and database connectivity."
+                )
+                raise
+            elif "postgresql" in self.db_manager.database_url.lower():
+                # Only allow SQLite fallback in development/CI environments
                 print(f"PostgreSQL connection failed: {e}")
-                print("Falling back to SQLite for database operations...")
+                print("Falling back to SQLite for development environment...")
 
                 # Create SQLite fallback
                 db_dir = os.path.join(
