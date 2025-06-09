@@ -100,7 +100,7 @@ jobs:
     - name: Run Bandit security scan
       run: |
         bandit -r src/ -f json -o bandit-report.json || true
-        bandit -r src/ --format text
+        bandit -r src/ -f txt
         
     - name: Run Safety dependency scan
       run: |
