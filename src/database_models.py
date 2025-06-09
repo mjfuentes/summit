@@ -4,6 +4,7 @@ Unified database schema for all Summit components
 """
 
 import json
+import os
 from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
@@ -25,7 +26,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -34,6 +35,48 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
+
+
+def get_json_type(postgresql_optimal=False):
+    """
+    Get appropriate JSON type based on database compatibility requirements.
+
+    Args:
+        postgresql_optimal: If True, use JSONB for PostgreSQL (enables GIN indexes)
+                          If False, use JSON for broader compatibility
+    """
+    if postgresql_optimal:
+        return JSONB
+    else:
+        return JSON
+
+
+def is_postgresql_environment():
+    """
+    Detect if we're in a PostgreSQL environment where JSONB optimization should be enabled.
+    """
+    database_url = os.getenv("DATABASE_URL", "")
+
+    # Check if running in production/Kubernetes with PostgreSQL
+    is_production = any(
+        [
+            os.getenv("ENVIRONMENT") == "production",
+            os.getenv("KUBERNETES_SERVICE_HOST"),  # Running in Kubernetes
+            os.getenv("NODE_ENV") == "production",
+        ]
+    )
+
+    # Check if PostgreSQL is explicitly configured
+    is_postgresql = "postgresql" in database_url.lower()
+
+    # Enable JSONB optimization for production PostgreSQL environments
+    return is_production and is_postgresql
+
+
+# Determine optimal JSON type for this environment
+OPTIMAL_JSON_TYPE = get_json_type(
+    postgresql_optimal=is_postgresql_environment()
+)
 
 
 class TaskStatus(str, Enum):
@@ -87,7 +130,7 @@ class AgentTask(Base):
     # Primary fields
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     task_type = Column(String(100), nullable=False)
-    payload = Column(JSON, nullable=False)
+    payload = Column(OPTIMAL_JSON_TYPE, nullable=False)
     priority = Column(
         SQLEnum(TaskPriority), nullable=False, default=TaskPriority.NORMAL
     )
@@ -109,8 +152,8 @@ class AgentTask(Base):
         SQLEnum(TaskSource), nullable=False, default=TaskSource.INTERNAL
     )
     external_id = Column(String(200), nullable=True)  # ID from external system
-    context = Column(JSON, nullable=False, default=dict)
-    result = Column(JSON, nullable=True)
+    context = Column(OPTIMAL_JSON_TYPE, nullable=False, default=dict)
+    result = Column(OPTIMAL_JSON_TYPE, nullable=True)
     error = Column(Text, nullable=True)
 
     # Retry and timeout handling
@@ -185,8 +228,10 @@ class Agent(Base):
     # Primary fields
     id = Column(String(100), primary_key=True)  # agent-{uuid}
     name = Column(String(200), nullable=True)
-    roles = Column(JSON, nullable=False)  # List of role names
-    capabilities = Column(JSON, nullable=False)  # List of capabilities
+    roles = Column(OPTIMAL_JSON_TYPE, nullable=False)  # List of role names
+    capabilities = Column(
+        OPTIMAL_JSON_TYPE, nullable=False
+    )  # List of capabilities
     version = Column(String(50), nullable=True)
 
     # Status and health
@@ -224,9 +269,18 @@ class Agent(Base):
     __table_args__ = (
         Index("idx_agents_status", "status"),
         Index("idx_agents_last_heartbeat", "last_heartbeat"),
-        Index(
-            "idx_agents_roles", "roles", postgresql_using="gin"
-        ),  # GIN index for JSON searching
+    ) + (
+        # Add GIN indexes for PostgreSQL JSONB optimization
+        (
+            Index("idx_agents_roles", "roles", postgresql_using="gin"),
+            Index(
+                "idx_agents_capabilities",
+                "capabilities",
+                postgresql_using="gin",
+            ),
+        )
+        if is_postgresql_environment()
+        else ()
     )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -277,7 +331,9 @@ class TaskLog(Base):
     agent_id = Column(String(100), ForeignKey("agents.id"), nullable=True)
     level = Column(String(20), nullable=False)  # INFO, WARNING, ERROR, DEBUG
     message = Column(Text, nullable=False)
-    context = Column(JSON, nullable=True)  # Additional structured data
+    context = Column(
+        OPTIMAL_JSON_TYPE, nullable=True
+    )  # Additional structured data
     timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     # Relationships
@@ -303,7 +359,9 @@ class AgentContext(Base):
         String(50), nullable=False
     )  # file_analysis, code_review, etc.
     key = Column(String(500), nullable=False)  # file_path, pr_number, etc.
-    value = Column(JSON, nullable=False)  # The actual context data
+    value = Column(
+        OPTIMAL_JSON_TYPE, nullable=False
+    )  # The actual context data
     agent_id = Column(String(100), ForeignKey("agents.id"), nullable=False)
     task_id = Column(
         UUID(as_uuid=True), ForeignKey("agent_tasks.id"), nullable=True
@@ -312,7 +370,9 @@ class AgentContext(Base):
     # Metadata
     expires_at = Column(DateTime, nullable=True)  # Optional expiration
     version = Column(Integer, nullable=False, default=1)
-    tags = Column(JSON, nullable=True)  # For categorization and search
+    tags = Column(
+        OPTIMAL_JSON_TYPE, nullable=True
+    )  # For categorization and search
 
     # Timestamps
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
@@ -353,7 +413,7 @@ class TaskComment(Base):
 
     # Structured data for different comment types
     comment_metadata = Column(
-        JSON, nullable=True
+        OPTIMAL_JSON_TYPE, nullable=True
     )  # Additional structured data
 
     # Review-specific fields
@@ -450,9 +510,11 @@ class TaskReview(Base):
 
     # Review content
     summary = Column(Text, nullable=False)
-    findings = Column(JSON, nullable=False, default=list)  # List of findings
+    findings = Column(
+        OPTIMAL_JSON_TYPE, nullable=False, default=list
+    )  # List of findings
     recommendations = Column(
-        JSON, nullable=False, default=list
+        OPTIMAL_JSON_TYPE, nullable=False, default=list
     )  # List of recommendations
 
     # Scoring
@@ -461,9 +523,13 @@ class TaskReview(Base):
     risk_score = Column(Float, nullable=True)  # 0.0 to 10.0
 
     # Review metadata
-    review_criteria = Column(JSON, nullable=True)  # Criteria used for review
+    review_criteria = Column(
+        OPTIMAL_JSON_TYPE, nullable=True
+    )  # Criteria used for review
     review_duration_seconds = Column(Integer, nullable=True)
-    files_reviewed = Column(JSON, nullable=True)  # List of files reviewed
+    files_reviewed = Column(
+        OPTIMAL_JSON_TYPE, nullable=True
+    )  # List of files reviewed
 
     # Status
     is_final = Column(Boolean, nullable=False, default=True)
@@ -543,7 +609,7 @@ class WebTask(Base):
     save_word = Column(String(100))
     status = Column(String(20), nullable=False, default="pending")
     progress = Column(Text)
-    logs = Column(JSON, default=list)  # Store as JSON array
+    logs = Column(OPTIMAL_JSON_TYPE, default=list)  # Store as JSON array
 
     # Timestamps
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
@@ -571,7 +637,9 @@ class WebTask(Base):
     ci_status = Column(
         String(20)
     )  # CI/CD status: pending, success, failure, error
-    workflow_runs = Column(JSON, default=list)  # Store workflow run data
+    workflow_runs = Column(
+        OPTIMAL_JSON_TYPE, default=list
+    )  # Store workflow run data
     last_ci_check = Column(DateTime)  # Last time CI status was checked
 
     # Enhanced task metadata fields
