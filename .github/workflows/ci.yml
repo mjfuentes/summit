@@ -37,7 +37,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install pytest-cov pytest-xdist
         
     - name: Run tests with coverage
       run: |
@@ -66,6 +65,12 @@ jobs:
         flags: unittests
         name: codecov-umbrella
         fail_ci_if_error: false
+        
+    - name: Cleanup coverage files
+      run: |
+        # Cleanup coverage files as per Summit standards
+        rm -f coverage.json .coverage coverage.xml || true
+      if: always()
 
   lint:
     name: Code Quality
