@@ -119,6 +119,17 @@ class TaskSource(str, Enum):
     WEBHOOK = "webhook"
 
 
+class TaskLifecycleStage(str, Enum):
+    """Task lifecycle stage enumeration"""
+
+    DESIGN = "design"
+    IMPLEMENT = "implement"
+    TEST = "test"
+    REVIEW = "review"
+    DEPLOY = "deploy"
+    COMPLETED = "completed"
+
+
 # Core Tables
 
 
@@ -136,6 +147,11 @@ class AgentTask(Base):
     )
     status = Column(
         SQLEnum(TaskStatus), nullable=False, default=TaskStatus.PENDING
+    )
+    lifecycle_stage = Column(
+        SQLEnum(TaskLifecycleStage),
+        nullable=False,
+        default=TaskLifecycleStage.DESIGN,
     )
 
     # Assignment and execution
@@ -217,6 +233,7 @@ class AgentTask(Base):
             "completed_at": (
                 self.completed_at.isoformat() if self.completed_at else None
             ),
+            "lifecycle_stage": self.lifecycle_stage.value,
         }
 
 
@@ -585,6 +602,108 @@ class TaskReview(Base):
             "superseded_by": (
                 str(self.superseded_by) if self.superseded_by else None
             ),
+            "created_at": (
+                self.created_at.isoformat() if self.created_at else None
+            ),
+            "updated_at": (
+                self.updated_at.isoformat() if self.updated_at else None
+            ),
+        }
+
+
+class TaskLifecycleHistory(Base):
+    """Track the history of task lifecycle stage transitions"""
+
+    __tablename__ = "task_lifecycle_history"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    task_id = Column(
+        UUID(as_uuid=True), ForeignKey("agent_tasks.id"), nullable=False
+    )
+    agent_id = Column(String(100), ForeignKey("agents.id"), nullable=False)
+
+    # Stage transition details
+    from_stage = Column(
+        SQLEnum(TaskLifecycleStage), nullable=True
+    )  # null for initial stage
+    to_stage = Column(SQLEnum(TaskLifecycleStage), nullable=False)
+
+    # Work tracking
+    started_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
+    duration_seconds = Column(
+        Integer, nullable=True
+    )  # Calculated on completion
+
+    # Output and results
+    stage_output = Column(
+        OPTIMAL_JSON_TYPE, nullable=True
+    )  # What was produced
+    stage_summary = Column(
+        Text, nullable=True
+    )  # Brief description of work done
+    files_modified = Column(
+        OPTIMAL_JSON_TYPE, nullable=True
+    )  # List of files changed
+
+    # Quality metrics
+    quality_score = Column(Float, nullable=True)  # 0.0 to 10.0
+    completion_status = Column(
+        String(20), nullable=False, default="completed"
+    )  # completed, partial, failed
+
+    # Additional metadata
+    stage_metadata = Column(
+        OPTIMAL_JSON_TYPE, nullable=True
+    )  # Additional context
+    transition_reason = Column(
+        Text, nullable=True
+    )  # Why stage was transitioned
+
+    # Timestamps
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+    # Relationships
+    task = relationship("AgentTask", backref="lifecycle_history")
+    agent = relationship("Agent")
+
+    # Indexes
+    __table_args__ = (
+        Index("idx_lifecycle_history_task_id", "task_id"),
+        Index("idx_lifecycle_history_agent_id", "agent_id"),
+        Index("idx_lifecycle_history_to_stage", "to_stage"),
+        Index("idx_lifecycle_history_started_at", "started_at"),
+        Index("idx_lifecycle_history_completion_status", "completion_status"),
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for API responses"""
+        return {
+            "id": str(self.id),
+            "task_id": str(self.task_id),
+            "agent_id": self.agent_id,
+            "from_stage": self.from_stage.value if self.from_stage else None,
+            "to_stage": self.to_stage.value,
+            "started_at": (
+                self.started_at.isoformat() if self.started_at else None
+            ),
+            "completed_at": (
+                self.completed_at.isoformat() if self.completed_at else None
+            ),
+            "duration_seconds": self.duration_seconds,
+            "stage_output": self.stage_output,
+            "stage_summary": self.stage_summary,
+            "files_modified": self.files_modified,
+            "quality_score": self.quality_score,
+            "completion_status": self.completion_status,
+            "stage_metadata": self.stage_metadata,
+            "transition_reason": self.transition_reason,
             "created_at": (
                 self.created_at.isoformat() if self.created_at else None
             ),

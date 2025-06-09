@@ -70,179 +70,64 @@ class SummitMCPClient:
             except Exception as e:
                 logger.error(f"Error disconnecting from MCP server: {e}")
 
-    async def register_agent(
-        self,
-        role: str,
-        capabilities: List[str],
-        status: str = "active",
-        version: str = "1.0.0",
-        metadata: Optional[Dict] = None,
-    ) -> bool:
-        """Register this agent with the Summit system"""
+    async def start_task(self, task_id: str) -> bool:
+        """Start working on a task"""
         if not self._connected:
             if not await self.connect():
                 return False
 
         try:
             result = await self.client.call_tool(
-                "summit_register_agent",
+                "summit_start_task",
                 {
+                    "task_id": task_id,
                     "agent_id": self.agent_id,
-                    "role": role,
-                    "capabilities": capabilities,
-                    "status": status,
-                    "version": version,
-                    "metadata": metadata or {},
                 },
             )
 
-            logger.info(
-                f"Agent {self.agent_id} registered successfully with role {role}"
-            )
-            self.agent_role = role
+            logger.info(f"Agent {self.agent_id} started task {task_id}")
             return True
 
         except Exception as e:
-            logger.error(f"Failed to register agent: {e}")
+            logger.error(f"Failed to start task {task_id}: {e}")
             return False
 
-    async def update_status(
-        self,
-        status: str,
-        current_task: Optional[str] = None,
-        metadata: Optional[Dict] = None,
-    ) -> bool:
-        """Update agent status and send heartbeat"""
-        if not self._connected:
-            logger.warning("Not connected to MCP server, cannot update status")
-            return False
-
-        try:
-            result = await self.client.call_tool(
-                "summit_update_agent_status",
-                {
-                    "agent_id": self.agent_id,
-                    "status": status,
-                    "current_task": current_task,
-                    "metadata": metadata or {},
-                },
-            )
-
-            logger.debug(f"Status updated to {status}")
-            return True
-
-        except Exception as e:
-            logger.error(f"Failed to update status: {e}")
-            return False
-
-    async def get_tasks(
-        self, role: Optional[str] = None, status: Optional[str] = None
-    ) -> List[Dict]:
-        """Get tasks assigned to this agent or role"""
-        if not self._connected:
-            logger.warning("Not connected to MCP server, cannot get tasks")
-            return []
-
-        try:
-            result = await self.client.call_tool(
-                "summit_list_tasks",
-                {
-                    "role": role or self.agent_role,
-                    "status": status,
-                    "limit": 50,
-                },
-            )
-
-            # Parse the response to extract task data
-            # (This would need to be adapted based on actual MCP response format)
-            return []
-
-        except Exception as e:
-            logger.error(f"Failed to get tasks: {e}")
-            return []
-
-    async def update_task_status(
+    async def end_task(
         self,
         task_id: str,
-        status: str,
+        success: bool,
         result: Optional[Dict] = None,
-        error: Optional[str] = None,
+        summary: Optional[str] = None,
+        files_modified: Optional[List[str]] = None,
+        error_message: Optional[str] = None,
+        quality_score: float = 5.0,
     ) -> bool:
-        """Update the status of a task"""
+        """Complete a task with results or mark it as failed"""
         if not self._connected:
-            logger.warning("Not connected to MCP server, cannot update task")
+            logger.warning("Not connected to MCP server, cannot end task")
             return False
 
         try:
             await self.client.call_tool(
-                "summit_update_task_status",
+                "summit_end_task",
                 {
                     "task_id": task_id,
-                    "status": status,
                     "agent_id": self.agent_id,
+                    "success": success,
                     "result": result,
-                    "error": error,
+                    "summary": summary,
+                    "files_modified": files_modified or [],
+                    "error_message": error_message,
+                    "quality_score": quality_score,
                 },
             )
 
-            logger.info(f"Task {task_id} status updated to {status}")
+            status = "completed" if success else "failed"
+            logger.info(f"Task {task_id} {status} by agent {self.agent_id}")
             return True
 
         except Exception as e:
-            logger.error(f"Failed to update task status: {e}")
-            return False
-
-    async def add_task_comment(
-        self,
-        task_id: str,
-        comment_type: str,
-        content: str,
-        approval_status: Optional[str] = None,
-        rating: Optional[int] = None,
-        is_internal: bool = False,
-    ) -> bool:
-        """Add a comment to a task"""
-        if not self._connected:
-            logger.warning("Not connected to MCP server, cannot add comment")
-            return False
-
-        try:
-            await self.client.call_tool(
-                "summit_add_task_comment",
-                {
-                    "task_id": task_id,
-                    "agent_id": self.agent_id,
-                    "comment_type": comment_type,
-                    "content": content,
-                    "approval_status": approval_status,
-                    "rating": rating,
-                    "is_internal": is_internal,
-                },
-            )
-
-            logger.info(f"Comment added to task {task_id}")
-            return True
-
-        except Exception as e:
-            logger.error(f"Failed to add comment: {e}")
-            return False
-
-    async def unregister(self) -> bool:
-        """Unregister this agent from the Summit system"""
-        if not self._connected:
-            return True  # Already disconnected
-
-        try:
-            await self.client.call_tool(
-                "summit_unregister_agent", {"agent_id": self.agent_id}
-            )
-
-            logger.info(f"Agent {self.agent_id} unregistered successfully")
-            await self.disconnect()
-            return True
-
-        except Exception as e:
-            logger.error(f"Failed to unregister agent: {e}")
+            logger.error(f"Failed to end task {task_id}: {e}")
             return False
 
     def is_connected(self) -> bool:
@@ -259,29 +144,7 @@ class SummitMCPClient:
         await self.disconnect()
 
 
-# Convenience functions for agent registration and management
-
-
-async def register_agent_with_summit(
-    agent_id: str,
-    role: str,
-    capabilities: List[str],
-    server_host: str = "summit-mcp-service.summit.svc.cluster.local",
-    server_port: int = 8080,
-) -> Optional[SummitMCPClient]:
-    """Register an agent with Summit and return the client for further use"""
-    client = SummitMCPClient(
-        server_host=server_host,
-        server_port=server_port,
-        agent_id=agent_id,
-        agent_role=role,
-    )
-
-    if await client.register_agent(role, capabilities):
-        return client
-    else:
-        await client.disconnect()
-        return None
+# Convenience functions for simple task management
 
 
 async def get_summit_mcp_client(
@@ -300,56 +163,137 @@ async def get_summit_mcp_client(
         return None
 
 
-# For backward compatibility with database-based agent lifecycle
-class MCPAgentLifecycleManager:
-    """Manages agent lifecycle using MCP instead of direct database access"""
+async def start_summit_task(
+    task_id: str,
+    agent_id: str = None,
+    server_host: str = "summit-mcp-service.summit.svc.cluster.local",
+    server_port: int = 8080,
+) -> bool:
+    """Start a task with Summit - convenience function"""
+    client = await get_summit_mcp_client(agent_id, server_host, server_port)
+    if client:
+        try:
+            result = await client.start_task(task_id)
+            await client.disconnect()
+            return result
+        except Exception as e:
+            logger.error(f"Failed to start task {task_id}: {e}")
+            await client.disconnect()
+            return False
+    return False
 
-    def __init__(self, database_url: str = None):
-        # database_url is ignored, included for compatibility
-        self.mcp_client = None
-        self._agent_id = None
-        self._role = None
 
-    async def initialize(
-        self, agent_id: str, role: str, capabilities: List[str]
+async def complete_summit_task(
+    task_id: str,
+    success: bool,
+    result: Optional[Dict] = None,
+    summary: Optional[str] = None,
+    files_modified: Optional[List[str]] = None,
+    error_message: Optional[str] = None,
+    quality_score: float = 5.0,
+    agent_id: str = None,
+    server_host: str = "summit-mcp-service.summit.svc.cluster.local",
+    server_port: int = 8080,
+) -> bool:
+    """Complete a task with Summit - convenience function"""
+    client = await get_summit_mcp_client(agent_id, server_host, server_port)
+    if client:
+        try:
+            result = await client.end_task(
+                task_id,
+                success,
+                result,
+                summary,
+                files_modified,
+                error_message,
+                quality_score,
+            )
+            await client.disconnect()
+            return result
+        except Exception as e:
+            logger.error(f"Failed to complete task {task_id}: {e}")
+            await client.disconnect()
+            return False
+    return False
+
+
+# Simplified agent task manager for containers
+class SimpleAgentTaskManager:
+    """Simplified task manager for agents using MCP interface"""
+
+    def __init__(
+        self,
+        agent_id: str = None,
+        server_host: str = "summit-mcp-service.summit.svc.cluster.local",
+        server_port: int = 8080,
     ):
-        """Initialize the agent with MCP registration"""
-        self._agent_id = agent_id
-        self._role = role
+        self.agent_id = agent_id
+        self.server_host = server_host
+        self.server_port = server_port
+        self.mcp_client = None
+        self.current_task_id = None
 
-        self.mcp_client = await register_agent_with_summit(
-            agent_id, role, capabilities
+    async def connect(self) -> bool:
+        """Connect to Summit MCP server"""
+        self.mcp_client = await get_summit_mcp_client(
+            self.agent_id, self.server_host, self.server_port
         )
+        return self.mcp_client is not None
 
-        if self.mcp_client:
-            logger.info(f"Agent {agent_id} initialized with MCP registration")
-            return True
-        else:
-            logger.error(f"Failed to initialize agent {agent_id} with MCP")
+    async def start_task(self, task_id: str) -> bool:
+        """Start working on a task"""
+        if not self.mcp_client:
+            if not await self.connect():
+                return False
+
+        success = await self.mcp_client.start_task(task_id)
+        if success:
+            self.current_task_id = task_id
+        return success
+
+    async def complete_task(
+        self,
+        task_id: str = None,
+        success: bool = True,
+        result: Optional[Dict] = None,
+        summary: Optional[str] = None,
+        files_modified: Optional[List[str]] = None,
+        error_message: Optional[str] = None,
+        quality_score: float = 5.0,
+    ) -> bool:
+        """Complete the current task"""
+        task_id = task_id or self.current_task_id
+        if not task_id:
+            logger.error("No task ID provided and no current task")
             return False
 
-    async def update_status(self, status: str, current_task: str = None):
-        """Update agent status"""
-        if self.mcp_client:
-            return await self.mcp_client.update_status(status, current_task)
-        return False
+        if not self.mcp_client:
+            if not await self.connect():
+                return False
 
-    async def heartbeat(self):
-        """Send heartbeat to maintain agent registration"""
-        if self.mcp_client:
-            return await self.mcp_client.update_status(
-                "active", metadata={"heartbeat": True}
-            )
-        return False
+        success = await self.mcp_client.end_task(
+            task_id,
+            success,
+            result,
+            summary,
+            files_modified,
+            error_message,
+            quality_score,
+        )
 
-    async def cleanup(self):
-        """Clean up agent registration"""
+        if success:
+            self.current_task_id = None
+        return success
+
+    async def disconnect(self):
+        """Disconnect from MCP server"""
         if self.mcp_client:
-            await self.mcp_client.unregister()
+            await self.mcp_client.disconnect()
             self.mcp_client = None
 
     async def __aenter__(self):
+        await self.connect()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        await self.cleanup()
+        await self.disconnect()
