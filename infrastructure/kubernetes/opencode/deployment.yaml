@@ -51,7 +51,7 @@ spec:
         - name: RUNPOD_ENDPOINT_ID
           value: "26xsjcfv6hlyqe"
         - name: MODEL_NAME
-          value: "meta-llama/Llama-3.1-8B-Instruct"
+          value: "codellama/CodeLlama-13b-Instruct-hf"
         resources:
           requests:
             memory: "32Mi"

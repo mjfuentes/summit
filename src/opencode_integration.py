@@ -663,7 +663,7 @@ Analyze any errors or failures and:
 # Convenience functions for easy integration
 async def initialize_opencode_integration(
     model_provider: str = "local",
-    model_name: str = "meta-llama/Meta-Llama-3.1-8B-Instruct",
+    model_name: str = "codellama/CodeLlama-13b-Instruct-hf",
     api_key: Optional[str] = None,
     local_endpoint: Optional[str] = None,
 ) -> SummitOpenCodeIntegration:

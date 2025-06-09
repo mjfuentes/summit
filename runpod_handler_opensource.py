@@ -35,7 +35,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Get model configuration from environment
-MODEL_ID = os.environ.get("SUMMIT_MODEL_ID", "llama-3.1-8b")
+MODEL_ID = os.environ.get("SUMMIT_MODEL_ID", "code-llama-13b")
 logger.info(f"Initializing with model: {MODEL_ID}")
 
 # Initialize open source model handler

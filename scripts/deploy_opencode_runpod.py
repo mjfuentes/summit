@@ -28,11 +28,11 @@ async def main():
     # Configuration options
     deployment_options = {
         "1": {
-            "name": "Llama 3.1 8B + OpenCode",
-            "model": "llama-3.1-8b",
+            "name": "CodeLlama 13B + OpenCode",
+            "model": "code-llama-13b",
             "gpu": "RTX 4090",
             "cost_per_hour": 0.34,
-            "description": "Best balance of performance and cost",
+            "description": "Best for coding tasks, no gating required",
         },
         "2": {
             "name": "Code Llama 13B + OpenCode",

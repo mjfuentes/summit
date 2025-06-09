@@ -175,7 +175,7 @@ class RunPodCLI:
             "localApiKey": config["api_key"],
             "agents": {
                 "coder": {
-                    "model": config["model"],
+                    "model": "codellama/CodeLlama-13b-Instruct-hf",
                     "reasoningEffort": "high",
                     "temperature": 0.7,
                     "maxTokens": 2048,

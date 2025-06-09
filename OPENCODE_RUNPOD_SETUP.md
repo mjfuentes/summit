@@ -1,6 +1,6 @@
 # OpenCode + RunPod Setup Guide
 
-Simple guide to use OpenCode locally with Llama 3.1 models hosted on RunPod for massive cost savings.
+Simple guide to use OpenCode locally with CodeLlama models hosted on RunPod for massive cost savings.
 
 ## Why This Approach?
 
@@ -16,14 +16,14 @@ Simple guide to use OpenCode locally with Llama 3.1 models hosted on RunPod for 
 - Sign up and add payment method
 - Get your API key from settings
 
-### 1.2 Deploy Llama 3.1 Model
+### 1.2 Deploy CodeLlama Model
 1. Go to **Serverless** → **Templates**
-2. Search for "llama" or use this template:
+2. Search for "codellama" or use this template:
    ```
    runpod/pytorch:2.1.0-py3.10-cuda11.8.0-devel-ubuntu22.04
    ```
 3. Configure:
-   - **Name**: `summit-llama-3.1-8b`
+   - **Name**: `summit-codellama-13b`
    - **GPU**: RTX 4090 (best price/performance)
    - **Min Workers**: 0 (scales to zero)
    - **Max Workers**: 2
@@ -40,7 +40,7 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 # Load model once at startup
-model_name = "meta-llama/Meta-Llama-3.1-8B-Instruct"
+model_name = "codellama/CodeLlama-13b-Instruct-hf"
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 model = AutoModelForCausalLM.from_pretrained(
     model_name,
@@ -56,8 +56,8 @@ def handler(job):
     max_tokens = job_input.get("max_tokens", 1000)
     temperature = job_input.get("temperature", 0.7)
     
-    # Format for Llama 3.1
-    prompt = format_llama_prompt(messages)
+    # Format for CodeLlama
+    prompt = format_codellama_prompt(messages)
     
     # Generate response
     inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
@@ -82,22 +82,28 @@ def handler(job):
         }]
     }
 
-def format_llama_prompt(messages):
-    """Format messages for Llama 3.1 chat format"""
-    formatted = "<|begin_of_text|>"
+def format_codellama_prompt(messages):
+    """Format messages for CodeLlama chat format"""
+    formatted = ""
     
     for msg in messages:
         role = msg["role"]
         content = msg["content"]
         
         if role == "system":
-            formatted += f"<|start_header_id|>system<|end_header_id|>\n\n{content}<|eot_id|>"
+            formatted += f"<s>[INST] <<SYS>>\n{content}\n<</SYS>>\n\n"
         elif role == "user":
-            formatted += f"<|start_header_id|>user<|end_header_id|>\n\n{content}<|eot_id|>"
+            if formatted and not formatted.endswith("[INST] "):
+                formatted += f"<s>[INST] {content} [/INST]"
+            else:
+                formatted += f"{content} [/INST]"
         elif role == "assistant":
-            formatted += f"<|start_header_id|>assistant<|end_header_id|>\n\n{content}<|eot_id|>"
+            formatted += f" {content} </s>"
     
-    formatted += "<|start_header_id|>assistant<|end_header_id|>\n\n"
+    # If the last message was from user, we're ready for assistant response
+    if not formatted.endswith("[/INST]"):
+        formatted += " "
+    
     return formatted
 
 runpod.serverless.start({"handler": handler})
@@ -133,7 +139,7 @@ Create `~/.config/opencode/config.json`:
   "localEndpoint": "https://api.runpod.ai/v2/your-endpoint-id/runsync",
   "agents": {
     "coder": {
-      "model": "meta-llama/Meta-Llama-3.1-8B-Instruct",
+      "model": "codellama/CodeLlama-13b-Instruct-hf",
       "reasoningEffort": "high"
     }
   }
@@ -190,7 +196,7 @@ opencode "Implement JWT token refresh functionality following the existing patte
 | Provider | Model | Cost Structure | Daily Cost (Heavy Use) |
 |----------|-------|----------------|------------------------|
 | **Claude Code** | Claude 3.5 Sonnet | $0.03/1K tokens | $30-60/day |
-| **RunPod + Llama 3.1** | Llama 3.1 8B | $0.34/hour active | $2-8/day |
+| **RunPod + CodeLlama** | CodeLlama 13B | $0.34/hour active | $2-8/day |
 | **Savings** | - | - | **80-90% reduction** |
 
 ## Troubleshooting
@@ -214,9 +220,9 @@ opencode "Implement JWT token refresh functionality following the existing patte
 
 ### Multiple Models
 You can deploy different models for different tasks:
-- **Llama 3.1 8B**: General development
-- **Code Llama 13B**: Specialized coding tasks
-- **Mistral 7B**: Lightweight tasks
+- **CodeLlama 13B**: Best for coding tasks (no gating)
+- **CodeLlama 34B**: Higher quality coding (more GPU memory)
+- **Mistral 7B**: Lightweight general tasks
 
 ### Custom Prompts
 Create custom OpenCode commands in `~/.config/opencode/commands/`:

@@ -50,18 +50,6 @@ class OpenSourceModelManager:
 
     # Supported models with their configurations
     SUPPORTED_MODELS = {
-        "llama-3.1-8b": {
-            "model_name": "meta-llama/Meta-Llama-3.1-8B-Instruct",
-            "model_type": "llama",
-            "context_length": 128000,
-            "cost_per_token": 0.0000001,  # Much cheaper than Claude
-        },
-        "llama-3.1-70b": {
-            "model_name": "meta-llama/Meta-Llama-3.1-70B-Instruct",
-            "model_type": "llama",
-            "context_length": 128000,
-            "cost_per_token": 0.0000005,
-        },
         "code-llama-13b": {
             "model_name": "codellama/CodeLlama-13b-Instruct-hf",
             "model_type": "code_llama",
@@ -80,9 +68,21 @@ class OpenSourceModelManager:
             "context_length": 32768,
             "cost_per_token": 0.0000001,
         },
+        "llama-3.1-8b": {
+            "model_name": "meta-llama/Meta-Llama-3.1-8B-Instruct",
+            "model_type": "llama",
+            "context_length": 128000,
+            "cost_per_token": 0.0000001,  # Requires gating approval
+        },
+        "llama-3.1-70b": {
+            "model_name": "meta-llama/Meta-Llama-3.1-70B-Instruct",
+            "model_type": "llama",
+            "context_length": 128000,
+            "cost_per_token": 0.0000005,  # Requires gating approval
+        },
     }
 
-    def __init__(self, model_id: str = "llama-3.1-8b"):
+    def __init__(self, model_id: str = "code-llama-13b"):
         self.model_id = model_id
         self.model_info = self.SUPPORTED_MODELS.get(model_id)
         if not self.model_info:
@@ -347,7 +347,7 @@ Focus on code quality, security, and best practices."""
 class RunPodOpenSourceHandler:
     """Handler for open source models on RunPod"""
 
-    def __init__(self, model_id: str = "llama-3.1-8b"):
+    def __init__(self, model_id: str = "code-llama-13b"):
         self.model_manager = OpenSourceModelManager(model_id)
         self.logger = logging.getLogger(__name__)
 
@@ -444,7 +444,7 @@ async def get_advice_from_open_source(
 
 
 def create_runpod_handler(
-    model_id: str = "llama-3.1-8b",
+    model_id: str = "code-llama-13b",
 ) -> RunPodOpenSourceHandler:
     """Create RunPod handler for open source models"""
     return RunPodOpenSourceHandler(model_id)
