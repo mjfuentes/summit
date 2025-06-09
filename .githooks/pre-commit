@@ -16,65 +16,104 @@ if ! command -v python &> /dev/null; then
     exit 1
 fi
 
-# Make sure emoji linter is executable
-chmod +x tools/emoji_linter.py
+# Check if we're in an auto-fix loop (prevent infinite recursion)
+AUTO_FIX_FLAG=".git/AUTO_FIX_IN_PROGRESS"
+ORIGINAL_MSG_FILE=".git/ORIGINAL_COMMIT_MSG"
 
-# 1. Run emoji linter on staged files
-echo "Checking for emoji violations..."
-echo "  -> Scanning staged files for emojis..."
-if python tools/emoji_linter.py --staged --fix; then
-    echo "  -> Emoji check passed"
+if [ -f "$AUTO_FIX_FLAG" ]; then
+    echo "  -> Auto-fix cycle detected, running verification on fixed code..."
+    rm -f "$AUTO_FIX_FLAG"
+    rm -f "$ORIGINAL_MSG_FILE"
+    # Continue with verification checks below
 else
-    echo "  -> Emoji violations found and fixed. Please review changes and re-add files to Git."
-    echo ""
-    echo "Modified files need to be staged again:"
-    git diff --name-only
-    echo ""
-    echo "Run: git add <files> && git commit"
-    exit 1
-fi
+    # Track if any files were auto-fixed
+    FILES_MODIFIED=false
 
-# 2. Auto-format Python code with Black
-PYTHON_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.py$' || true)
-if [ ! -z "$PYTHON_FILES" ]; then
-    echo "Auto-formatting Python code with Black..."
-    file_count=$(echo "$PYTHON_FILES" | wc -l | tr -d ' ')
-    echo "  -> Found $file_count Python files to format"
-    
-    # Check if black is available
-    if python -c "import black" 2>/dev/null; then
-        echo "  -> Running Black formatter..."
-        python -m black $PYTHON_FILES --line-length 79 --quiet
-        
-        # Check if any files were modified
-        if ! git diff --quiet $PYTHON_FILES; then
-            echo "  -> Code was auto-formatted. Please review and re-add the changes:"
-            git diff --name-only $PYTHON_FILES
-            echo ""
-            echo "Run: git add <files> && git commit"
-            exit 1
-        fi
-        echo "  -> Black formatting check passed"
-    else
-        echo "  -> Black not available, skipping auto-formatting"
+    # Capture original commit message before any modifications
+    COMMIT_MSG_FILE=".git/COMMIT_EDITMSG"
+    if [ -f "$COMMIT_MSG_FILE" ]; then
+        cp "$COMMIT_MSG_FILE" "$ORIGINAL_MSG_FILE"
     fi
-    
-    # 3. Sort imports with isort
-    if python -c "import isort" 2>/dev/null; then
-        echo "  -> Running isort for import sorting..."
-        python -m isort $PYTHON_FILES --profile black --line-length 79 --quiet
-        
-        # Check if any files were modified
-        if ! git diff --quiet $PYTHON_FILES; then
-            echo "  -> Imports were auto-sorted. Please review and re-add the changes:"
-            git diff --name-only $PYTHON_FILES
-            echo ""
-            echo "Run: git add <files> && git commit"
-            exit 1
-        fi
-        echo "  -> Import sorting check passed"
+
+    # Make sure emoji linter is executable
+    chmod +x tools/emoji_linter.py
+
+    # 1. Run emoji linter on staged files
+    echo "Checking for emoji violations..."
+    echo "  -> Scanning staged files for emojis..."
+    if python tools/emoji_linter.py --staged --fix; then
+        echo "  -> Emoji check passed"
     else
-        echo "  -> isort not available, skipping import sorting"
+        echo "  -> Emoji violations found and fixed"
+        FILES_MODIFIED=true
+    fi
+
+    # 2. Auto-format Python code with Black
+    PYTHON_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.py$' || true)
+    if [ ! -z "$PYTHON_FILES" ]; then
+        echo "Auto-formatting Python code with Black..."
+        file_count=$(echo "$PYTHON_FILES" | wc -l | tr -d ' ')
+        echo "  -> Found $file_count Python files to format"
+        
+        # Check if black is available
+        if python -c "import black" 2>/dev/null; then
+            echo "  -> Running Black formatter..."
+            python -m black $PYTHON_FILES --line-length 79 --quiet
+            
+            # Check if any files were modified
+            if ! git diff --quiet $PYTHON_FILES; then
+                echo "  -> Code was auto-formatted"
+                FILES_MODIFIED=true
+            else
+                echo "  -> Black formatting check passed"
+            fi
+        else
+            echo "  -> Black not available, skipping auto-formatting"
+        fi
+        
+        # 3. Sort imports with isort
+        if python -c "import isort" 2>/dev/null; then
+            echo "  -> Running isort for import sorting..."
+            python -m isort $PYTHON_FILES --profile black --line-length 79 --quiet
+            
+            # Check if any files were modified
+            if ! git diff --quiet $PYTHON_FILES; then
+                echo "  -> Imports were auto-sorted"
+                FILES_MODIFIED=true
+            else
+                echo "  -> Import sorting check passed"
+            fi
+        else
+            echo "  -> isort not available, skipping import sorting"
+        fi
+    fi
+
+    # If files were modified, auto-add them and re-commit with verification
+    if [ "$FILES_MODIFIED" = true ]; then
+        echo ""
+        echo "  -> Auto-fixes applied. Re-staging files and re-committing with verification..."
+        
+        # Create flag to prevent infinite recursion
+        touch "$AUTO_FIX_FLAG"
+        
+        # Add all the modified files back to staging
+        git add .
+        
+        # Get the original commit message
+        ORIGINAL_MSG=""
+        if [ -f "$ORIGINAL_MSG_FILE" ]; then
+            ORIGINAL_MSG=$(cat "$ORIGINAL_MSG_FILE")
+        elif [ -f "$COMMIT_MSG_FILE" ]; then
+            ORIGINAL_MSG=$(cat "$COMMIT_MSG_FILE")
+        else
+            ORIGINAL_MSG="Auto-fixed formatting and imports"
+        fi
+        
+        echo "  -> Re-executing commit with message: \"$ORIGINAL_MSG\""
+        echo "  -> Will run full verification on auto-fixed code..."
+        
+        # Re-run the commit with the original message and allow pre-commit hook to verify
+        exec git commit -m "$ORIGINAL_MSG"
     fi
 fi
 
