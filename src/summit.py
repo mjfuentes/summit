@@ -229,315 +229,66 @@ async def handle_list_tools() -> list[types.Tool]:
                 "required": ["codespace_name"],
             },
         ),
-        # Task Management Tools
+        # Core Agent Task Management Tools
         types.Tool(
-            name="summit_get_task",
-            description="Get detailed information about a specific task",
+            name="summit_start_task",
+            description="Start working on a task - claims and begins execution",
             inputSchema={
                 "type": "object",
                 "properties": {
                     "task_id": {
                         "type": "string",
-                        "description": "ID of the task to retrieve",
-                    },
-                    "include_collaboration": {
-                        "type": "boolean",
-                        "description": "Include comments and reviews in response",
-                    },
-                },
-                "required": ["task_id"],
-            },
-        ),
-        types.Tool(
-            name="summit_list_tasks",
-            description="List tasks assigned to a specific role or all tasks",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "role": {
-                        "type": "string",
-                        "description": "Filter tasks by agent role (engineering, product, etc.)",
-                    },
-                    "status": {
-                        "type": "string",
-                        "description": "Filter tasks by status (pending, running, completed, etc.)",
-                    },
-                    "limit": {
-                        "type": "integer",
-                        "description": "Maximum number of tasks to return",
-                    },
-                },
-            },
-        ),
-        types.Tool(
-            name="summit_update_task_status",
-            description="Update the status of a task",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "task_id": {
-                        "type": "string",
-                        "description": "ID of the task to update",
-                    },
-                    "status": {
-                        "type": "string",
-                        "description": "New status (pending, claimed, running, completed, failed, etc.)",
+                        "description": "ID of the task to start working on",
                     },
                     "agent_id": {
                         "type": "string",
-                        "description": "ID of the agent updating the task",
+                        "description": "ID of the agent starting the task",
+                    },
+                },
+                "required": ["task_id", "agent_id"],
+            },
+        ),
+        types.Tool(
+            name="summit_end_task",
+            description="Complete a task with results or mark it as failed",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task_id": {
+                        "type": "string",
+                        "description": "ID of the task being completed",
+                    },
+                    "agent_id": {
+                        "type": "string",
+                        "description": "ID of the agent completing the task",
+                    },
+                    "success": {
+                        "type": "boolean",
+                        "description": "Whether the task completed successfully",
                     },
                     "result": {
                         "type": "object",
-                        "description": "Optional: Task result data",
-                    },
-                    "error": {
-                        "type": "string",
-                        "description": "Optional: Error message if task failed",
-                    },
-                },
-                "required": ["task_id", "status", "agent_id"],
-            },
-        ),
-        types.Tool(
-            name="summit_add_task_comment",
-            description="Add a comment or review to a task",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "task_id": {
-                        "type": "string",
-                        "description": "ID of the task to comment on",
-                    },
-                    "agent_id": {
-                        "type": "string",
-                        "description": "ID of the agent making the comment",
-                    },
-                    "comment_type": {
-                        "type": "string",
-                        "description": "Type of comment (comment, review, approval, rejection, question)",
-                    },
-                    "content": {
-                        "type": "string",
-                        "description": "Content of the comment",
-                    },
-                    "approval_status": {
-                        "type": "string",
-                        "description": "Optional: Approval status (approved, rejected, needs_changes, pending)",
-                    },
-                    "rating": {
-                        "type": "integer",
-                        "description": "Optional: Rating from 1-5",
-                    },
-                    "is_internal": {
-                        "type": "boolean",
-                        "description": "Whether this is internal agent communication",
-                    },
-                    "parent_comment_id": {
-                        "type": "string",
-                        "description": "Optional: ID of parent comment for threading",
-                    },
-                },
-                "required": ["task_id", "agent_id", "comment_type", "content"],
-            },
-        ),
-        types.Tool(
-            name="summit_get_task_comments",
-            description="Get all comments and reviews for a task",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "task_id": {
-                        "type": "string",
-                        "description": "ID of the task",
-                    },
-                    "include_internal": {
-                        "type": "boolean",
-                        "description": "Include internal agent communications",
-                    },
-                },
-                "required": ["task_id"],
-            },
-        ),
-        types.Tool(
-            name="summit_create_task_review",
-            description="Create a structured review for a task",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "task_id": {
-                        "type": "string",
-                        "description": "ID of the task to review",
-                    },
-                    "reviewer_agent_id": {
-                        "type": "string",
-                        "description": "ID of the reviewing agent",
-                    },
-                    "review_type": {
-                        "type": "string",
-                        "description": "Type of review (code_review, security_review, performance_review, etc.)",
-                    },
-                    "decision": {
-                        "type": "string",
-                        "description": "Review decision (approved, rejected, needs_changes, conditional)",
+                        "description": "Task results including output, files modified, etc.",
                     },
                     "summary": {
                         "type": "string",
-                        "description": "Summary of the review",
+                        "description": "Brief summary of work completed",
                     },
-                    "findings": {
+                    "files_modified": {
                         "type": "array",
-                        "description": "List of findings from the review",
+                        "items": {"type": "string"},
+                        "description": "List of files modified during task execution",
                     },
-                    "recommendations": {
-                        "type": "array",
-                        "description": "List of recommendations",
+                    "error_message": {
+                        "type": "string",
+                        "description": "Error message if task failed",
                     },
                     "quality_score": {
                         "type": "number",
-                        "description": "Quality score (0-10)",
-                    },
-                    "confidence": {
-                        "type": "number",
-                        "description": "Confidence level (0-1)",
+                        "description": "Self-assessed quality score (0-10)",
                     },
                 },
-                "required": [
-                    "task_id",
-                    "reviewer_agent_id",
-                    "review_type",
-                    "decision",
-                    "summary",
-                ],
-            },
-        ),
-        types.Tool(
-            name="summit_get_agent_activity",
-            description="Get recent task activity for an agent",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "agent_id": {
-                        "type": "string",
-                        "description": "ID of the agent",
-                    },
-                    "limit": {
-                        "type": "integer",
-                        "description": "Maximum number of activities to return",
-                    },
-                },
-                "required": ["agent_id"],
-            },
-        ),
-        # Agent Registration and Management Tools
-        types.Tool(
-            name="summit_register_agent",
-            description="Register a new agent with the Summit system",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "agent_id": {
-                        "type": "string",
-                        "description": "Unique identifier for the agent",
-                    },
-                    "role": {
-                        "type": "string",
-                        "description": "Agent role (engineering, product, quality-control, etc.)",
-                    },
-                    "capabilities": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "List of agent capabilities",
-                    },
-                    "status": {
-                        "type": "string",
-                        "description": "Agent status (active, idle, maintenance, etc.)",
-                    },
-                    "version": {
-                        "type": "string",
-                        "description": "Agent version",
-                    },
-                    "metadata": {
-                        "type": "object",
-                        "description": "Additional agent metadata",
-                    },
-                },
-                "required": ["agent_id", "role", "capabilities"],
-            },
-        ),
-        types.Tool(
-            name="summit_update_agent_status",
-            description="Update an agent's status and heartbeat",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "agent_id": {
-                        "type": "string",
-                        "description": "Agent identifier",
-                    },
-                    "status": {
-                        "type": "string",
-                        "description": "New agent status",
-                    },
-                    "current_task": {
-                        "type": "string",
-                        "description": "ID of current task being worked on",
-                    },
-                    "metadata": {
-                        "type": "object",
-                        "description": "Additional status metadata",
-                    },
-                },
-                "required": ["agent_id", "status"],
-            },
-        ),
-        types.Tool(
-            name="summit_list_agents",
-            description="List all registered agents in the system",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "role": {
-                        "type": "string",
-                        "description": "Filter by agent role",
-                    },
-                    "status": {
-                        "type": "string",
-                        "description": "Filter by agent status",
-                    },
-                    "active_only": {
-                        "type": "boolean",
-                        "description": "Only return active agents",
-                    },
-                },
-            },
-        ),
-        types.Tool(
-            name="summit_get_agent_info",
-            description="Get detailed information about a specific agent",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "agent_id": {
-                        "type": "string",
-                        "description": "Agent identifier",
-                    },
-                },
-                "required": ["agent_id"],
-            },
-        ),
-        types.Tool(
-            name="summit_unregister_agent",
-            description="Unregister an agent from the system",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "agent_id": {
-                        "type": "string",
-                        "description": "Agent identifier",
-                    },
-                },
-                "required": ["agent_id"],
+                "required": ["task_id", "agent_id", "success"],
             },
         ),
     ]
@@ -1274,231 +1025,197 @@ Recent Comments:"""
                 )
             ]
 
-    # Agent Registration and Management Tool Handlers
-    elif name == "summit_register_agent":
+    # Simplified Agent Task Management
+    elif name == "summit_start_task":
+        task_id = arguments.get("task_id")
         agent_id = arguments.get("agent_id")
-        role = arguments.get("role")
-        capabilities = arguments.get("capabilities")
-        status = arguments.get("status", "active")
-        version = arguments.get("version", "1.0.0")
-        metadata = arguments.get("metadata", {})
 
-        if not all([agent_id, role, capabilities]):
-            raise ValueError("Agent ID, role, and capabilities are required")
+        if not all([task_id, agent_id]):
+            raise ValueError("Task ID and agent ID are required")
 
         try:
+            from datetime import datetime
+
+            from database_models import TaskLifecycleStage, TaskStatus
             from unified_database import get_database
 
             db = await get_database()
 
-            # Register or update the agent
-            agent = await db.register_agent(
-                agent_id=agent_id,
-                role=role,
-                capabilities=capabilities,
-                status=status,
-                version=version,
-                metadata=metadata,
-            )
+            # Get the task
+            task = await db.get_agent_task(task_id)
+            if not task:
+                return [
+                    types.TextContent(
+                        type="text", text=f"Task {task_id} not found"
+                    )
+                ]
 
-            response = f"""Agent registered successfully:
-
-ID: {agent_id}
-Role: {role}
-Capabilities: {', '.join(capabilities)}
-Status: {status}
-Version: {version}
-Registration Time: {agent.registered_at}
-
-The agent is now visible in the Summit dashboard and can receive tasks."""
-
-            return [types.TextContent(type="text", text=response)]
-
-        except Exception as e:
-            return [
-                types.TextContent(
-                    type="text", text=f"Error registering agent: {e}"
-                )
-            ]
-
-    elif name == "summit_update_agent_status":
-        agent_id = arguments.get("agent_id")
-        status = arguments.get("status")
-        current_task = arguments.get("current_task")
-        metadata = arguments.get("metadata", {})
-
-        if not all([agent_id, status]):
-            raise ValueError("Agent ID and status are required")
-
-        try:
-            from unified_database import get_database
-
-            db = await get_database()
-
-            # Update agent status
-            agent = await db.update_agent_status(
-                agent_id=agent_id,
-                status=status,
-                current_task=current_task,
-                metadata=metadata,
-            )
-
-            response = f"""Agent status updated:
-
-ID: {agent_id}
-Status: {status}
-Current Task: {current_task or 'None'}
-Last Heartbeat: {agent.last_heartbeat}
-
-Status update successful."""
-
-            return [types.TextContent(type="text", text=response)]
-
-        except Exception as e:
-            return [
-                types.TextContent(
-                    type="text", text=f"Error updating agent status: {e}"
-                )
-            ]
-
-    elif name == "summit_list_agents":
-        role = arguments.get("role")
-        status = arguments.get("status")
-        active_only = arguments.get("active_only", False)
-
-        try:
-            from unified_database import get_database
-
-            db = await get_database()
-
-            # Get agents with filters
-            agents = await db.list_agents(
-                role=role, status=status, active_only=active_only
-            )
-
-            if not agents:
-                filter_desc = ""
-                if role:
-                    filter_desc += f" (role: {role})"
-                if status:
-                    filter_desc += f" (status: {status})"
-                if active_only:
-                    filter_desc += " (active only)"
-
+            # Check if task is available
+            if task.status not in [TaskStatus.PENDING, TaskStatus.FAILED]:
                 return [
                     types.TextContent(
                         type="text",
-                        text=f"No agents found{filter_desc}",
+                        text=f"Task {task_id} is not available (status: {task.status.value})",
                     )
                 ]
 
-            response = f"Found {len(agents)} agent(s):\n\n"
-            for agent in agents:
-                agent_data = agent.to_dict()
-                capabilities_str = ", ".join(agent_data["capabilities"][:3])
-                if len(agent_data["capabilities"]) > 3:
-                    capabilities_str += (
-                        f" (+{len(agent_data['capabilities'])-3} more)"
-                    )
+            # Claim and start the task
+            updates = {
+                "status": TaskStatus.RUNNING,
+                "agent_id": agent_id,
+                "started_at": datetime.utcnow(),
+            }
 
-                response += f"""• {agent_data['agent_id']} ({agent_data['role']})
-  Status: {agent_data['status']} | Version: {agent_data['version']}
-  Capabilities: {capabilities_str}
-  Last Heartbeat: {agent_data['last_heartbeat'][:19] if agent_data['last_heartbeat'] else 'Never'}
+            updated_task = await db.update_agent_task(task_id, updates)
 
-"""
+            # Start the design stage in lifecycle
+            await db.start_stage_work(
+                task_id=task_id,
+                agent_id=agent_id,
+                stage=TaskLifecycleStage.DESIGN,
+            )
+
+            response = f"""Task started successfully:
+
+Task: {task_id}
+Agent: {agent_id}
+Type: {updated_task.task_type}
+Status: RUNNING
+Started: {datetime.utcnow().isoformat()}
+
+The task is now assigned to you and in the design stage.
+Use summit_end_task when complete."""
 
             return [types.TextContent(type="text", text=response)]
 
         except Exception as e:
             return [
                 types.TextContent(
-                    type="text", text=f"Error listing agents: {e}"
+                    type="text", text=f"Error starting task: {e}"
                 )
             ]
 
-    elif name == "summit_get_agent_info":
+    elif name == "summit_end_task":
+        task_id = arguments.get("task_id")
         agent_id = arguments.get("agent_id")
+        success = arguments.get("success")
+        result = arguments.get("result")
+        summary = arguments.get("summary")
+        files_modified = arguments.get("files_modified", [])
+        error_message = arguments.get("error_message")
+        quality_score = arguments.get("quality_score", 5.0)
 
-        if not agent_id:
-            raise ValueError("Agent ID is required")
+        if not all([task_id, agent_id]):
+            raise ValueError("Task ID and agent ID are required")
+
+        if success is None:
+            raise ValueError("Success status is required")
 
         try:
+            from datetime import datetime
+
+            from database_models import TaskLifecycleStage, TaskStatus
             from unified_database import get_database
 
             db = await get_database()
 
-            agent = await db.get_agent(agent_id)
-
-            if not agent:
+            # Get the task
+            task = await db.get_agent_task(task_id)
+            if not task:
                 return [
                     types.TextContent(
-                        type="text", text=f"Agent {agent_id} not found"
+                        type="text", text=f"Task {task_id} not found"
                     )
                 ]
 
-            agent_data = agent.to_dict()
-            response = f"""Agent Information:
+            # Verify agent owns this task
+            if task.agent_id != agent_id:
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=f"Task {task_id} is not assigned to agent {agent_id}",
+                    )
+                ]
 
-ID: {agent_data['agent_id']}
-Role: {agent_data['role']}
-Status: {agent_data['status']}
-Version: {agent_data['version']}
+            # Complete current stage work
+            await db.complete_stage_work(
+                task_id=task_id,
+                agent_id=agent_id,
+                stage_output=result,
+                stage_summary=summary,
+                files_modified=files_modified,
+                quality_score=quality_score,
+                completion_status="completed" if success else "failed",
+            )
 
-Capabilities ({len(agent_data['capabilities'])}):
-{chr(10).join('- ' + cap for cap in agent_data['capabilities'])}
-
-Current Task: {agent_data['current_task'] or 'None'}
-Registered: {agent_data['registered_at'][:19]}
-Last Heartbeat: {agent_data['last_heartbeat'][:19] if agent_data['last_heartbeat'] else 'Never'}
-
-Metadata:
-{chr(10).join(f'- {k}: {v}' for k, v in agent_data['metadata'].items()) if agent_data['metadata'] else '- None'}"""
-
-            return [types.TextContent(type="text", text=response)]
-
-        except Exception as e:
-            return [
-                types.TextContent(
-                    type="text", text=f"Error retrieving agent info: {e}"
-                )
-            ]
-
-    elif name == "summit_unregister_agent":
-        agent_id = arguments.get("agent_id")
-
-        if not agent_id:
-            raise ValueError("Agent ID is required")
-
-        try:
-            from unified_database import get_database
-
-            db = await get_database()
-
-            # Unregister the agent
-            success = await db.unregister_agent(agent_id)
+            # Update task status
+            final_status = (
+                TaskStatus.COMPLETED if success else TaskStatus.FAILED
+            )
+            updates = {
+                "status": final_status,
+                "completed_at": datetime.utcnow(),
+            }
 
             if success:
-                response = f"""Agent {agent_id} unregistered successfully.
-
-The agent has been removed from the Summit system and will no longer:
-- Appear in the dashboard
-- Receive task assignments
-- Be tracked for heartbeats
-
-Agent data has been preserved for historical purposes."""
-            else:
-                response = (
-                    f"Agent {agent_id} was not found or already unregistered."
+                updates["result"] = result
+                # Transition through lifecycle stages automatically
+                await db.transition_task_stage(
+                    task_id=task_id,
+                    agent_id=agent_id,
+                    to_stage=TaskLifecycleStage.COMPLETED,
+                    stage_output=result,
+                    stage_summary=summary,
+                    files_modified=files_modified,
+                    quality_score=quality_score,
+                    completion_status="completed",
+                    transition_reason="Task completed successfully",
                 )
+            else:
+                updates["error"] = error_message
+                await db.transition_task_stage(
+                    task_id=task_id,
+                    agent_id=agent_id,
+                    to_stage=TaskLifecycleStage.DESIGN,  # Stay in current stage
+                    stage_output={"error": error_message},
+                    stage_summary=f"Task failed: {error_message}",
+                    files_modified=files_modified,
+                    quality_score=quality_score,
+                    completion_status="failed",
+                    transition_reason="Task execution failed",
+                )
+
+            updated_task = await db.update_agent_task(task_id, updates)
+
+            if success:
+                response = f"""Task completed successfully:
+
+Task: {task_id}
+Agent: {agent_id}
+Status: {final_status.value}
+Quality Score: {quality_score}/10.0
+Completed: {datetime.utcnow().isoformat()}
+
+Summary: {summary or 'No summary provided'}
+Files Modified: {len(files_modified)} files
+
+The task has been marked as complete and lifecycle tracking updated."""
+            else:
+                response = f"""Task failed gracefully:
+
+Task: {task_id}
+Agent: {agent_id}
+Status: {final_status.value}
+Error: {error_message}
+Failed: {datetime.utcnow().isoformat()}
+
+The task failure has been recorded and can be retried or reassigned."""
 
             return [types.TextContent(type="text", text=response)]
 
         except Exception as e:
             return [
-                types.TextContent(
-                    type="text", text=f"Error unregistering agent: {e}"
-                )
+                types.TextContent(type="text", text=f"Error ending task: {e}")
             ]
 
     else:

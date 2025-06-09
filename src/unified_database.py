@@ -32,6 +32,8 @@ from database_models import (
     Base,
     DatabaseManager,
     TaskComment,
+    TaskLifecycleHistory,
+    TaskLifecycleStage,
     TaskLog,
     TaskPriority,
     TaskReview,
@@ -668,6 +670,241 @@ class UnifiedDatabaseManager:
                 delete(AgentTask).where(AgentTask.id == task_uuid)
             )
             return result.rowcount > 0
+
+    # Task Lifecycle Operations
+
+    async def transition_task_stage(
+        self,
+        task_id: str,
+        agent_id: str,
+        to_stage: TaskLifecycleStage,
+        stage_output: Optional[Dict[str, Any]] = None,
+        stage_summary: Optional[str] = None,
+        files_modified: Optional[List[str]] = None,
+        quality_score: Optional[float] = None,
+        completion_status: str = "completed",
+        transition_reason: Optional[str] = None,
+        stage_metadata: Optional[Dict[str, Any]] = None,
+    ) -> TaskLifecycleHistory:
+        """Transition a task to a new lifecycle stage and record the history"""
+        async with self.get_session() as session:
+            # Handle both string and UUID types
+            if isinstance(task_id, str):
+                task_uuid = UUID(task_id)
+            else:
+                task_uuid = task_id
+
+            # Get the current task to determine the from_stage
+            result = await session.execute(
+                select(AgentTask).where(AgentTask.id == task_uuid)
+            )
+            task = result.scalar_one_or_none()
+            if not task:
+                raise ValueError(f"Task {task_id} not found")
+
+            from_stage = task.lifecycle_stage
+
+            # Update the task's lifecycle stage
+            await session.execute(
+                update(AgentTask)
+                .where(AgentTask.id == task_uuid)
+                .values(lifecycle_stage=to_stage, updated_at=datetime.utcnow())
+            )
+
+            # Create the lifecycle history record
+            lifecycle_history = TaskLifecycleHistory(
+                task_id=task_uuid,
+                agent_id=agent_id,
+                from_stage=from_stage,
+                to_stage=to_stage,
+                completed_at=datetime.utcnow(),
+                stage_output=stage_output,
+                stage_summary=stage_summary,
+                files_modified=files_modified,
+                quality_score=quality_score,
+                completion_status=completion_status,
+                transition_reason=transition_reason,
+                stage_metadata=stage_metadata,
+            )
+
+            # Calculate duration if we have a previous stage entry
+            if from_stage:
+                # Find the most recent history entry for the from_stage
+                prev_result = await session.execute(
+                    select(TaskLifecycleHistory)
+                    .where(
+                        TaskLifecycleHistory.task_id == task_uuid,
+                        TaskLifecycleHistory.to_stage == from_stage,
+                    )
+                    .order_by(TaskLifecycleHistory.started_at.desc())
+                    .limit(1)
+                )
+                prev_history = prev_result.scalar_one_or_none()
+                if prev_history:
+                    duration = (
+                        lifecycle_history.completed_at
+                        - prev_history.started_at
+                    ).total_seconds()
+                    lifecycle_history.duration_seconds = int(duration)
+
+            session.add(lifecycle_history)
+            await session.flush()
+            await session.refresh(lifecycle_history)
+            return lifecycle_history
+
+    async def start_stage_work(
+        self,
+        task_id: str,
+        agent_id: str,
+        stage: TaskLifecycleStage,
+        stage_metadata: Optional[Dict[str, Any]] = None,
+    ) -> TaskLifecycleHistory:
+        """Start work on a lifecycle stage (records start time)"""
+        async with self.get_session() as session:
+            # Handle both string and UUID types
+            if isinstance(task_id, str):
+                task_uuid = UUID(task_id)
+            else:
+                task_uuid = task_id
+
+            # Create the lifecycle history record for stage start
+            lifecycle_history = TaskLifecycleHistory(
+                task_id=task_uuid,
+                agent_id=agent_id,
+                from_stage=None,  # Will be set on completion
+                to_stage=stage,
+                completion_status="in_progress",
+                stage_metadata=stage_metadata,
+            )
+
+            session.add(lifecycle_history)
+            await session.flush()
+            await session.refresh(lifecycle_history)
+            return lifecycle_history
+
+    async def complete_stage_work(
+        self,
+        lifecycle_history_id: str,
+        stage_output: Optional[Dict[str, Any]] = None,
+        stage_summary: Optional[str] = None,
+        files_modified: Optional[List[str]] = None,
+        quality_score: Optional[float] = None,
+        completion_status: str = "completed",
+        transition_reason: Optional[str] = None,
+    ) -> TaskLifecycleHistory:
+        """Complete work on a lifecycle stage (records completion and duration)"""
+        async with self.get_session() as session:
+            # Handle both string and UUID types
+            if isinstance(lifecycle_history_id, str):
+                history_uuid = UUID(lifecycle_history_id)
+            else:
+                history_uuid = lifecycle_history_id
+
+            # Update the history record
+            completed_at = datetime.utcnow()
+            updates = {
+                "completed_at": completed_at,
+                "stage_output": stage_output,
+                "stage_summary": stage_summary,
+                "files_modified": files_modified,
+                "quality_score": quality_score,
+                "completion_status": completion_status,
+                "transition_reason": transition_reason,
+                "updated_at": completed_at,
+            }
+
+            # Get the current record to calculate duration
+            result = await session.execute(
+                select(TaskLifecycleHistory).where(
+                    TaskLifecycleHistory.id == history_uuid
+                )
+            )
+            history = result.scalar_one_or_none()
+            if history:
+                duration = (completed_at - history.started_at).total_seconds()
+                updates["duration_seconds"] = int(duration)
+
+            result = await session.execute(
+                update(TaskLifecycleHistory)
+                .where(TaskLifecycleHistory.id == history_uuid)
+                .values(**updates)
+                .returning(TaskLifecycleHistory)
+            )
+            return result.scalar_one()
+
+    async def get_task_lifecycle_history(
+        self, task_id: str
+    ) -> List[TaskLifecycleHistory]:
+        """Get the complete lifecycle history for a task"""
+        async with self.get_session() as session:
+            # Handle both string and UUID types
+            if isinstance(task_id, str):
+                task_uuid = UUID(task_id)
+            else:
+                task_uuid = task_id
+
+            result = await session.execute(
+                select(TaskLifecycleHistory)
+                .where(TaskLifecycleHistory.task_id == task_uuid)
+                .order_by(TaskLifecycleHistory.started_at)
+            )
+            return list(result.scalars().all())
+
+    async def get_stage_metrics(
+        self, stage: TaskLifecycleStage, days: int = 30
+    ) -> Dict[str, Any]:
+        """Get performance metrics for a specific lifecycle stage"""
+        async with self.get_session() as session:
+            cutoff_date = datetime.utcnow() - timedelta(days=days)
+
+            # Get stage completion data
+            result = await session.execute(
+                select(TaskLifecycleHistory).where(
+                    TaskLifecycleHistory.to_stage == stage,
+                    TaskLifecycleHistory.started_at >= cutoff_date,
+                    TaskLifecycleHistory.completion_status == "completed",
+                )
+            )
+            completed_stages = list(result.scalars().all())
+
+            if not completed_stages:
+                return {
+                    "stage": stage.value,
+                    "total_completed": 0,
+                    "average_duration_minutes": 0,
+                    "average_quality_score": 0,
+                    "agents_involved": [],
+                }
+
+            # Calculate metrics
+            durations = [
+                s.duration_seconds
+                for s in completed_stages
+                if s.duration_seconds
+            ]
+            quality_scores = [
+                s.quality_score for s in completed_stages if s.quality_score
+            ]
+            agents = list(set(s.agent_id for s in completed_stages))
+
+            return {
+                "stage": stage.value,
+                "total_completed": len(completed_stages),
+                "average_duration_minutes": (
+                    sum(durations) / len(durations) / 60 if durations else 0
+                ),
+                "average_quality_score": (
+                    sum(quality_scores) / len(quality_scores)
+                    if quality_scores
+                    else 0
+                ),
+                "agents_involved": agents,
+                "median_duration_minutes": (
+                    sorted(durations)[len(durations) // 2] / 60
+                    if durations
+                    else 0
+                ),
+            }
 
 
 # Global unified database manager instance
