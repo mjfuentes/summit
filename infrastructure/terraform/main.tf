@@ -88,18 +88,6 @@ resource "google_project_service" "apis" {
   disable_dependent_services = true
 }
 
-# Data source for existing GKE service account (if not creating new one)
-data "google_service_account" "existing_gke_sa" {
-  count      = var.create_service_accounts ? 0 : 1
-  account_id = var.gke_service_account_email != "" ? split("@", var.gke_service_account_email)[0] : "summit-agent"
-}
-
-# Data source for existing Summit agent service account (if not creating new one)
-data "google_service_account" "existing_summit_agent_sa" {
-  count      = var.create_service_accounts ? 0 : 1
-  account_id = var.summit_agent_service_account_email != "" ? split("@", var.summit_agent_service_account_email)[0] : "summit-agent"
-}
-
 # GKE Cluster
 resource "google_container_cluster" "summit_cluster" {
   name     = var.cluster_name
@@ -196,7 +184,7 @@ resource "google_service_account" "summit_agent_sa" {
   display_name = "Summit Agent Service Account"
 }
 
-# Local variable for GKE service account email
+# Local variables for service account emails (no data sources needed)
 locals {
   gke_sa_email = var.create_service_accounts ? google_service_account.gke_service_account[0].email : (
     var.gke_service_account_email != "" ? var.gke_service_account_email : "${var.project_id}-compute@developer.gserviceaccount.com"
