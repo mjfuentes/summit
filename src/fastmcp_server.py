@@ -41,12 +41,8 @@ class GetNextTaskRequest(BaseModel):
 
 class CompleteTaskRequest(BaseModel):
     task_id: str = Field(..., description="ID of the task being completed")
-    agent_id: str = Field(
-        ..., description="ID of the agent completing the task"
-    )
-    success: bool = Field(
-        True, description="Whether the task completed successfully"
-    )
+    agent_id: str = Field(..., description="ID of the agent completing the task")
+    success: bool = Field(True, description="Whether the task completed successfully")
     result: Dict[str, Any] = Field(
         default_factory=dict, description="Result data as a dictionary"
     )
@@ -86,7 +82,7 @@ class TaskResponse(BaseModel):
 
 
 # Resources - provide static and dynamic data to clients
-@mcp.resource("system-info")
+@mcp.resource(uri="resource://system-info")
 async def system_info() -> Dict[str, Any]:
     """Provide system information about the Summit platform"""
     return {
@@ -104,7 +100,7 @@ async def system_info() -> Dict[str, Any]:
     }
 
 
-@mcp.resource("docs/agent-guide")
+@mcp.resource(uri="resource://docs/agent-guide")
 async def agent_guide() -> str:
     """Provide documentation for agents interacting with the Summit platform"""
     return """# Summit Agent Guide
@@ -128,7 +124,7 @@ For more information, visit our documentation at https://summit-ai.example.com/d
 
 
 # Task management tools
-@mcp.tool
+@mcp.tool()
 async def summit_get_next_task(
     request: GetNextTaskRequest, ctx: Context
 ) -> Dict[str, Any]:
@@ -142,9 +138,10 @@ async def summit_get_next_task(
     Returns:
         Task information or status message
     """
-    logger.info(
-        f"Agent {request.agent_id} requesting task for role {request.role}"
-    )
+    # Initialize database if needed
+    await initialize_database()
+
+    logger.info(f"Agent {request.agent_id} requesting task for role {request.role}")
     await ctx.info(f"Processing task request for role: {request.role}")
 
     try:
@@ -166,9 +163,7 @@ async def summit_get_next_task(
 
         # No tasks available
         if not tasks:
-            await ctx.info(
-                f"No available tasks found for role: {request.role}"
-            )
+            await ctx.info(f"No available tasks found for role: {request.role}")
             return {
                 "status": "no_tasks",
                 "message": f"No available tasks found for role: {request.role}",
@@ -193,12 +188,8 @@ async def summit_get_next_task(
                 description=task.payload.get("description", ""),
                 details=task.payload,
                 context=task.context,
-                created_at=(
-                    task.created_at.isoformat() if task.created_at else None
-                ),
-                claimed_at=(
-                    task.claimed_at.isoformat() if task.claimed_at else None
-                ),
+                created_at=(task.created_at.isoformat() if task.created_at else None),
+                claimed_at=(task.claimed_at.isoformat() if task.claimed_at else None),
             ).model_dump(),
         }
 
@@ -211,7 +202,7 @@ async def summit_get_next_task(
         }
 
 
-@mcp.tool
+@mcp.tool()
 async def summit_complete_task(
     request: CompleteTaskRequest, ctx: Context
 ) -> Dict[str, Any]:
@@ -225,6 +216,9 @@ async def summit_complete_task(
     Returns:
         Status message
     """
+    # Initialize database if needed
+    await initialize_database()
+
     logger.info(f"Agent {request.agent_id} completing task {request.task_id}")
 
     try:
@@ -270,9 +264,7 @@ async def summit_complete_task(
                 "completed_at": datetime.utcnow().isoformat(),
             }
         else:
-            await ctx.warning(
-                f"Task {request.task_id} failed: {request.error_message}"
-            )
+            await ctx.warning(f"Task {request.task_id} failed: {request.error_message}")
             return {
                 "status": "error",
                 "message": f"Task {request.task_id} failed: {request.error_message}",
@@ -288,7 +280,7 @@ async def summit_complete_task(
         }
 
 
-@mcp.tool
+@mcp.tool()
 async def summit_register_agent(
     request: RegisterAgentRequest, ctx: Context
 ) -> Dict[str, Any]:
@@ -302,9 +294,10 @@ async def summit_register_agent(
     Returns:
         Registration status and agent information
     """
-    logger.info(
-        f"Registering agent {request.agent_id} with role {request.role}"
-    )
+    # Initialize database if needed
+    await initialize_database()
+
+    logger.info(f"Registering agent {request.agent_id} with role {request.role}")
 
     try:
         # Report progress to client
@@ -359,7 +352,7 @@ async def summit_register_agent(
 
 
 # Health check and misc tools
-@mcp.tool
+@mcp.tool()
 async def summit_health(ctx: Context) -> Dict[str, Any]:
     """
     Check the health of the Summit MCP server
@@ -370,6 +363,9 @@ async def summit_health(ctx: Context) -> Dict[str, Any]:
     Returns:
         Health status information
     """
+    # Initialize database if needed
+    await initialize_database()
+
     # Get database status
     db_status = "unknown"
     try:
@@ -397,27 +393,30 @@ async def summit_health(ctx: Context) -> Dict[str, Any]:
 
 
 # Server startup and shutdown event handlers
-@mcp.on_startup
-async def startup_handler():
-    """Initialize services on startup"""
-    logger.info("Starting Summit FastMCP server...")
-
-    # Store start time for uptime calculations
-    mcp.start_time = datetime.utcnow()
-
-    try:
-        # Initialize database
-        db = await get_database()
-        await db.init_database()
-        logger.info("Database initialized successfully")
-    except Exception as e:
-        logger.error(f"Error initializing database: {str(e)}", exc_info=True)
-        # Continue startup even if DB initialization fails - may recover later
+# Use FastMCP 2.0 lifecycle hooks
+# We'll manually initialize services when server starts
+mcp.start_time = datetime.utcnow()
 
 
-@mcp.on_shutdown
-async def shutdown_handler():
-    """Clean up resources on shutdown"""
+# Initialize database on first request
+async def initialize_database():
+    """Initialize database if not already done"""
+    if not hasattr(mcp, "db_initialized"):
+        try:
+            logger.info("Initializing database...")
+            db = await get_database()
+            await db.init_database()
+            mcp.db_initialized = True
+            logger.info("Database initialized successfully")
+        except Exception as e:
+            logger.error(f"Error initializing database: {str(e)}", exc_info=True)
+            # Continue even if DB initialization fails - may recover later
+
+
+# Cleanup function for resource shutdown
+# Will be called manually at server exit if possible
+async def cleanup_resources():
+    """Clean up resources"""
     logger.info("Shutting down Summit FastMCP server...")
     from task_queue_manager import close_task_queue_manager
     from unified_database import close_database
@@ -430,22 +429,46 @@ async def shutdown_handler():
         logger.error(f"Error during shutdown: {str(e)}", exc_info=True)
 
 
+async def run_server():
+    """Run the FastMCP server with proper setup and cleanup"""
+    # Initialize database
+    await initialize_database()
+
+    # Log available resources and tools
+    resources = await mcp.list_resources()
+    logger.info(f"Registered resources: {[r.uri for r in resources]}")
+
+    tools = await mcp.list_tools()
+    logger.info(f"Registered tools: {[t.name for t in tools]}")
+
+    logger.info("Server initialized and ready")
+
+
 if __name__ == "__main__":
     # Determine transport method from environment
     transport = os.environ.get("MCP_TRANSPORT", "sse").lower()
 
-    # Get port from environment or use default
-    port = int(os.environ.get("PORT", 8080))
+    # Log startup information
+    logger.info(f"Starting Summit FastMCP server with transport: {transport}")
 
-    # Run server with appropriate transport
-    if transport == "stdio":
-        # STDIO transport for CLI/local use
-        mcp.run(transport="stdio")
-    elif transport == "streamable-http":
-        # Streamable HTTP for modern web clients
-        mcp.run(
-            transport="streamable-http", host="0.0.0.0", port=port, path="/mcp"
-        )
-    else:
-        # SSE transport (default) for compatibility
-        mcp.run(transport="sse", host="0.0.0.0", port=port)
+    # Run initialization in async mode
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        loop.run_until_complete(run_server())
+
+        # Then run the main server in blocking mode
+        # The FastMCP 2.0 server run method is synchronous and blocking
+        mcp.run(transport=transport)
+    except KeyboardInterrupt:
+        # Handle graceful shutdown on Ctrl+C
+        logger.info("Server shutdown requested")
+        try:
+            # Run cleanup
+            loop.run_until_complete(cleanup_resources())
+        except Exception as e:
+            logger.error(f"Error during cleanup: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error running FastMCP server: {str(e)}", exc_info=True)
+    finally:
+        loop.close()
