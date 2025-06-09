@@ -19,15 +19,20 @@ fi
 # Check if we're in an auto-fix loop (prevent infinite recursion)
 AUTO_FIX_FLAG=".git/AUTO_FIX_IN_PROGRESS"
 ORIGINAL_MSG_FILE=".git/ORIGINAL_COMMIT_MSG"
+STAGED_FILES_LIST=".git/STAGED_FILES_BACKUP"
 
 if [ -f "$AUTO_FIX_FLAG" ]; then
     echo "  -> Auto-fix cycle detected, running verification on fixed code..."
     rm -f "$AUTO_FIX_FLAG"
     rm -f "$ORIGINAL_MSG_FILE"
+    rm -f "$STAGED_FILES_LIST"
     # Continue with verification checks below
 else
     # Track if any files were auto-fixed
     FILES_MODIFIED=false
+    
+    # Capture list of originally staged files
+    git diff --cached --name-only --diff-filter=ACM > "$STAGED_FILES_LIST"
 
     # Capture original commit message before any modifications
     COMMIT_MSG_FILE=".git/COMMIT_EDITMSG"
@@ -91,13 +96,19 @@ else
     # If files were modified, auto-add them and re-commit with verification
     if [ "$FILES_MODIFIED" = true ]; then
         echo ""
-        echo "  -> Auto-fixes applied. Re-staging files and re-committing with verification..."
+        echo "  -> Auto-fixes applied. Re-staging ONLY originally staged files..."
         
         # Create flag to prevent infinite recursion
         touch "$AUTO_FIX_FLAG"
         
-        # Add all the modified files back to staging
-        git add .
+        # Re-add ONLY the files that were originally staged
+        echo "  -> Re-staging these originally staged files:"
+        while IFS= read -r file; do
+            if [ -f "$file" ]; then
+                echo "    - $file"
+                git add "$file"
+            fi
+        done < "$STAGED_FILES_LIST"
         
         # Get the original commit message
         ORIGINAL_MSG=""
