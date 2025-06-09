@@ -1,9 +1,10 @@
-# TODO: Consider migrating from Cloud Tasks to a system with better backpressure handling
-# Current Cloud Tasks setup works but has limitations:
-# - No native backpressure for overwhelmed agents
-# - HTTP endpoint requirement adds complexity
-# Future options: Pub/Sub with pull subscriptions, database polling with atomic claiming,
-# or custom queue system with agent load awareness
+# Summit Infrastructure Configuration
+# 
+# This is a minimal Terraform configuration designed to work with limited
+# IAM permissions in CI/CD environments. It assumes:
+# - APIs are already enabled manually
+# - Service accounts exist and have proper roles assigned
+# - Focus on managing cluster and database resources only
 
 terraform {
   required_version = ">= 1.0"
@@ -33,60 +34,117 @@ variable "cluster_name" {
 }
 
 variable "create_service_accounts" {
-  description = "Whether to create new service accounts (requires elevated IAM permissions)"
+  description = "Whether to create service accounts (requires IAM admin permissions)"
+  type        = bool
+  default     = false
+}
+
+variable "create_iam_bindings" {
+  description = "Whether to create IAM bindings (requires IAM admin permissions)"
+  type        = bool
+  default     = false
+}
+
+variable "enable_apis" {
+  description = "Whether to enable APIs (requires serviceusage.serviceUsageAdmin)"
   type        = bool
   default     = false
 }
 
 variable "gke_service_account_email" {
-  description = "Email of existing GKE service account (if not creating new ones)"
+  description = "Email of existing GKE service account"
   type        = string
   default     = ""
 }
 
 variable "summit_agent_service_account_email" {
-  description = "Email of existing Summit agent service account (if not creating new ones)"
+  description = "Email of existing Summit agent service account"
   type        = string
   default     = ""
 }
 
-# Google Cloud Provider
-# Authentication is handled via:
-# 1. GOOGLE_APPLICATION_CREDENTIALS environment variable (service account key)
-# 2. gcloud auth application-default login (for local development)  
-# 3. Workload Identity (for GitHub Actions)
-#
-# Required IAM permissions for the service account running this Terraform:
-# - roles/container.admin (for GKE cluster management)
-# - roles/compute.admin (for firewall rules and networks)
-# - roles/iam.serviceAccountAdmin (if creating service accounts)
-# - roles/iam.serviceAccountUser (for service account impersonation)
-# - roles/cloudsql.admin (for Cloud SQL instance management)
-# - roles/cloudtasks.admin (for Cloud Tasks queue management)
-# - roles/serviceusage.serviceUsageAdmin (for enabling APIs)
-provider "google" {
-  project = var.project_id
-  region  = var.region
+# Local variables for service account emails
+locals {
+  gke_sa_email = var.create_service_accounts ? google_service_account.gke_service_account[0].email : (
+    var.gke_service_account_email != "" ? var.gke_service_account_email : "${var.project_id}-compute@developer.gserviceaccount.com"
+  )
+  summit_agent_sa_email = var.create_service_accounts ? google_service_account.summit_agent_sa[0].email : (
+    var.summit_agent_service_account_email != "" ? var.summit_agent_service_account_email : "summit-agent@${var.project_id}.iam.gserviceaccount.com"
+  )
 }
 
-# Enable required APIs
+# CONDITIONAL RESOURCES - Only created if explicitly enabled
+
+# Enable required APIs (only if enabled)
 resource "google_project_service" "apis" {
-  for_each = toset([
+  for_each = var.enable_apis ? toset([
     "container.googleapis.com",
     "compute.googleapis.com",
-    "iam.googleapis.com",
-    "cloudresourcemanager.googleapis.com",
     "monitoring.googleapis.com",
     "logging.googleapis.com",
     "cloudtasks.googleapis.com",
     "sqladmin.googleapis.com"
-  ])
+  ]) : toset([])
   
   project = var.project_id
   service = each.value
   
   disable_dependent_services = true
 }
+
+# Service accounts (only if enabled)
+resource "google_service_account" "gke_service_account" {
+  count        = var.create_service_accounts ? 1 : 0
+  account_id   = "summit-gke-sa"
+  display_name = "Summit GKE Service Account"
+  project      = var.project_id
+}
+
+resource "google_service_account" "summit_agent_sa" {
+  count        = var.create_service_accounts ? 1 : 0
+  account_id   = "summit-agent"
+  display_name = "Summit Agent Service Account"
+  project      = var.project_id
+}
+
+# IAM bindings (only if enabled)
+resource "google_project_iam_member" "gke_service_account_roles" {
+  for_each = var.create_iam_bindings ? toset([
+    "roles/logging.logWriter",
+    "roles/monitoring.metricWriter",
+    "roles/monitoring.viewer",
+    "roles/stackdriver.resourceMetadata.writer"
+  ]) : toset([])
+  
+  project = var.project_id
+  role    = each.value
+  member  = "serviceAccount:${local.gke_sa_email}"
+}
+
+resource "google_project_iam_member" "summit_agent_roles" {
+  for_each = var.create_iam_bindings ? toset([
+    "roles/cloudsql.client",
+    "roles/cloudtasks.admin",
+    "roles/logging.logWriter",
+    "roles/monitoring.metricWriter"
+  ]) : toset([])
+  
+  project = var.project_id
+  role    = each.value
+  member  = "serviceAccount:${local.summit_agent_sa_email}"
+}
+
+resource "google_service_account_iam_binding" "summit_workload_identity" {
+  count              = var.create_iam_bindings ? 1 : 0
+  service_account_id = local.summit_agent_sa_email
+  role               = "roles/iam.workloadIdentityUser"
+  
+  members = [
+    "serviceAccount:${var.project_id}.svc.id.goog[summit/summit-ksa]"
+  ]
+}
+
+# CORE INFRASTRUCTURE - Always managed
 
 # GKE Cluster
 resource "google_container_cluster" "summit_cluster" {
@@ -125,135 +183,85 @@ resource "google_container_cluster" "summit_cluster" {
   depends_on = [google_project_service.apis]
 }
 
-# Node Pool for OpenCode agents
+# OpenCode Node Pool
 resource "google_container_node_pool" "opencode_nodes" {
   name       = "opencode-pool"
   location   = var.region
   cluster    = google_container_cluster.summit_cluster.name
   node_count = 1
 
-  node_config {
-    preemptible  = false
-    machine_type = "e2-small"  # 2 vCPU, 2GB RAM
-
-    # Use existing service account or default Compute Engine service account
-    service_account = var.create_service_accounts ? google_service_account.gke_service_account[0].email : (
-      var.gke_service_account_email != "" ? var.gke_service_account_email : "${var.project_id}-compute@developer.gserviceaccount.com"
-    )
-    oauth_scopes = [
-      "https://www.googleapis.com/auth/cloud-platform"
-    ]
-
-    labels = {
-      purpose = "opencode-agents"
-    }
-
-    tags = ["summit", "opencode"]
-
-    # Shielded VM features
-    shielded_instance_config {
-      enable_secure_boot          = true
-      enable_integrity_monitoring = true
-    }
-  }
-
-  # Auto-scaling
   autoscaling {
     min_node_count = 1
     max_node_count = 3
   }
 
-  # Auto-upgrade and auto-repair
   management {
     auto_repair  = true
     auto_upgrade = true
   }
-}
 
-# Service Account for GKE nodes (only if create_service_accounts is true)
-resource "google_service_account" "gke_service_account" {
-  count        = var.create_service_accounts ? 1 : 0
-  account_id   = "summit-gke-sa"
-  display_name = "Summit GKE Service Account"
-}
+  node_config {
+    preemptible  = false
+    machine_type = "e2-standard-4"
+    disk_size_gb = 50
 
-# Service Account for Summit agents (only if create_service_accounts is true)
-resource "google_service_account" "summit_agent_sa" {
-  count        = var.create_service_accounts ? 1 : 0
-  account_id   = "summit-agent"
-  display_name = "Summit Agent Service Account"
-}
+    # Use existing service account
+    service_account = local.gke_sa_email
+    oauth_scopes = [
+      "https://www.googleapis.com/auth/cloud-platform"
+    ]
 
-# Local variables for service account emails (no data sources needed)
-locals {
-  gke_sa_email = var.create_service_accounts ? google_service_account.gke_service_account[0].email : (
-    var.gke_service_account_email != "" ? var.gke_service_account_email : "${var.project_id}-compute@developer.gserviceaccount.com"
-  )
-  summit_agent_sa_email = var.create_service_accounts ? google_service_account.summit_agent_sa[0].email : (
-    var.summit_agent_service_account_email != "" ? var.summit_agent_service_account_email : "summit-agent@${var.project_id}.iam.gserviceaccount.com"
-  )
-}
+    shielded_instance_config {
+      enable_secure_boot          = true
+      enable_integrity_monitoring = true
+    }
 
-# IAM bindings for the GKE service account
-resource "google_project_iam_member" "gke_service_account_roles" {
-  for_each = toset([
-    "roles/logging.logWriter",
-    "roles/monitoring.metricWriter",
-    "roles/monitoring.viewer",
-    "roles/stackdriver.resourceMetadata.writer"
-  ])
+    workload_metadata_config {
+      mode = "GKE_METADATA"
+    }
 
-  project = var.project_id
-  role    = each.value
-  member  = "serviceAccount:${local.gke_sa_email}"
-}
+    metadata = {
+      disable-legacy-endpoints = "true"
+    }
 
-# IAM bindings for the Summit agent service account
-resource "google_project_iam_member" "summit_agent_roles" {
-  for_each = toset([
-    "roles/cloudtasks.admin",
-    "roles/cloudsql.client",
-    "roles/logging.logWriter",
-    "roles/monitoring.metricWriter"
-  ])
+    tags = ["summit", "opencode"]
+  }
 
-  project = var.project_id
-  role    = each.value
-  member  = "serviceAccount:${local.summit_agent_sa_email}"
+  depends_on = [google_container_cluster.summit_cluster]
 }
 
 # Cloud Tasks Queue
 resource "google_cloud_tasks_queue" "summit_agent_queue" {
   name     = "summit-agent-queue"
   location = var.region
-
-  rate_limits {
-    max_dispatches_per_second = 10
-    max_concurrent_dispatches = 50
-  }
+  project  = var.project_id
 
   retry_config {
     max_attempts       = 3
     max_retry_duration = "300s"
-    min_backoff        = "1s"
     max_backoff        = "60s"
+    min_backoff        = "5s"
+    max_doublings      = 3
   }
 
-  depends_on = [google_project_service.apis]
+  rate_limits {
+    max_dispatches_per_second = 10
+  }
 }
 
-# PostgreSQL Database (Cloud SQL)
+# PostgreSQL Database Instance
 resource "google_sql_database_instance" "summit_postgres" {
-  name             = "summit-postgres"
-  database_version = "POSTGRES_15"
-  region           = var.region
+  name                = "summit-postgres"
+  database_version    = "POSTGRES_15"
+  region             = var.region
   deletion_protection = false
 
   settings {
-    tier = "db-f1-micro"  # 1 vCPU, 0.6GB RAM - cheapest tier
-    
-    disk_type = "PD_SSD"
-    disk_size = 10  # 10GB minimum
+    tier              = "db-f1-micro"
+    availability_type = "ZONAL"
+    disk_type         = "PD_SSD"
+    disk_size         = 20
+    disk_autoresize   = true
 
     backup_configuration {
       enabled                        = true
@@ -266,62 +274,63 @@ resource "google_sql_database_instance" "summit_postgres" {
       ipv4_enabled    = true
       authorized_networks {
         name  = "allow-all"
-        value = "0.0.0.0/0"  # In production, restrict this to your IP ranges
+        value = "0.0.0.0/0"
       }
     }
 
     database_flags {
-      name  = "max_connections"
-      value = "50"
+      name  = "log_checkpoints"
+      value = "on"
+    }
+
+    database_flags {
+      name  = "log_connections"
+      value = "on"
+    }
+
+    database_flags {
+      name  = "log_disconnections"
+      value = "on"
+    }
+
+    database_flags {
+      name  = "log_lock_waits"
+      value = "on"
+    }
+
+    database_flags {
+      name  = "log_min_duration_statement"
+      value = "1000"
     }
   }
-
-  depends_on = [google_project_service.apis]
 }
 
-# Create the summit database
 resource "google_sql_database" "summit_db" {
   name     = "summit"
   instance = google_sql_database_instance.summit_postgres.name
 }
 
-# Create database user
 resource "google_sql_user" "summit_user" {
   name     = "summit"
   instance = google_sql_database_instance.summit_postgres.name
-  password = "summit123"  # In production, use a random password
+  password = "summit123"
 }
 
-# Workload Identity binding for Cloud SQL access (only if creating service accounts)
-resource "google_service_account_iam_binding" "summit_workload_identity" {
-  count              = var.create_service_accounts ? 1 : 0
-  service_account_id = google_service_account.summit_agent_sa[0].name
-  role               = "roles/iam.workloadIdentityUser"
-
-  members = [
-    "serviceAccount:${var.project_id}.svc.id.goog[summit/summit-ksa]"
-  ]
-}
-
-# Firewall rules for MCP server (try to create, but don't fail if permissions are insufficient)
+# Firewall rule for MCP server (only if network permissions available)
 resource "google_compute_firewall" "summit_mcp_firewall" {
   name    = "summit-mcp-firewall"
   network = "default"
 
   allow {
     protocol = "tcp"
-    ports    = ["8080"]
+    ports    = ["3000", "8000", "8080"]
   }
 
-  source_ranges = ["0.0.0.0/0"]  # In production, restrict this
-  target_tags   = ["summit", "mcp-server"]
-
-  lifecycle {
-    ignore_changes = all
-  }
+  source_ranges = ["0.0.0.0/0"]
+  target_tags   = ["summit", "opencode"]
 }
 
-# Outputs
+# Output values
 output "cluster_name" {
   description = "GKE cluster name"
   value       = google_container_cluster.summit_cluster.name
@@ -335,31 +344,31 @@ output "cluster_endpoint" {
 
 output "cluster_ca_certificate" {
   description = "GKE cluster CA certificate"
-  value       = google_container_cluster.summit_cluster.master_auth[0].cluster_ca_certificate
+  value       = google_container_cluster.summit_cluster.master_auth.0.cluster_ca_certificate
   sensitive   = true
 }
 
 output "database_connection_name" {
-  description = "PostgreSQL database connection name"
+  description = "PostgreSQL connection name"
   value       = google_sql_database_instance.summit_postgres.connection_name
 }
 
-output "database_private_ip" {
-  description = "PostgreSQL database private IP"
-  value       = google_sql_database_instance.summit_postgres.private_ip_address
-}
-
 output "database_public_ip" {
-  description = "PostgreSQL database public IP"
+  description = "PostgreSQL public IP"
   value       = google_sql_database_instance.summit_postgres.public_ip_address
 }
 
+output "database_private_ip" {
+  description = "PostgreSQL private IP"
+  value       = google_sql_database_instance.summit_postgres.private_ip_address
+}
+
 output "gke_service_account_email" {
-  description = "Email of the GKE service account being used"
+  description = "GKE service account email"
   value       = local.gke_sa_email
 }
 
 output "summit_agent_service_account_email" {
-  description = "Email of the Summit agent service account being used"
+  description = "Summit agent service account email"
   value       = local.summit_agent_sa_email
 }
