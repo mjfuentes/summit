@@ -92,9 +92,10 @@ jobs:
           -var="project_id=${{ env.GCP_PROJECT_ID }}" \
           -var="region=${{ env.CLUSTER_REGION }}" \
           -var="cluster_name=${{ env.CLUSTER_NAME }}" \
-          -var="create_service_accounts=false" \
-          -var="create_iam_bindings=false" \
-          -var="enable_apis=false"
+          -var="manage_cluster=false" \
+          -var="manage_database=false" \
+          -var="manage_firewall=false" \
+          -var="manage_tasks=false"
 
   terraform-apply:
     name: Terraform Apply
@@ -162,9 +163,10 @@ jobs:
           -var="project_id=${{ env.GCP_PROJECT_ID }}" \
           -var="region=${{ env.CLUSTER_REGION }}" \
           -var="cluster_name=${{ env.CLUSTER_NAME }}" \
-          -var="create_service_accounts=false" \
-          -var="create_iam_bindings=false" \
-          -var="enable_apis=false"
+          -var="manage_cluster=false" \
+          -var="manage_database=false" \
+          -var="manage_firewall=false" \
+          -var="manage_tasks=false"
 
   deploy-applications:
     name: Deploy Applications
@@ -369,9 +371,10 @@ jobs:
           -var="project_id=${{ env.GCP_PROJECT_ID }}" \
           -var="region=${{ env.CLUSTER_REGION }}" \
           -var="cluster_name=${{ env.CLUSTER_NAME }}" \
-          -var="create_service_accounts=false" \
-          -var="create_iam_bindings=false" \
-          -var="enable_apis=false"
+          -var="manage_cluster=false" \
+          -var="manage_database=false" \
+          -var="manage_firewall=false" \
+          -var="manage_tasks=false"
 
     - name: Manual Deploy Applications
       env:
