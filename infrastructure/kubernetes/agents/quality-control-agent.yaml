@@ -23,22 +23,20 @@ spec:
       - name: ghcr-login-secret
       containers:
       - name: quality-control-agent
-        image: gcr.io/summit-ai-platform/opencode:latest
-        command: ["python"]
-        args: ["/app/src/agent_lifecycle.py"]
+        image: ghcr.io/mjfuentes/summit/opencode-agents:latest
+        command: ["/bin/bash"]
+        args: ["-c", "mkdir -p ~/.opencode && echo '{\"mcpServers\":{\"summit\":{\"type\":\"sse\",\"url\":\"http://summit-mcp-service.summit.svc.cluster.local:8080\"}},\"providers\":{\"anthropic\":{\"apiKey\":\"'\"$ANTHROPIC_API_KEY\"'\"}},\"agents\":{\"coder\":{\"model\":\"claude-3.5-sonnet\",\"maxTokens\":8000}}}' > ~/.opencode/config.json && cd /workspace && opencode -p 'I am a Summit Quality Control Agent. Register with Summit MCP server using summit_register_agent tool with role=quality-control and capabilities=[\"code-review\",\"testing\",\"quality-assurance\",\"documentation\"]. Check for tasks with summit_get_next_task and perform quality reviews.'"]
         env:
         - name: AGENT_ROLE
           value: "quality_control"
-        - name: WORKFLOW_STAGE
-          value: "final"
-        - name: DATABASE_URL
-          value: "postgresql+asyncpg://summit:summit123@localhost:5432/summit"
+        - name: AGENT_ID
+          value: "quality-control-agent-001"
         - name: WORKSPACE_PATH
           value: "/workspace"
-        - name: PYTHONPATH
-          value: "/app/src"
-        - name: AGENT_HEARTBEAT_INTERVAL
-          value: "60"
+        - name: SUMMIT_MCP_SERVER_URL
+          value: "summit-mcp-service.summit.svc.cluster.local:8080"
+        - name: GIT_CLEANUP_ENABLED
+          value: "true"
         - name: ANTHROPIC_API_KEY
           valueFrom:
             secretKeyRef:
@@ -51,27 +49,19 @@ spec:
               key: github-token
         resources:
           requests:
-            memory: "192Mi"
-            cpu: "150m"
+            memory: "128Mi"
+            cpu: "100m"
           limits:
-            memory: "384Mi"
-            cpu: "300m"
-        livenessProbe:
-          exec:
-            command:
-            - python
-            - -c
-            - "import requests; requests.get('http://localhost:8080/health')"
-          initialDelaySeconds: 30
-          periodSeconds: 30
+            memory: "256Mi"
+            cpu: "200m"
         readinessProbe:
           exec:
             command:
-            - python
+            - /bin/bash
             - -c
-            - "import os; exit(0 if os.path.exists('/tmp/agent-ready') else 1)"
-          initialDelaySeconds: 10
-          periodSeconds: 10
+            - "ps aux | grep opencode | grep -v grep"
+          initialDelaySeconds: 45
+          periodSeconds: 15
         volumeMounts:
         - name: workspace
           mountPath: /workspace
@@ -79,22 +69,6 @@ spec:
           mountPath: /app
         - name: git-cache
           mountPath: /git-cache
-      # Cloud SQL Proxy sidecar for database access
-      - name: cloud-sql-proxy
-        image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.8.0
-        args:
-          - "--structured-logs"
-          - "--port=5432"
-          - "summit-ai-platform:us-central1:summit-postgres"
-        securityContext:
-          runAsNonRoot: true
-        resources:
-          requests:
-            memory: "32Mi"
-            cpu: "10m"
-          limits:
-            memory: "64Mi"
-            cpu: "50m"
       volumes:
       - name: workspace
         persistentVolumeClaim:

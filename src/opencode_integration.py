@@ -96,7 +96,7 @@ class OpenCodeManager:
             return False
 
     async def setup_configuration(self) -> bool:
-        """Setup OpenCode configuration"""
+        """Setup OpenCode configuration with MCP server integration"""
         try:
             config_dir = Path.home() / ".config" / "opencode"
             config_dir.mkdir(parents=True, exist_ok=True)
@@ -124,6 +124,23 @@ class OpenCodeManager:
                 # For self-hosted models
                 opencode_config["localEndpoint"] = self.config.local_endpoint
 
+            # Configure MCP server integration for task management
+            mcp_server_url = os.getenv(
+                "MCP_SERVER_URL", "http://localhost:8080"
+            )
+            opencode_config["mcpServers"] = {
+                "summit": {
+                    "url": mcp_server_url,
+                    "description": "Summit AI task management server",
+                    "tools": [
+                        "summit_update_task_status",
+                        "summit_add_task_comment",
+                        "summit_get_task",
+                        "summit_list_tasks",
+                    ],
+                }
+            }
+
             # Setup custom commands directory
             if self.config.custom_commands_dir:
                 commands_dir = Path(self.config.custom_commands_dir)
@@ -132,7 +149,9 @@ class OpenCodeManager:
             with open(config_file, "w") as f:
                 json.dump(opencode_config, f, indent=2)
 
-            self.logger.info(f"OpenCode configuration created: {config_file}")
+            self.logger.info(
+                f"OpenCode configuration created with MCP integration: {config_file}"
+            )
             return True
 
         except Exception as e:
@@ -276,18 +295,31 @@ Please start by exploring the current directory structure and understanding the 
                 "processing_time": time.time() - start_time,
             }
 
-    async def execute_task(self, task_description: str) -> Dict[str, Any]:
-        """Execute a development task using OpenCode"""
+    async def execute_task(
+        self,
+        task_description: str,
+        task_id: Optional[str] = None,
+        agent_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Execute a development task using OpenCode with MCP integration"""
         try:
             start_time = time.time()
+
+            # Get task ID and agent ID from environment if not provided
+            if not task_id:
+                task_id = os.getenv("TASK_ID")
+            if not agent_id:
+                agent_id = os.getenv("AGENT_ID", "opencode-agent")
 
             with tempfile.NamedTemporaryFile(
                 mode="w", suffix=".md", delete=False
             ) as f:
-                f.write(
-                    f"""# Summit AI Development Task
+                task_prompt = f"""# Summit AI Development Task
 
 {task_description}
+
+**Task ID:** {task_id}
+**Agent ID:** {agent_id}
 
 Please analyze the codebase and implement the requested changes following Summit's standards:
 - Maintain >70% test coverage
@@ -296,8 +328,38 @@ Please analyze the codebase and implement the requested changes following Summit
 - Add comprehensive error handling
 - Use professional coding standards
 
+**IMPORTANT - Task Completion:**
+When you finish this task, you MUST use the MCP tool to update the task status:
+
+For success:
+```
+summit_update_task_status({{
+  "task_id": "{task_id}",
+  "status": "completed",
+  "agent_id": "{agent_id}",
+  "result": {{
+    "success": true,
+    "summary": "Description of what was accomplished",
+    "files_modified": ["list", "of", "files"],
+    "tests_run": true,
+    "coverage": percentage,
+    "quality_checks": true
+  }}
+}})
+```
+
+For failure:
+```
+summit_update_task_status({{
+  "task_id": "{task_id}",
+  "status": "failed",
+  "agent_id": "{agent_id}",
+  "error": "Clear error message"
+}})
+```
+
 Use the available tools to read, write, and test code as needed."""
-                )
+                f.write(task_prompt)
                 temp_file = f.name
 
             try:
@@ -320,6 +382,8 @@ Use the available tools to read, write, and test code as needed."""
                     "output": result.get("output", ""),
                     "error": result.get("error", ""),
                     "processing_time": processing_time,
+                    "task_id": task_id,
+                    "agent_id": agent_id,
                 }
 
             finally:
@@ -331,6 +395,8 @@ Use the available tools to read, write, and test code as needed."""
                 "success": False,
                 "error": str(e),
                 "processing_time": time.time() - start_time,
+                "task_id": task_id,
+                "agent_id": agent_id,
             }
 
     async def get_session_history(
@@ -478,7 +544,7 @@ Analyze the codebase structure and provide:
 Please implement the requested feature following these guidelines:
 
 1. **Analysis Phase:**
-   - Understand the requirements
+   - Use summit_get_task to understand requirements
    - Explore existing codebase patterns
    - Identify integration points
 
@@ -494,12 +560,66 @@ Please implement the requested feature following these guidelines:
    - Fix any linting issues
    - Verify functionality
 
-4. **Integration:**
+4. **Task Completion:**
+   - When finished, use summit_update_task_status tool to mark task as "completed"
+   - Include task result data with implementation details
+   - If task fails, use summit_update_task_status with "failed" status and error message
+
+5. **Integration:**
    - Ensure proper error handling
    - Add logging where appropriate
    - Follow Summit's professional standards
 
+**Important:** Always use the summit_update_task_status MCP tool to update task status instead of manual database calls.
+
 Use the available tools to read, write, and test code as needed.""",
+        )
+
+        # Command for task completion
+        await self.opencode.create_custom_command(
+            "summit-finish-task",
+            """# Summit Task Completion
+
+When you have completed a task, use this command structure:
+
+**For Successful Completion:**
+Use the summit_update_task_status MCP tool with:
+- task_id: The ID of the task you completed
+- status: "completed" 
+- agent_id: Your agent identifier
+- result: Object containing:
+  - success: true
+  - summary: Brief description of what was accomplished
+  - files_modified: List of files changed
+  - tests_run: Whether tests were executed
+  - coverage: Test coverage percentage if available
+  - quality_checks: Whether linting/formatting was applied
+
+**For Failed Tasks:**
+Use the summit_update_task_status MCP tool with:
+- task_id: The ID of the task that failed
+- status: "failed"
+- agent_id: Your agent identifier  
+- error: Clear error message explaining what went wrong
+
+**Example Usage:**
+```
+summit_update_task_status({
+  "task_id": "task-123",
+  "status": "completed",
+  "agent_id": "opencode-agent-1",
+  "result": {
+    "success": true,
+    "summary": "Implemented authentication system with JWT tokens",
+    "files_modified": ["src/auth.py", "tests/test_auth.py"],
+    "tests_run": true,
+    "coverage": 85.3,
+    "quality_checks": true
+  }
+})
+```
+
+**Never use manual database calls or direct API endpoints for task completion.**""",
         )
 
         # Command for debugging

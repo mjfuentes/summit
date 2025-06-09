@@ -31,32 +31,51 @@ spec:
         - |
           echo "Initializing repository for engineering agent..."
           cd /workspace
-          git clone --depth 10 ${REPO_URL:-https://github.com/mjfuentes/summit.git} .
+          
+          # Clean up any existing content
+          if [ "$(ls -A /workspace)" ]; then
+            echo "Workspace not empty, cleaning up..."
+            rm -rf /workspace/* /workspace/.[!.]* /workspace/..?* 2>/dev/null || true
+          fi
+          
+          # Clone repository using GitHub token for authentication
+          REPO_URL_WITH_TOKEN="https://${GITHUB_TOKEN}@github.com/mjfuentes/summit.git"
+          echo "Cloning repository with authentication..."
+          git clone --depth 10 "$REPO_URL_WITH_TOKEN" . || {
+            echo "Clone with token failed, trying fallback methods..."
+            git clone --depth 10 "https://github.com/mjfuentes/summit.git" . || {
+              echo "ERROR: All git clone attempts failed"
+              exit 1
+            }
+          }
+          
           git config user.name "Summit Engineering Agent"
           git config user.email "engineering-agent@summit.ai"
           git config pull.rebase false
-          echo "Repository initialized"
+          echo "Repository initialized successfully"
+        env:
+        - name: GITHUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: summit-secrets
+              key: github-token
         volumeMounts:
         - name: workspace
           mountPath: /workspace
       containers:
       - name: engineering-agent
-        image: gcr.io/summit-ai-platform/opencode:latest
-        command: ["python"]
-        args: ["/app/src/agent_lifecycle.py"]
+        image: ghcr.io/mjfuentes/summit/opencode-agents:latest
+        command: ["/bin/bash"]
+        args: ["-c", "mkdir -p ~/.opencode && echo '{\"mcpServers\":{\"summit\":{\"type\":\"sse\",\"url\":\"http://summit-mcp-service.summit.svc.cluster.local:8080\"}},\"providers\":{\"anthropic\":{\"apiKey\":\"'\"$ANTHROPIC_API_KEY\"'\"}},\"agents\":{\"coder\":{\"model\":\"claude-3.5-sonnet\",\"maxTokens\":8000}}}' > ~/.opencode/config.json && cd /workspace && opencode -p 'I am a Summit Engineering Agent. Register with Summit MCP server using summit_register_agent tool with role=engineering and capabilities=[\"code-development\",\"bug-fixing\",\"testing\",\"deployment\"]. Check for tasks with summit_get_next_task. When you get a task, create a feature branch, implement the solution, test it, and create a PR.'"]
         env:
         - name: AGENT_ROLE
           value: "engineering"
-        - name: WORKFLOW_STAGE
-          value: "second"
-        - name: DATABASE_URL
-          value: "postgresql+asyncpg://summit:summit123@localhost:5432/summit"
+        - name: AGENT_ID
+          value: "engineering-agent-001"
         - name: WORKSPACE_PATH
           value: "/workspace"
-        - name: PYTHONPATH
-          value: "/app/src"
-        - name: AGENT_HEARTBEAT_INTERVAL
-          value: "60"
+        - name: SUMMIT_MCP_SERVER_URL
+          value: "summit-mcp-service.summit.svc.cluster.local:8080"
         - name: GIT_CLEANUP_ENABLED
           value: "true"
         - name: ANTHROPIC_API_KEY
@@ -71,27 +90,19 @@ spec:
               key: github-token
         resources:
           requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
             memory: "256Mi"
             cpu: "200m"
-          limits:
-            memory: "512Mi"
-            cpu: "400m"
-        livenessProbe:
-          exec:
-            command:
-            - python
-            - -c
-            - "import requests; requests.get('http://localhost:8080/health')"
-          initialDelaySeconds: 30
-          periodSeconds: 30
         readinessProbe:
           exec:
             command:
-            - python
+            - /bin/bash
             - -c
-            - "import os; exit(0 if os.path.exists('/tmp/agent-ready') else 1)"
-          initialDelaySeconds: 15
-          periodSeconds: 10
+            - "ps aux | grep opencode | grep -v grep"
+          initialDelaySeconds: 45
+          periodSeconds: 15
         volumeMounts:
         - name: workspace
           mountPath: /workspace
@@ -99,22 +110,6 @@ spec:
           mountPath: /app
         - name: git-scripts
           mountPath: /scripts
-      # Cloud SQL Proxy sidecar for database access
-      - name: cloud-sql-proxy
-        image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.8.0
-        args:
-          - "--structured-logs"
-          - "--port=5432"
-          - "summit-ai-platform:us-central1:summit-postgres"
-        securityContext:
-          runAsNonRoot: true
-        resources:
-          requests:
-            memory: "32Mi"
-            cpu: "10m"
-          limits:
-            memory: "64Mi"
-            cpu: "50m"
       volumes:
       - name: workspace
         persistentVolumeClaim:

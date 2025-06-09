@@ -1,0 +1,188 @@
+name: Build and Deploy MCP Server Image
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'infrastructure/docker/Dockerfile.mcp-server'
+      - 'requirements.txt'
+      - '.github/workflows/build-mcp-server.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'infrastructure/docker/Dockerfile.mcp-server'
+      - 'requirements.txt'
+  workflow_dispatch:
+
+# Grant GITHUB_TOKEN the necessary permissions
+permissions:
+  contents: read
+  packages: write
+  security-events: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/mcp-server
+
+jobs:
+  test:
+    name: Tests & Quality Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest coverage
+        
+    - name: Run tests
+      run: |
+        python -m pytest tests/ -v
+        
+    - name: Check test coverage
+      run: |
+        python -m coverage run -m pytest
+        python -m coverage report --show-missing
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run Bandit security scan
+      run: |
+        pip install bandit
+        bandit -r src/ -f json -o bandit-report.json || true
+        
+    - name: Check for secrets in code
+      uses: trufflesecurity/trufflehog@main
+      with:
+        path: ./
+        base: ${{ github.event.repository.default_branch }}
+        head: ${{ github.event.pull_request.head.sha || github.sha }}
+        extra_args: --debug --only-verified
+      continue-on-error: true
+      if: github.event_name == 'pull_request'
+
+  build:
+    name: Build & Push MCP Server Image
+    runs-on: ubuntu-latest
+    needs: [test, security]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+      primary-tag: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+          type=raw,value=stable,enable={{is_default_branch}}
+          
+    - name: Build and push MCP Server image
+      id: build
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./infrastructure/docker/Dockerfile.mcp-server
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        # Use GitHub Actions cache for faster builds
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        # Build arguments for optimization
+        build-args: |
+          BUILDKIT_INLINE_CACHE=1
+        
+    - name: Generate SBOM
+      uses: anchore/sbom-action@v0
+      with:
+        image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+        format: spdx-json
+        output-file: /tmp/sbom.spdx.json
+        
+    - name: Scan image for vulnerabilities
+      uses: anchore/scan-action@v3
+      with:
+        image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+        fail-build: false
+        severity-cutoff: high
+
+    - name: Output image details
+      run: |
+        echo "Image built and pushed successfully!"
+        echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+        echo "Digest: ${{ steps.build.outputs.digest }}"
+        echo ""
+        echo "Available tags:"
+        echo "${{ steps.meta.outputs.tags }}"
+
+  deploy:
+    name: Update Kubernetes Deployment
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Update Kubernetes deployment
+      run: |
+        echo "MCP Server image built and pushed to GHCR:"
+        echo "Image: ${{ needs.build.outputs.primary-tag }}"
+        echo "Digest: ${{ needs.build.outputs.image-digest }}"
+        echo ""
+        echo "To deploy to Kubernetes cluster, run:"
+        echo "kubectl set image deployment/summit-mcp-server mcp-server=${{ needs.build.outputs.primary-tag }} -n summit"
+        echo ""
+        echo "Or apply the updated Kubernetes manifests:"
+        echo "kubectl apply -f infrastructure/kubernetes/mcp-server/"
+        
+    - name: Deployment summary
+      run: |
+        echo "=== MCP Server Deployment Summary ==="
+        echo "Status: SUCCESS"
+        echo "Image: ${{ needs.build.outputs.primary-tag }}"
+        echo "Timestamp: $(date)"
+        echo "Commit: ${{ github.sha }}"
+        echo "Ready for Kubernetes deployment" 

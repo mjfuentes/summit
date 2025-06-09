@@ -429,6 +429,117 @@ async def handle_list_tools() -> list[types.Tool]:
                 "required": ["agent_id"],
             },
         ),
+        # Agent Registration and Management Tools
+        types.Tool(
+            name="summit_register_agent",
+            description="Register a new agent with the Summit system",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "agent_id": {
+                        "type": "string",
+                        "description": "Unique identifier for the agent",
+                    },
+                    "role": {
+                        "type": "string",
+                        "description": "Agent role (engineering, product, quality-control, etc.)",
+                    },
+                    "capabilities": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "List of agent capabilities",
+                    },
+                    "status": {
+                        "type": "string",
+                        "description": "Agent status (active, idle, maintenance, etc.)",
+                    },
+                    "version": {
+                        "type": "string",
+                        "description": "Agent version",
+                    },
+                    "metadata": {
+                        "type": "object",
+                        "description": "Additional agent metadata",
+                    },
+                },
+                "required": ["agent_id", "role", "capabilities"],
+            },
+        ),
+        types.Tool(
+            name="summit_update_agent_status",
+            description="Update an agent's status and heartbeat",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "agent_id": {
+                        "type": "string",
+                        "description": "Agent identifier",
+                    },
+                    "status": {
+                        "type": "string",
+                        "description": "New agent status",
+                    },
+                    "current_task": {
+                        "type": "string",
+                        "description": "ID of current task being worked on",
+                    },
+                    "metadata": {
+                        "type": "object",
+                        "description": "Additional status metadata",
+                    },
+                },
+                "required": ["agent_id", "status"],
+            },
+        ),
+        types.Tool(
+            name="summit_list_agents",
+            description="List all registered agents in the system",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "role": {
+                        "type": "string",
+                        "description": "Filter by agent role",
+                    },
+                    "status": {
+                        "type": "string",
+                        "description": "Filter by agent status",
+                    },
+                    "active_only": {
+                        "type": "boolean",
+                        "description": "Only return active agents",
+                    },
+                },
+            },
+        ),
+        types.Tool(
+            name="summit_get_agent_info",
+            description="Get detailed information about a specific agent",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "agent_id": {
+                        "type": "string",
+                        "description": "Agent identifier",
+                    },
+                },
+                "required": ["agent_id"],
+            },
+        ),
+        types.Tool(
+            name="summit_unregister_agent",
+            description="Unregister an agent from the system",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "agent_id": {
+                        "type": "string",
+                        "description": "Agent identifier",
+                    },
+                },
+                "required": ["agent_id"],
+            },
+        ),
     ]
 
 
@@ -1160,6 +1271,233 @@ Recent Comments:"""
             return [
                 types.TextContent(
                     type="text", text=f"Error retrieving agent activity: {e}"
+                )
+            ]
+
+    # Agent Registration and Management Tool Handlers
+    elif name == "summit_register_agent":
+        agent_id = arguments.get("agent_id")
+        role = arguments.get("role")
+        capabilities = arguments.get("capabilities")
+        status = arguments.get("status", "active")
+        version = arguments.get("version", "1.0.0")
+        metadata = arguments.get("metadata", {})
+
+        if not all([agent_id, role, capabilities]):
+            raise ValueError("Agent ID, role, and capabilities are required")
+
+        try:
+            from unified_database import get_database
+
+            db = await get_database()
+
+            # Register or update the agent
+            agent = await db.register_agent(
+                agent_id=agent_id,
+                role=role,
+                capabilities=capabilities,
+                status=status,
+                version=version,
+                metadata=metadata,
+            )
+
+            response = f"""Agent registered successfully:
+
+ID: {agent_id}
+Role: {role}
+Capabilities: {', '.join(capabilities)}
+Status: {status}
+Version: {version}
+Registration Time: {agent.registered_at}
+
+The agent is now visible in the Summit dashboard and can receive tasks."""
+
+            return [types.TextContent(type="text", text=response)]
+
+        except Exception as e:
+            return [
+                types.TextContent(
+                    type="text", text=f"Error registering agent: {e}"
+                )
+            ]
+
+    elif name == "summit_update_agent_status":
+        agent_id = arguments.get("agent_id")
+        status = arguments.get("status")
+        current_task = arguments.get("current_task")
+        metadata = arguments.get("metadata", {})
+
+        if not all([agent_id, status]):
+            raise ValueError("Agent ID and status are required")
+
+        try:
+            from unified_database import get_database
+
+            db = await get_database()
+
+            # Update agent status
+            agent = await db.update_agent_status(
+                agent_id=agent_id,
+                status=status,
+                current_task=current_task,
+                metadata=metadata,
+            )
+
+            response = f"""Agent status updated:
+
+ID: {agent_id}
+Status: {status}
+Current Task: {current_task or 'None'}
+Last Heartbeat: {agent.last_heartbeat}
+
+Status update successful."""
+
+            return [types.TextContent(type="text", text=response)]
+
+        except Exception as e:
+            return [
+                types.TextContent(
+                    type="text", text=f"Error updating agent status: {e}"
+                )
+            ]
+
+    elif name == "summit_list_agents":
+        role = arguments.get("role")
+        status = arguments.get("status")
+        active_only = arguments.get("active_only", False)
+
+        try:
+            from unified_database import get_database
+
+            db = await get_database()
+
+            # Get agents with filters
+            agents = await db.list_agents(
+                role=role, status=status, active_only=active_only
+            )
+
+            if not agents:
+                filter_desc = ""
+                if role:
+                    filter_desc += f" (role: {role})"
+                if status:
+                    filter_desc += f" (status: {status})"
+                if active_only:
+                    filter_desc += " (active only)"
+
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=f"No agents found{filter_desc}",
+                    )
+                ]
+
+            response = f"Found {len(agents)} agent(s):\n\n"
+            for agent in agents:
+                agent_data = agent.to_dict()
+                capabilities_str = ", ".join(agent_data["capabilities"][:3])
+                if len(agent_data["capabilities"]) > 3:
+                    capabilities_str += (
+                        f" (+{len(agent_data['capabilities'])-3} more)"
+                    )
+
+                response += f"""• {agent_data['agent_id']} ({agent_data['role']})
+  Status: {agent_data['status']} | Version: {agent_data['version']}
+  Capabilities: {capabilities_str}
+  Last Heartbeat: {agent_data['last_heartbeat'][:19] if agent_data['last_heartbeat'] else 'Never'}
+
+"""
+
+            return [types.TextContent(type="text", text=response)]
+
+        except Exception as e:
+            return [
+                types.TextContent(
+                    type="text", text=f"Error listing agents: {e}"
+                )
+            ]
+
+    elif name == "summit_get_agent_info":
+        agent_id = arguments.get("agent_id")
+
+        if not agent_id:
+            raise ValueError("Agent ID is required")
+
+        try:
+            from unified_database import get_database
+
+            db = await get_database()
+
+            agent = await db.get_agent(agent_id)
+
+            if not agent:
+                return [
+                    types.TextContent(
+                        type="text", text=f"Agent {agent_id} not found"
+                    )
+                ]
+
+            agent_data = agent.to_dict()
+            response = f"""Agent Information:
+
+ID: {agent_data['agent_id']}
+Role: {agent_data['role']}
+Status: {agent_data['status']}
+Version: {agent_data['version']}
+
+Capabilities ({len(agent_data['capabilities'])}):
+{chr(10).join('- ' + cap for cap in agent_data['capabilities'])}
+
+Current Task: {agent_data['current_task'] or 'None'}
+Registered: {agent_data['registered_at'][:19]}
+Last Heartbeat: {agent_data['last_heartbeat'][:19] if agent_data['last_heartbeat'] else 'Never'}
+
+Metadata:
+{chr(10).join(f'- {k}: {v}' for k, v in agent_data['metadata'].items()) if agent_data['metadata'] else '- None'}"""
+
+            return [types.TextContent(type="text", text=response)]
+
+        except Exception as e:
+            return [
+                types.TextContent(
+                    type="text", text=f"Error retrieving agent info: {e}"
+                )
+            ]
+
+    elif name == "summit_unregister_agent":
+        agent_id = arguments.get("agent_id")
+
+        if not agent_id:
+            raise ValueError("Agent ID is required")
+
+        try:
+            from unified_database import get_database
+
+            db = await get_database()
+
+            # Unregister the agent
+            success = await db.unregister_agent(agent_id)
+
+            if success:
+                response = f"""Agent {agent_id} unregistered successfully.
+
+The agent has been removed from the Summit system and will no longer:
+- Appear in the dashboard
+- Receive task assignments
+- Be tracked for heartbeats
+
+Agent data has been preserved for historical purposes."""
+            else:
+                response = (
+                    f"Agent {agent_id} was not found or already unregistered."
+                )
+
+            return [types.TextContent(type="text", text=response)]
+
+        except Exception as e:
+            return [
+                types.TextContent(
+                    type="text", text=f"Error unregistering agent: {e}"
                 )
             ]
 

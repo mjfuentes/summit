@@ -23,22 +23,18 @@ spec:
       - name: ghcr-login-secret
       containers:
       - name: product-agent
-        image: gcr.io/summit-ai-platform/opencode:latest
-        command: ["python"]
-        args: ["/app/src/agent_lifecycle.py"]
+        image: ghcr.io/mjfuentes/summit/opencode-agents:latest
+        command: ["/bin/bash"]
+        args: ["-c", "mkdir -p ~/.opencode && echo '{\"mcpServers\":{\"summit\":{\"type\":\"sse\",\"url\":\"http://summit-mcp-service.summit.svc.cluster.local:8080\"}},\"providers\":{\"anthropic\":{\"apiKey\":\"'\"$ANTHROPIC_API_KEY\"'\"}},\"agents\":{\"coder\":{\"model\":\"claude-3.5-sonnet\",\"maxTokens\":8000}}}' > ~/.opencode/config.json && cd /workspace && opencode -p 'I am a Summit Product Agent. Register with Summit MCP server using summit_register_agent tool with role=product and capabilities=[\"product-planning\",\"requirements-analysis\",\"stakeholder-communication\"]. Then check for tasks using summit_get_next_task and begin working.'"]
         env:
         - name: AGENT_ROLE
           value: "product"
-        - name: WORKFLOW_STAGE
-          value: "first"
-        - name: DATABASE_URL
-          value: "postgresql+asyncpg://summit:summit123@localhost:5432/summit"
+        - name: AGENT_ID
+          value: "product-agent-001"
         - name: WORKSPACE_PATH
           value: "/workspace"
-        - name: PYTHONPATH
-          value: "/app/src"
-        - name: AGENT_HEARTBEAT_INTERVAL
-          value: "60"
+        - name: SUMMIT_MCP_SERVER_URL
+          value: "summit-mcp-service.summit.svc.cluster.local:8080"
         - name: ANTHROPIC_API_KEY
           valueFrom:
             secretKeyRef:
@@ -56,43 +52,19 @@ spec:
           limits:
             memory: "256Mi"
             cpu: "200m"
-        livenessProbe:
-          exec:
-            command:
-            - python
-            - -c
-            - "import requests; requests.get('http://localhost:8080/health')"
-          initialDelaySeconds: 30
-          periodSeconds: 30
         readinessProbe:
           exec:
             command:
-            - python
+            - /bin/bash
             - -c
-            - "import os; exit(0 if os.path.exists('/tmp/agent-ready') else 1)"
-          initialDelaySeconds: 10
+            - "ps aux | grep opencode | grep -v grep"
+          initialDelaySeconds: 30
           periodSeconds: 10
         volumeMounts:
         - name: workspace
           mountPath: /workspace
         - name: app-code
           mountPath: /app
-      # Cloud SQL Proxy sidecar for database access
-      - name: cloud-sql-proxy
-        image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.8.0
-        args:
-          - "--structured-logs"
-          - "--port=5432"
-          - "summit-ai-platform:us-central1:summit-postgres"
-        securityContext:
-          runAsNonRoot: true
-        resources:
-          requests:
-            memory: "32Mi"
-            cpu: "10m"
-          limits:
-            memory: "64Mi"
-            cpu: "50m"
       volumes:
       - name: workspace
         emptyDir: {}

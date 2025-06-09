@@ -37,7 +37,6 @@ from database_models import (
     TaskReview,
     TaskSource,
     TaskStatus,
-    WebTask,
     get_database_manager,
     init_database_manager,
 )
@@ -185,149 +184,7 @@ class UnifiedDatabaseManager:
 
     # Web Task Operations (compatible with old database.py interface)
 
-    async def create_task(self, task_data: Dict[str, Any]) -> WebTask:
-        """Create a new web task in the database"""
-        async with self.get_session() as session:
-            # Convert datetime strings to datetime objects if needed
-            if isinstance(task_data.get("created_at"), str):
-                task_data["created_at"] = datetime.fromisoformat(
-                    task_data["created_at"].replace("Z", "+00:00")
-                )
-
-            task = WebTask(**task_data)
-            session.add(task)
-            await session.flush()
-            await session.refresh(task)
-            return task
-
-    async def get_task(self, task_id: str) -> Optional[WebTask]:
-        """Get a web task by ID"""
-        async with self.get_session() as session:
-            result = await session.execute(
-                select(WebTask).where(WebTask.task_id == task_id)
-            )
-            return result.scalar_one_or_none()
-
-    async def update_task(
-        self, task_id: str, updates: Dict[str, Any]
-    ) -> Optional[WebTask]:
-        """Update a web task with new data"""
-        async with self.get_session() as session:
-            # Add updated_at timestamp
-            updates["updated_at"] = datetime.utcnow()
-
-            # Handle completed_at timestamp
-            if updates.get("status") in [
-                "completed",
-                "failed",
-                "timeout",
-                "stopped",
-            ]:
-                if not updates.get("completed_at"):
-                    updates["completed_at"] = datetime.utcnow()
-
-            result = await session.execute(
-                update(WebTask)
-                .where(WebTask.task_id == task_id)
-                .values(**updates)
-                .returning(WebTask)
-            )
-            task = result.scalar_one_or_none()
-            return task
-
-    async def get_active_tasks(self) -> List[WebTask]:
-        """Get all active web tasks"""
-        async with self.get_session() as session:
-            result = await session.execute(
-                select(WebTask)
-                .where(WebTask.is_active.is_(True))
-                .order_by(WebTask.created_at.desc())
-            )
-            return list(result.scalars().all())
-
-    async def get_completed_tasks(self, limit: int = 50) -> List[WebTask]:
-        """Get completed web tasks (most recent first)"""
-        async with self.get_session() as session:
-            result = await session.execute(
-                select(WebTask)
-                .where(WebTask.is_active.is_(False))
-                .order_by(WebTask.completed_at.desc())
-                .limit(limit)
-            )
-            return list(result.scalars().all())
-
-    async def mark_task_inactive(self, task_id: str) -> Optional[WebTask]:
-        """Mark a web task as inactive (move to history)"""
-        return await self.update_task(task_id, {"is_active": False})
-
-    async def get_all_tasks(self, limit: int = 100) -> List[WebTask]:
-        """Get all web tasks (active and inactive)"""
-        async with self.get_session() as session:
-            result = await session.execute(
-                select(WebTask)
-                .order_by(WebTask.created_at.desc())
-                .limit(limit)
-            )
-            return list(result.scalars().all())
-
-    async def delete_old_tasks(self, days_old: int = 30):
-        """Delete web tasks older than specified days"""
-        cutoff_date = datetime.utcnow() - timedelta(days=days_old)
-        async with self.get_session() as session:
-            await session.execute(
-                delete(WebTask)
-                .where(WebTask.created_at < cutoff_date)
-                .where(WebTask.is_active.is_(False))
-            )
-
-    async def delete_task(self, task_id: str) -> bool:
-        """Delete a specific web task by ID"""
-        async with self.get_session() as session:
-            result = await session.execute(
-                delete(WebTask).where(WebTask.task_id == task_id)
-            )
-            return result.rowcount > 0
-
-    async def get_failed_tasks(self) -> List[WebTask]:
-        """Get all failed web tasks"""
-        async with self.get_session() as session:
-            result = await session.execute(
-                select(WebTask)
-                .where(WebTask.status == "failed")
-                .order_by(WebTask.created_at.desc())
-            )
-            return list(result.scalars().all())
-
-    async def get_task_statistics(self) -> Dict[str, Any]:
-        """Get web task statistics"""
-        async with self.get_session() as session:
-            # Count by status
-            result = await session.execute(
-                select(
-                    WebTask.status, func.count(WebTask.task_id).label("count")
-                ).group_by(WebTask.status)
-            )
-            status_counts = {row.status: row.count for row in result}
-
-            # Count active vs inactive
-            active_result = await session.execute(
-                select(func.count(WebTask.task_id)).where(
-                    WebTask.is_active.is_(True)
-                )
-            )
-            active_count = active_result.scalar()
-
-            total_result = await session.execute(
-                select(func.count(WebTask.task_id))
-            )
-            total_count = total_result.scalar()
-
-            return {
-                "total_tasks": total_count,
-                "active_tasks": active_count,
-                "completed_tasks": total_count - active_count,
-                "status_distribution": status_counts,
-            }
+    # Web Task Operations removed - migrated to AgentTask for MCP-based architecture
 
     # Agent Task Operations (from postgres_task_manager.py)
 
@@ -854,4 +711,4 @@ async def close_database():
 DatabaseManager = UnifiedDatabaseManager
 
 # For compatibility with existing imports
-Task = WebTask
+# Legacy compatibility removed - WebTask migrated to AgentTask for MCP architecture
