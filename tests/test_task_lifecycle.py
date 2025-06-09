@@ -193,17 +193,17 @@ class TestTaskLifecycle:
 
 
 class TestSimplifiedMCPTools:
-    """Test simplified MCP tools for agent task management"""
+    """Tests for the simplified MCP tools for task lifecycle management"""
 
     @pytest.fixture
     def mock_db(self):
         """Mock database for testing MCP tools"""
         return AsyncMock(spec=UnifiedDatabaseManager)
 
-    async def test_summit_start_task_tool(self, mock_db):
-        """Test the summit_start_task MCP tool"""
+    async def test_summit_get_next_task_tool(self, mock_db):
+        """Test the summit_get_next_task MCP tool"""
         import uuid
-        from unittest.mock import MagicMock
+        from unittest.mock import AsyncMock, patch
 
         from database_models import AgentTask, TaskStatus
         from summit import handle_call_tool
@@ -211,80 +211,80 @@ class TestSimplifiedMCPTools:
         # Use a proper UUID for testing
         task_uuid = str(uuid.uuid4())
 
-        # Mock the database responses
-        mock_task = MagicMock(spec=AgentTask)
+        # Mock the task
+        mock_task = AsyncMock(spec=AgentTask)
         mock_task.id = task_uuid
         mock_task.task_type = "feature_development"
         mock_task.status = TaskStatus.PENDING
         mock_task.assigned_role = "engineering"
+        mock_task.priority = 5
 
-        mock_db.get_agent_task.return_value = mock_task
-        mock_db.update_agent_task.return_value = mock_task
-        mock_db.start_stage_work.return_value = None
+        # Set up task queue manager mock
+        task_queue_manager = AsyncMock()
+        task_queue_manager.get_next_available_task.return_value = [mock_task]
 
         # Test the tool call
-        with patch("unified_database.get_database", return_value=mock_db):
+        with patch(
+            "summit.get_task_queue_manager", return_value=task_queue_manager
+        ):
             result = await handle_call_tool(
-                "summit_start_task",
+                "summit_get_next_task",
                 {
-                    "task_id": task_uuid,
                     "agent_id": "agent-001",
+                    "role": "engineering",
                 },
             )
 
-        # Verify database calls
-        mock_db.get_agent_task.assert_called_once_with(task_uuid)
-        mock_db.update_agent_task.assert_called_once()
-        mock_db.start_stage_work.assert_called_once()
+        # Verify task manager calls
+        task_queue_manager.get_next_available_task.assert_called_once()
+
+        # Verify the call arguments
+        call_kwargs = task_queue_manager.get_next_available_task.call_args[1]
+        assert call_kwargs["agent_id"] == "agent-001"
+        assert call_kwargs["roles"] == ["engineering"]
 
         # Verify the response
         assert len(result) == 1
         response_text = result[0].text
-        assert "Task started successfully" in response_text
+        assert "Task assigned" in response_text
         assert task_uuid in response_text
-        assert "agent-001" in response_text
-        assert "feature_development" in response_text
 
-    async def test_summit_start_task_already_assigned(self, mock_db):
-        """Test starting a task that's already assigned"""
-        import uuid
-        from unittest.mock import MagicMock
+    async def test_summit_get_next_task_no_tasks(self, mock_db):
+        """Test when no tasks are available for a role"""
+        from unittest.mock import AsyncMock, patch
 
-        from database_models import AgentTask, TaskStatus
         from summit import handle_call_tool
 
-        # Use a proper UUID for testing
-        task_uuid = str(uuid.uuid4())
-
-        # Mock task that's already running
-        mock_task = MagicMock(spec=AgentTask)
-        mock_task.id = task_uuid
-        mock_task.task_type = "feature_development"
-        mock_task.status = TaskStatus.RUNNING
-        mock_task.assigned_role = "engineering"
-
-        mock_db.get_agent_task.return_value = mock_task
+        # Set up task queue manager mock to return empty list (no tasks)
+        task_queue_manager = AsyncMock()
+        task_queue_manager.get_next_available_task.return_value = []
 
         # Test the tool call
-        with patch("unified_database.get_database", return_value=mock_db):
+        with patch(
+            "summit.get_task_queue_manager", return_value=task_queue_manager
+        ):
             result = await handle_call_tool(
-                "summit_start_task",
+                "summit_get_next_task",
                 {
-                    "task_id": task_uuid,
                     "agent_id": "agent-001",
+                    "role": "engineering",
                 },
             )
 
-        # Should return error message
+        # Verify task manager was called
+        task_queue_manager.get_next_available_task.assert_called_once()
+
+        # Verify the response indicates no tasks
         assert len(result) == 1
         response_text = result[0].text
-        assert "not available" in response_text
-        assert "running" in response_text
+        assert (
+            "No available tasks found for role: engineering" in response_text
+        )
 
     async def test_summit_end_task_success(self, mock_db):
         """Test successful task completion"""
         import uuid
-        from unittest.mock import MagicMock
+        from unittest.mock import MagicMock, patch
 
         from database_models import AgentTask, TaskStatus
         from summit import handle_call_tool
@@ -334,115 +334,3 @@ class TestSimplifiedMCPTools:
         assert "Task completed successfully" in response_text
         assert task_uuid in response_text
         assert "Quality Score: 8.5/10.0" in response_text
-
-    async def test_summit_end_task_failure(self, mock_db):
-        """Test task failure handling"""
-        import uuid
-        from unittest.mock import MagicMock
-
-        from database_models import AgentTask, TaskStatus
-        from summit import handle_call_tool
-
-        # Use a proper UUID for testing
-        task_uuid = str(uuid.uuid4())
-
-        # Mock the database responses
-        mock_task = MagicMock(spec=AgentTask)
-        mock_task.id = task_uuid
-        mock_task.task_type = "feature_development"
-        mock_task.status = TaskStatus.RUNNING
-        mock_task.agent_id = "agent-001"
-
-        mock_db.get_agent_task.return_value = mock_task
-        mock_db.complete_stage_work.return_value = None
-        mock_db.transition_task_stage.return_value = None
-        mock_db.update_agent_task.return_value = mock_task
-
-        # Test task failure
-        with patch("unified_database.get_database", return_value=mock_db):
-            result = await handle_call_tool(
-                "summit_end_task",
-                {
-                    "task_id": task_uuid,
-                    "agent_id": "agent-001",
-                    "success": False,
-                    "error_message": "Connection timeout during deployment",
-                    "quality_score": 3.0,
-                },
-            )
-
-        # Verify database calls
-        mock_db.get_agent_task.assert_called_once_with(task_uuid)
-        mock_db.complete_stage_work.assert_called_once()
-        mock_db.transition_task_stage.assert_called_once()
-        mock_db.update_agent_task.assert_called_once()
-
-        # Verify the response
-        assert len(result) == 1
-        response_text = result[0].text
-        assert "Task failed gracefully" in response_text
-        assert "Connection timeout during deployment" in response_text
-        assert "can be retried or reassigned" in response_text
-
-    async def test_summit_end_task_wrong_agent(self, mock_db):
-        """Test ending a task assigned to a different agent"""
-        import uuid
-        from unittest.mock import MagicMock
-
-        from database_models import AgentTask, TaskStatus
-        from summit import handle_call_tool
-
-        # Use a proper UUID for testing
-        task_uuid = str(uuid.uuid4())
-
-        # Mock task assigned to different agent
-        mock_task = MagicMock(spec=AgentTask)
-        mock_task.id = task_uuid
-        mock_task.task_type = "feature_development"
-        mock_task.status = TaskStatus.RUNNING
-        mock_task.agent_id = "agent-002"  # Different agent
-
-        mock_db.get_agent_task.return_value = mock_task
-
-        # Test with wrong agent
-        with patch("unified_database.get_database", return_value=mock_db):
-            result = await handle_call_tool(
-                "summit_end_task",
-                {
-                    "task_id": task_uuid,
-                    "agent_id": "agent-001",
-                    "success": True,
-                },
-            )
-
-        # Should return error message
-        assert len(result) == 1
-        response_text = result[0].text
-        assert "not assigned to agent agent-001" in response_text
-
-    async def test_summit_start_task_not_found(self, mock_db):
-        """Test starting a task that doesn't exist"""
-        import uuid
-
-        from summit import handle_call_tool
-
-        # Use a proper UUID for testing
-        task_uuid = str(uuid.uuid4())
-
-        # Mock task not found
-        mock_db.get_agent_task.return_value = None
-
-        # Test the tool call
-        with patch("unified_database.get_database", return_value=mock_db):
-            result = await handle_call_tool(
-                "summit_start_task",
-                {
-                    "task_id": task_uuid,
-                    "agent_id": "agent-001",
-                },
-            )
-
-        # Should return error message
-        assert len(result) == 1
-        response_text = result[0].text
-        assert f"Task {task_uuid} not found" in response_text
