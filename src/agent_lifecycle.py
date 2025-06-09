@@ -29,24 +29,27 @@ This eliminates the previous limitations:
 
 import asyncio
 import json
+import logging
 import os
 import subprocess
 import time
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 from agent_roles import AgentRole, RoleContext, agent_role_manager
 from database_models import AgentStatus, AgentTask, TaskStatus
+from summit_mcp_client import SummitMCPClient
 from task_manager import mark_task_completed, update_task_status
 from unified_database import get_database
+
+logger = logging.getLogger(__name__)
 
 # Import MCP client for registration
 try:
     from summit_mcp_client import (
         MCPAgentLifecycleManager,
-        SummitMCPClient,
         register_agent_with_summit,
     )
 
@@ -82,6 +85,7 @@ class AgentLifecycleManager:
         self.pod_state = None
         self.db = None
         self.mcp_client = None  # Add MCP client support
+        self.workspace_path = os.environ.get("WORKSPACE_PATH", "/workspace")
 
         # Configuration from role
         self.role_config = agent_role_manager.get_role_config(self.role)
@@ -151,7 +155,7 @@ class AgentLifecycleManager:
                 status=AgentStatus.OFFLINE,
                 current_task_id=None,
                 filesystem_clean=True,
-                last_heartbeat=datetime.utcnow(),
+                last_heartbeat=datetime.now(timezone.utc),
                 context_loaded=False,
                 pod_name=os.environ.get("HOSTNAME"),
                 workspace_path=self.workspace_path,
@@ -174,10 +178,15 @@ class AgentLifecycleManager:
             if self.mcp_client:
                 await self.mcp_client.update_status("active")
 
-            # Create readiness file for Kubernetes readiness probe
-            with open("/tmp/agent-ready", "w") as f:
+            # Create readiness file for Kubernetes readiness probe in secure location
+            agent_ready_path = os.path.join(
+                os.environ.get("SUMMIT_RUNTIME_DIR", "/var/run/summit"),
+                "agent-ready",
+            )
+            os.makedirs(os.path.dirname(agent_ready_path), exist_ok=True)
+            with open(agent_ready_path, "w") as f:
                 f.write(
-                    f"Agent {self.agent_id} ready at {datetime.utcnow().isoformat()}"
+                    f"Agent {self.agent_id} ready at {datetime.now(timezone.utc).isoformat()}"
                 )
 
             print(f"Agent {self.agent_id} initialized successfully")
@@ -228,7 +237,7 @@ class AgentLifecycleManager:
 
             if self.pod_state:
                 self.pod_state.status = status
-                self.pod_state.last_heartbeat = datetime.utcnow()
+                self.pod_state.last_heartbeat = datetime.now(timezone.utc)
         except Exception as e:
             print(f"Error updating agent status: {e}")
 
@@ -273,12 +282,19 @@ class AgentLifecycleManager:
     async def _send_heartbeat(self):
         """Send heartbeat via MCP"""
         try:
-            if datetime.utcnow() - self.pod_state.last_heartbeat > timedelta(
+            if datetime.now(
+                timezone.utc
+            ) - self.pod_state.last_heartbeat > timedelta(
                 seconds=self.heartbeat_interval
             ):
                 await self._update_agent_status(self.pod_state.status)
         except Exception as e:
             print(f"Error sending heartbeat: {e}")
+
+    # Alias for backward compatibility with tests
+    async def send_heartbeat(self):
+        """Alias for _send_heartbeat for test compatibility"""
+        return await self._send_heartbeat()
 
     # Legacy methods for backward compatibility with tests
     # NOTE: In production, OpenCode containers use MCP tools instead of these methods
@@ -362,13 +378,15 @@ class AgentLifecycleManager:
     async def _reset_filesystem(self):
         """Reset filesystem to clean state"""
         try:
-            # Reset git state (mock for tests)
-            result = subprocess.run(
-                ["git", "clean", "-fd"],
-                cwd=self.workspace_path,
-                capture_output=True,
-                text=True,
-            )
+            # Reset git state (mock for tests) using full path and safer execution
+            git_path = self._get_git_executable_path()
+            if git_path:
+                result = subprocess.run(
+                    [git_path, "clean", "-fd"],
+                    cwd=self.workspace_path,
+                    capture_output=True,
+                    text=True,
+                )
 
             if result.returncode == 0:
                 self.pod_state.filesystem_clean = True
@@ -423,14 +441,14 @@ class AgentLifecycleManager:
                 updates = {
                     "status": TaskStatus.COMPLETED,
                     "result": result_json,
-                    "completed_at": datetime.utcnow(),
+                    "completed_at": datetime.now(timezone.utc),
                 }
                 await db_to_use.update_agent_task(str(task.id), updates)
             else:
                 updates = {
                     "status": TaskStatus.FAILED,
                     "error": error_message,
-                    "completed_at": datetime.utcnow(),
+                    "completed_at": datetime.now(timezone.utc),
                 }
                 await db_to_use.update_agent_task(str(task.id), updates)
 
@@ -466,6 +484,35 @@ class AgentLifecycleManager:
             return True, result, None
         except Exception as e:
             return False, {}, str(e)
+
+    def _get_git_executable_path(self) -> Optional[str]:
+        """Get the full path to the git executable safely"""
+        try:
+            # Use which/where to get the full path to git
+            if os.name == "nt":  # Windows
+                cmd = ["where", "git"]
+            else:  # Unix/Linux/MacOS
+                cmd = ["which", "git"]
+
+            result = subprocess.run(
+                cmd, capture_output=True, text=True, check=True
+            )
+
+            if result.stdout:
+                # Return the first path found (strip newlines)
+                return result.stdout.strip().split("\n")[0]
+            return None
+        except (subprocess.SubprocessError, FileNotFoundError):
+            logger.warning("Git executable not found in PATH")
+            # Fallback to common locations
+            for path in [
+                "/usr/bin/git",
+                "/usr/local/bin/git",
+                "C:\\Program Files\\Git\\bin\\git.exe",
+            ]:
+                if os.path.exists(path):
+                    return path
+            return None
 
 
 async def main():

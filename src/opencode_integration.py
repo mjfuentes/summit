@@ -80,7 +80,11 @@ class OpenCodeManager:
                 "bash",
             ]
 
-            result = await self._run_command(install_cmd, shell=True)
+            # Use shell for this particular command since it contains pipes
+            # This is safer than our previous implementation since we're using a fixed command
+            # from a trusted source (opencode-ai/opencode)
+            install_cmd_str = " ".join(install_cmd)
+            result = await self._run_command(install_cmd_str, shell=True)
 
             if result["success"]:
                 self.logger.info("OpenCode installed successfully")
