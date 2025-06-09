@@ -476,7 +476,7 @@ class TestMCPTaskTools:
         mock_comment.agent_id = "agent-001"
         mock_comment.comment_type = "review"
         mock_comment.content = "Great work on this PR!"
-        mock_database.create_task_comment.return_value = mock_comment
+        mock_database.add_task_comment.return_value = mock_comment
 
         with patch(
             "unified_database.get_database", return_value=mock_database
@@ -498,7 +498,7 @@ class TestMCPTaskTools:
         assert comment_id in response_text
 
         # Verify database call
-        mock_database.create_task_comment.assert_called_once()
+        mock_database.add_task_comment.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_summit_create_task_review_tool(self, mock_database):

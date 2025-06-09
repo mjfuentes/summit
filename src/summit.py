@@ -329,6 +329,50 @@ async def handle_list_tools() -> list[types.Tool]:
                 "required": ["task_id", "agent_id", "success"],
             },
         ),
+        types.Tool(
+            name="summit_complete_task",
+            description="Simplified tool to complete a task (preferred method for OpenCode agents)",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task_id": {
+                        "type": "string",
+                        "description": "ID of the task being completed",
+                    },
+                    "agent_id": {
+                        "type": "string",
+                        "description": "ID of the agent completing the task",
+                    },
+                    "success": {
+                        "type": "boolean",
+                        "description": "Whether the task completed successfully (true) or failed (false)",
+                        "default": True,
+                    },
+                    "result": {
+                        "type": "object",
+                        "description": "Additional result data as a dictionary/object",
+                        "default": {},
+                    },
+                    "summary": {
+                        "type": "string",
+                        "description": "Brief summary of work completed",
+                        "default": "",
+                    },
+                    "files_modified": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "List of files modified during task execution",
+                        "default": [],
+                    },
+                    "error_message": {
+                        "type": "string",
+                        "description": "Error message if task failed",
+                        "default": "",
+                    },
+                },
+                "required": ["task_id", "agent_id"],
+            },
+        ),
     ]
 
 
@@ -847,7 +891,7 @@ Payload: {task_data['payload']}"""
 Task: {task_id}
 New Status: {status}
 Updated by: {agent_id}
-Timestamp: {datetime.utcnow().isoformat()}"""
+"""
 
             return [types.TextContent(type="text", text=response)]
 
@@ -861,16 +905,12 @@ Timestamp: {datetime.utcnow().isoformat()}"""
     elif name == "summit_add_task_comment":
         task_id = arguments.get("task_id")
         agent_id = arguments.get("agent_id")
-        comment_type = arguments.get("comment_type")
+        comment_type = arguments.get("comment_type", "general")
         content = arguments.get("content")
-        approval_status = arguments.get("approval_status")
-        rating = arguments.get("rating")
-        is_internal = arguments.get("is_internal", False)
-        parent_comment_id = arguments.get("parent_comment_id")
 
-        if not all([task_id, agent_id, comment_type, content]):
+        if not all([task_id, agent_id, content]):
             raise ValueError(
-                "Task ID, agent ID, comment type, and content are required"
+                "Task ID, agent ID, and comment content are required"
             )
 
         try:
@@ -878,31 +918,23 @@ Timestamp: {datetime.utcnow().isoformat()}"""
 
             db = await get_database()
 
-            # Prepare comment data
-            comment_data = {}
-            if approval_status:
-                comment_data["approval_status"] = approval_status
-            if rating:
-                comment_data["rating"] = rating
-            if parent_comment_id:
-                comment_data["parent_comment_id"] = parent_comment_id
-
-            comment_data["is_internal"] = is_internal
-
-            comment = await db.create_task_comment(
-                task_id=task_id,
-                agent_id=agent_id,
-                comment_type=comment_type,
-                content=content,
-                **comment_data,
+            comment = await db.add_task_comment(
+                task_id, agent_id, comment_type, content
             )
+
+            if not comment:
+                return [
+                    types.TextContent(
+                        type="text", text=f"Task {task_id} not found"
+                    )
+                ]
 
             response = f"""Comment added successfully:
 
 Task: {task_id}
-Type: {comment_type}
-Author: {agent_id}
-Content: {content[:100]}{'...' if len(content) > 100 else ''}
+Comment Type: {comment_type}
+Added by: {agent_id}
+Content: {content[:100]}{"..." if len(content) > 100 else ""}
 Comment ID: {comment.id}"""
 
             return [types.TextContent(type="text", text=response)]
@@ -1256,6 +1288,87 @@ The task failure has been recorded and can be retried or reassigned."""
         except Exception as e:
             return [
                 types.TextContent(type="text", text=f"Error ending task: {e}")
+            ]
+
+    elif name == "summit_complete_task":
+        """
+        A simplified tool for completing tasks - combines setting status, results, and metadata
+        This is the preferred method for OpenCode agents to mark tasks as complete
+        """
+        task_id = arguments.get("task_id")
+        agent_id = arguments.get("agent_id")
+        success = arguments.get("success", True)
+        result = arguments.get("result", {})
+        summary = arguments.get("summary", "")
+        files_modified = arguments.get("files_modified", [])
+        error_message = arguments.get("error_message", "")
+
+        if not all([task_id, agent_id]):
+            raise ValueError("Task ID and agent ID are required")
+
+        try:
+            from datetime import datetime
+
+            from database_models import TaskStatus
+            from unified_database import get_database
+
+            db = await get_database()
+
+            # Set appropriate status based on success flag
+            status_enum = (
+                TaskStatus.COMPLETED if success else TaskStatus.FAILED
+            )
+
+            # Prepare update data with metadata
+            updates = {
+                "status": status_enum,
+                "agent_id": agent_id,
+                "completed_at": datetime.utcnow(),
+            }
+
+            # Add result data
+            result_data = {
+                "summary": summary,
+                "files_modified": files_modified,
+            }
+
+            # Include any additional result data provided
+            if isinstance(result, dict):
+                result_data.update(result)
+
+            updates["result"] = result_data
+
+            # Add error message if task failed
+            if not success and error_message:
+                updates["error"] = error_message
+
+            # Update the task
+            updated_task = await db.update_agent_task(task_id, updates)
+
+            if not updated_task:
+                return [
+                    types.TextContent(
+                        type="text", text=f"Task {task_id} not found"
+                    )
+                ]
+
+            status_word = "completed successfully" if success else "failed"
+            response = f"""Task {status_word}:
+
+Task: {task_id}
+Status: {status_enum.value}
+Agent: {agent_id}
+Summary: {summary[:100]}{"..." if len(summary) > 100 else ""}
+Files Modified: {', '.join(files_modified[:5])}{"..." if len(files_modified) > 5 else ""}
+"""
+
+            return [types.TextContent(type="text", text=response)]
+
+        except Exception as e:
+            return [
+                types.TextContent(
+                    type="text", text=f"Error completing task: {e}"
+                )
             ]
 
     else:
