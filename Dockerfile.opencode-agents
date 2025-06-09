@@ -1,0 +1,41 @@
+FROM python:3.11-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    wget \
+    build-essential \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install OpenCode CLI
+RUN curl -fsSL https://raw.githubusercontent.com/opencode-ai/opencode/refs/heads/main/install | bash
+
+# Set up working directory
+WORKDIR /app
+
+# Copy Python requirements and install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code  
+COPY src/ ./src/
+
+# Create workspace directory
+RUN mkdir -p /workspace
+
+# Set environment variables
+ENV PYTHONPATH=/app/src
+ENV WORKSPACE_PATH=/workspace
+ENV PATH="${PATH}:/root/.local/bin"
+
+# Create OpenCode config directory
+RUN mkdir -p /root/.opencode
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD test -f /tmp/agent-ready || exit 1
+
+# Default command - will be overridden by Kubernetes
+CMD ["bash", "-c", "echo 'OpenCode agent ready' && touch /tmp/agent-ready && tail -f /dev/null"] 

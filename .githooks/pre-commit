@@ -173,8 +173,8 @@ if command -v python &> /dev/null && [ -f "tests/test_browser_terminal.py" ]; th
         echo "  -> Selenium detected, running browser terminal validation..."
         start_time=$(date +%s)
         
-        # Run only the critical browser error detection test
-        if ! python -m pytest tests/test_browser_terminal.py::TestBrowserTerminal::test_browser_loads_without_errors --tb=short -q; then
+        # Run only the critical browser error detection test (without coverage)
+        if ! python -m pytest tests/test_browser_terminal.py::TestBrowserTerminal::test_browser_loads_without_errors --tb=short -q --no-cov; then
             echo "  -> Browser terminal test failed. Web interface has JavaScript errors."
             echo "  -> This indicates the browser terminal will not work correctly."
             echo "  -> Please fix JavaScript errors before committing."
