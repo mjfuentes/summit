@@ -1,5 +1,6 @@
 # Core MCP and AI dependencies
 mcp>=1.0.0
+fastmcp>=2.0.0
 anthropic>=0.7.8
 openai>=1.0.0
 

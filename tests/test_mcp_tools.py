@@ -16,10 +16,24 @@ from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from fastmcp import Context
 
 # Add the src directory to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+
+# Create a mock Context class for testing when fastmcp might not be available
+class MockContext:
+    """Mock Context class for tests"""
+    async def info(self, message):
+        pass
+    
+    async def warning(self, message):
+        pass
+    
+    async def error(self, message):
+        pass
+    
+    async def report_progress(self, progress, message=""):
+        pass
 
 
 # Create a mock config module
@@ -33,7 +47,7 @@ mock_config.setup_environment = MagicMock()
 
 # Create mocks for FastMCP
 mock_fastmcp = MagicMock()
-mock_context = MagicMock(spec=Context)
+mock_context = MagicMock(spec=MockContext)
 
 # Apply patches for modules and config
 with patch.dict(
@@ -129,7 +143,7 @@ def mock_db():
 async def test_summit_get_next_task():
     """Test the summit_get_next_task tool using our mock implementation"""
     # Mock Context
-    ctx = AsyncMock(spec=Context)
+    ctx = AsyncMock(spec=MockContext)
     ctx.info = AsyncMock()
     ctx.report_progress = AsyncMock()
 
@@ -158,7 +172,7 @@ async def test_summit_get_next_task_no_tasks():
         }
 
     # Mock Context
-    ctx = AsyncMock(spec=Context)
+    ctx = AsyncMock(spec=MockContext)
     ctx.info = AsyncMock()
     ctx.report_progress = AsyncMock()
 
@@ -178,7 +192,7 @@ async def test_summit_get_next_task_no_tasks():
 async def test_summit_complete_task_success():
     """Test the summit_complete_task tool with success=True"""
     # Mock Context
-    ctx = AsyncMock(spec=Context)
+    ctx = AsyncMock(spec=MockContext)
     ctx.info = AsyncMock()
     ctx.report_progress = AsyncMock()
 
@@ -206,7 +220,7 @@ async def test_summit_complete_task_success():
 async def test_summit_complete_task_failure():
     """Test the summit_complete_task tool with success=False"""
     # Mock Context
-    ctx = AsyncMock(spec=Context)
+    ctx = AsyncMock(spec=MockContext)
     ctx.warning = AsyncMock()
     ctx.report_progress = AsyncMock()
 
@@ -242,7 +256,7 @@ async def test_summit_complete_task_nonexistent():
         }
 
     # Mock Context
-    ctx = AsyncMock(spec=Context)
+    ctx = AsyncMock(spec=MockContext)
     ctx.error = AsyncMock()
     ctx.report_progress = AsyncMock()
 
@@ -266,7 +280,7 @@ async def test_summit_complete_task_nonexistent():
 async def test_summit_register_agent():
     """Test the summit_register_agent tool"""
     # Mock Context
-    ctx = AsyncMock(spec=Context)
+    ctx = AsyncMock(spec=MockContext)
     ctx.info = AsyncMock()
     ctx.report_progress = AsyncMock()
 

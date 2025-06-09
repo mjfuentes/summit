@@ -81,8 +81,34 @@ class TaskResponse(BaseModel):
     claimed_at: Optional[str] = None
 
 
+# Add FastMCP 2.0 lifecycle event handlers
+@mcp.on_startup
+async def on_startup():
+    """Initialize the server on startup"""
+    logger.info("FastMCP server starting...")
+    mcp.start_time = datetime.utcnow()
+    await initialize_database()
+    
+    # Log available resources and tools
+    resources = await mcp.list_resources()
+    logger.info(f"Registered resources: {[r.uri for r in resources]}")
+
+    tools = await mcp.list_tools()
+    logger.info(f"Registered tools: {[t.name for t in tools]}")
+    
+    logger.info("FastMCP server started successfully")
+
+
+@mcp.on_shutdown
+async def on_shutdown():
+    """Clean up resources on shutdown"""
+    logger.info("FastMCP server shutting down...")
+    await cleanup_resources()
+    logger.info("FastMCP server shutdown complete")
+
+
 # Resources - provide static and dynamic data to clients
-@mcp.resource(uri="resource://system-info")
+@mcp.resource("resource://system-info")
 async def system_info() -> Dict[str, Any]:
     """Provide system information about the Summit platform"""
     return {
@@ -100,7 +126,7 @@ async def system_info() -> Dict[str, Any]:
     }
 
 
-@mcp.resource(uri="resource://docs/agent-guide")
+@mcp.resource("resource://docs/agent-guide")
 async def agent_guide() -> str:
     """Provide documentation for agents interacting with the Summit platform"""
     return """# Summit Agent Guide
@@ -124,7 +150,7 @@ For more information, visit our documentation at https://summit-ai.example.com/d
 
 
 # Task management tools
-@mcp.tool()
+@mcp.tool
 async def summit_get_next_task(
     request: GetNextTaskRequest, ctx: Context
 ) -> Dict[str, Any]:
@@ -202,7 +228,7 @@ async def summit_get_next_task(
         }
 
 
-@mcp.tool()
+@mcp.tool
 async def summit_complete_task(
     request: CompleteTaskRequest, ctx: Context
 ) -> Dict[str, Any]:
@@ -280,7 +306,7 @@ async def summit_complete_task(
         }
 
 
-@mcp.tool()
+@mcp.tool
 async def summit_register_agent(
     request: RegisterAgentRequest, ctx: Context
 ) -> Dict[str, Any]:
@@ -352,7 +378,7 @@ async def summit_register_agent(
 
 
 # Health check and misc tools
-@mcp.tool()
+@mcp.tool
 async def summit_health(ctx: Context) -> Dict[str, Any]:
     """
     Check the health of the Summit MCP server
@@ -392,12 +418,6 @@ async def summit_health(ctx: Context) -> Dict[str, Any]:
     return health_info
 
 
-# Server startup and shutdown event handlers
-# Use FastMCP 2.0 lifecycle hooks
-# We'll manually initialize services when server starts
-mcp.start_time = datetime.utcnow()
-
-
 # Initialize database on first request
 async def initialize_database():
     """Initialize database if not already done"""
@@ -414,7 +434,6 @@ async def initialize_database():
 
 
 # Cleanup function for resource shutdown
-# Will be called manually at server exit if possible
 async def cleanup_resources():
     """Clean up resources"""
     logger.info("Shutting down Summit FastMCP server...")
@@ -429,21 +448,6 @@ async def cleanup_resources():
         logger.error(f"Error during shutdown: {str(e)}", exc_info=True)
 
 
-async def run_server():
-    """Run the FastMCP server with proper setup and cleanup"""
-    # Initialize database
-    await initialize_database()
-
-    # Log available resources and tools
-    resources = await mcp.list_resources()
-    logger.info(f"Registered resources: {[r.uri for r in resources]}")
-
-    tools = await mcp.list_tools()
-    logger.info(f"Registered tools: {[t.name for t in tools]}")
-
-    logger.info("Server initialized and ready")
-
-
 if __name__ == "__main__":
     # Determine transport method from environment
     transport = os.environ.get("MCP_TRANSPORT", "sse").lower()
@@ -451,24 +455,12 @@ if __name__ == "__main__":
     # Log startup information
     logger.info(f"Starting Summit FastMCP server with transport: {transport}")
 
-    # Run initialization in async mode
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+    # Run the main server in blocking mode with the specified transport
+    # The FastMCP 2.0 server run method handles startup and shutdown events
     try:
-        loop.run_until_complete(run_server())
-
-        # Then run the main server in blocking mode
-        # The FastMCP 2.0 server run method is synchronous and blocking
         mcp.run(transport=transport)
     except KeyboardInterrupt:
         # Handle graceful shutdown on Ctrl+C
-        logger.info("Server shutdown requested")
-        try:
-            # Run cleanup
-            loop.run_until_complete(cleanup_resources())
-        except Exception as e:
-            logger.error(f"Error during cleanup: {str(e)}")
+        logger.info("Server shutdown requested by keyboard interrupt")
     except Exception as e:
         logger.error(f"Error running FastMCP server: {str(e)}", exc_info=True)
-    finally:
-        loop.close()
