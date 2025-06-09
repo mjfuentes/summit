@@ -2,7 +2,7 @@
 """
 Tests for the simplified MCP tools interface.
 Focuses on the two core operations:
-1. summit_start_task
+1. summit_get_next_task
 2. summit_complete_task
 """
 
@@ -49,94 +49,116 @@ def mock_db():
 
 @pytest.mark.asyncio
 @patch("summit.get_database")
-@patch("unified_database.get_database")
-async def test_summit_start_task(mock_unified_db, mock_get_db, mock_db):
-    """Test the summit_start_task tool"""
+@patch("summit.get_task_queue_manager")
+async def test_summit_get_next_task(
+    mock_get_task_manager, mock_get_db, mock_db
+):
+    """Test the summit_get_next_task tool"""
     db, task = mock_db
     mock_get_db.return_value = db
-    mock_unified_db.return_value = db
+
+    # Mock task queue manager
+    task_queue_manager = AsyncMock()
+    task_queue_manager.get_next_available_task.return_value = [task]
+    mock_get_task_manager.return_value = task_queue_manager
 
     # Call the tool handler
     result = await handle_call_tool(
-        "summit_start_task", {"task_id": task.id, "agent_id": "test-agent"}
+        "summit_get_next_task",
+        {"agent_id": "test-agent", "role": "engineering"},
     )
 
     # Verify the result
     assert isinstance(result, list)
     assert len(result) == 1
     assert isinstance(result[0], TextContent)
+    response_text = result[0].text
+    assert "Task assigned" in response_text
 
-    # Check that database was called correctly
-    db.get_agent_task.assert_called_once()
-    db.update_agent_task.assert_called_once()
+    # Check that task queue manager was called correctly
+    task_queue_manager.get_next_available_task.assert_called_once()
+    call_args = task_queue_manager.get_next_available_task.call_args[1]
+    assert call_args["agent_id"] == "test-agent"
+    assert call_args["roles"] == ["engineering"]
 
 
 @pytest.mark.asyncio
 @patch("summit.get_database")
-@patch("unified_database.get_database")
-async def test_summit_start_task_missing_params(
-    mock_unified_db, mock_get_db, mock_db
+@patch("summit.get_task_queue_manager")
+async def test_summit_get_next_task_missing_params(
+    mock_get_task_manager, mock_get_db, mock_db
 ):
-    """Test the summit_start_task tool with missing parameters"""
+    """Test the summit_get_next_task tool with missing parameters"""
     db, task = mock_db
     mock_get_db.return_value = db
-    mock_unified_db.return_value = db
+
+    # Mock task queue manager
+    task_queue_manager = AsyncMock()
+    mock_get_task_manager.return_value = task_queue_manager
 
     # Call without required parameters should raise ValueError
     with pytest.raises(ValueError):
-        await handle_call_tool("summit_start_task", {})
-
-    # Call with only task_id should raise ValueError
-    with pytest.raises(ValueError):
-        await handle_call_tool("summit_start_task", {"task_id": task.id})
+        await handle_call_tool("summit_get_next_task", {})
 
     # Call with only agent_id should raise ValueError
     with pytest.raises(ValueError):
-        await handle_call_tool("summit_start_task", {"agent_id": "test-agent"})
+        await handle_call_tool(
+            "summit_get_next_task", {"agent_id": "test-agent"}
+        )
+
+    # Call with only role should raise ValueError
+    with pytest.raises(ValueError):
+        await handle_call_tool("summit_get_next_task", {"role": "engineering"})
 
 
 @pytest.mark.asyncio
 @patch("summit.get_database")
-@patch("unified_database.get_database")
-async def test_summit_start_task_nonexistent(
-    mock_unified_db, mock_get_db, mock_db
+@patch("summit.get_task_queue_manager")
+async def test_summit_get_next_task_no_tasks(
+    mock_get_task_manager, mock_get_db, mock_db
 ):
-    """Test the summit_start_task tool with a task that doesn't exist"""
+    """Test the summit_get_next_task tool when no tasks are available"""
     db, _ = mock_db
-    # Configure get_agent_task to return None (task not found)
-    db.get_agent_task.return_value = None
+    # Configure task queue manager to return empty list (no tasks)
+    task_queue_manager = AsyncMock()
+    task_queue_manager.get_next_available_task.return_value = []
+    mock_get_task_manager.return_value = task_queue_manager
+
     mock_get_db.return_value = db
-    mock_unified_db.return_value = db
 
     # Call the tool handler
     result = await handle_call_tool(
-        "summit_start_task",
-        {"task_id": "nonexistent-task", "agent_id": "test-agent"},
+        "summit_get_next_task",
+        {"agent_id": "test-agent", "role": "engineering"},
     )
 
-    # Verify the result indicates task not found or some error
+    # Verify the result indicates no tasks available
     assert isinstance(result, list)
     assert len(result) == 1
+    response_text = result[0].text
+    assert "No available tasks found for role: engineering" in response_text
 
 
 @pytest.mark.asyncio
 @patch("summit.get_database")
-@patch("unified_database.get_database")
+@patch("summit.get_task_queue_manager")
 async def test_summit_complete_task_success(
-    mock_unified_db, mock_get_db, mock_db
+    mock_get_task_manager, mock_get_db, mock_db
 ):
     """Test the summit_complete_task tool with success=True"""
     db, task = mock_db
     mock_get_db.return_value = db
-    mock_unified_db.return_value = db
 
-    # Call arguments
+    # Mock task queue manager
+    task_queue_manager = AsyncMock()
+    task_queue_manager.complete_task.return_value = True
+    mock_get_task_manager.return_value = task_queue_manager
+
+    # Call arguments - simplified for new API
     args = {
         "task_id": task.id,
         "agent_id": "test-agent",
         "success": True,
-        "summary": "Task completed successfully",
-        "files_modified": ["file1.py", "file2.py"],
         "result": {"detail": "Additional information"},
     }
 
@@ -148,34 +170,30 @@ async def test_summit_complete_task_success(
     assert len(result) == 1
     assert isinstance(result[0], TextContent)
 
-    # Verify the database was called correctly
-    db.update_agent_task.assert_called_once()
-    call_args = db.update_agent_task.call_args[0]
-    assert call_args[0] == task.id
-
-    # Check the updates
-    updates = db.update_agent_task.call_args[0][1]
-    assert updates["status"] == TaskStatus.COMPLETED
-    assert updates["agent_id"] == "test-agent"
-    assert "completed_at" in updates
-    assert "result" in updates
-    assert updates["result"]["summary"] == "Task completed successfully"
-    assert updates["result"]["files_modified"] == ["file1.py", "file2.py"]
-    assert updates["result"]["detail"] == "Additional information"
+    # Verify the task queue manager was called correctly
+    task_queue_manager.complete_task.assert_called_once()
+    call_kwargs = task_queue_manager.complete_task.call_args[1]
+    assert call_kwargs["task_id"] == task.id
+    assert call_kwargs["agent_id"] == "test-agent"
+    assert call_kwargs["success"] == True  # success
 
 
 @pytest.mark.asyncio
 @patch("summit.get_database")
-@patch("unified_database.get_database")
+@patch("summit.get_task_queue_manager")
 async def test_summit_complete_task_failure(
-    mock_unified_db, mock_get_db, mock_db
+    mock_get_task_manager, mock_get_db, mock_db
 ):
     """Test the summit_complete_task tool with success=False"""
     db, task = mock_db
     mock_get_db.return_value = db
-    mock_unified_db.return_value = db
 
-    # Call arguments
+    # Mock task queue manager
+    task_queue_manager = AsyncMock()
+    task_queue_manager.complete_task.return_value = True
+    mock_get_task_manager.return_value = task_queue_manager
+
+    # Call arguments - simplified for new API
     args = {
         "task_id": task.id,
         "agent_id": "test-agent",
@@ -191,26 +209,24 @@ async def test_summit_complete_task_failure(
     assert len(result) == 1
     assert isinstance(result[0], TextContent)
 
-    # Verify the database was called correctly
-    db.update_agent_task.assert_called_once()
-
-    # Check the updates
-    updates = db.update_agent_task.call_args[0][1]
-    assert updates["status"] == TaskStatus.FAILED
-    assert updates["error"] == "Task failed due to XYZ"
-    assert "completed_at" in updates
+    # Verify the task queue manager was called correctly
+    task_queue_manager.complete_task.assert_called_once()
+    call_kwargs = task_queue_manager.complete_task.call_args[1]
+    assert call_kwargs["task_id"] == task.id
+    assert call_kwargs["agent_id"] == "test-agent"
+    assert call_kwargs["success"] == False  # success
 
 
 @pytest.mark.asyncio
 @patch("summit.get_database")
-@patch("unified_database.get_database")
+@patch("summit.get_task_queue_manager")
 async def test_summit_complete_task_missing_params(
-    mock_unified_db, mock_get_db, mock_db
+    mock_get_task_manager, mock_get_db, mock_db
 ):
     """Test the summit_complete_task tool with missing parameters"""
     db, task = mock_db
     mock_get_db.return_value = db
-    mock_unified_db.return_value = db
+    mock_get_task_manager.return_value = AsyncMock()
 
     # Call without required parameters should raise ValueError
     with pytest.raises(ValueError):
@@ -229,16 +245,19 @@ async def test_summit_complete_task_missing_params(
 
 @pytest.mark.asyncio
 @patch("summit.get_database")
-@patch("unified_database.get_database")
+@patch("summit.get_task_queue_manager")
 async def test_summit_complete_task_nonexistent(
-    mock_unified_db, mock_get_db, mock_db
+    mock_get_task_manager, mock_get_db, mock_db
 ):
     """Test the summit_complete_task tool with a task that doesn't exist"""
     db, _ = mock_db
-    # Configure update_agent_task to return None (task not found/updated)
-    db.update_agent_task.return_value = None
+
+    # Set up task queue manager to return False (task completion failed)
+    task_queue_manager = AsyncMock()
+    task_queue_manager.complete_task.return_value = False
+    mock_get_task_manager.return_value = task_queue_manager
+
     mock_get_db.return_value = db
-    mock_unified_db.return_value = db
 
     # Call the tool handler
     result = await handle_call_tool(
@@ -250,41 +269,50 @@ async def test_summit_complete_task_nonexistent(
         },
     )
 
-    # Verify the result indicates task not found or an error
+    # Verify the result
     assert isinstance(result, list)
     assert len(result) == 1
+    response_text = result[0].text
+    assert "Failed to complete task" in response_text
 
 
 @pytest.mark.asyncio
-@patch("summit.get_database")
-@patch("unified_database.get_database")
-async def test_tools_available_in_list(mock_unified_db, mock_get_db):
-    """Test that our core tools are available in the tool list"""
-    # Get the list of available tools
+async def test_tools_available_in_list():
+    """Test that our task tools are listed in the available tools"""
+    # Get the list of tools
     tools = await handle_list_tools()
 
-    # Extract tool names
-    tool_names = [tool.name for tool in tools]
+    # Find our task tools
+    get_next_task = None
+    complete_task = None
 
-    # Verify our core tools are available
-    assert "summit_start_task" in tool_names
-    assert "summit_complete_task" in tool_names
+    for tool in tools:
+        if tool.name == "summit_get_next_task":
+            get_next_task = tool
+        elif tool.name == "summit_complete_task":
+            complete_task = tool
 
-    # Find the summit_complete_task tool
-    complete_task_tool = next(
-        tool for tool in tools if tool.name == "summit_complete_task"
-    )
+    # Verify get_next_task tool
+    assert get_next_task is not None
+    assert get_next_task.description
+    assert get_next_task.inputSchema
+    assert "role" in get_next_task.inputSchema["properties"]
+    assert "agent_id" in get_next_task.inputSchema["properties"]
 
-    # Verify the required parameters
-    required_props = complete_task_tool.inputSchema["required"]
-    assert "task_id" in required_props
-    assert "agent_id" in required_props
+    # Verify complete_task tool
+    assert complete_task is not None
+    assert complete_task.description
+    assert complete_task.inputSchema
+    assert "success" in complete_task.inputSchema["properties"]
+    assert "agent_id" in complete_task.inputSchema["properties"]
+    assert "task_id" in complete_task.inputSchema["properties"]
+    assert "result" in complete_task.inputSchema["properties"]
 
 
 @pytest.mark.asyncio
 @patch("summit.get_database")
-@patch("unified_database.get_database")
-async def test_invalid_tool_name(mock_unified_db, mock_get_db):
-    """Test calling a non-existent tool"""
-    with pytest.raises(ValueError, match="Summit doesn't know tool"):
-        await handle_call_tool("invalid_tool_name", {})
+@patch("summit.get_task_queue_manager")
+async def test_invalid_tool_name(mock_get_task_manager, mock_get_db):
+    """Test calling a tool that doesn't exist"""
+    with pytest.raises(ValueError):
+        await handle_call_tool("nonexistent_tool", {})

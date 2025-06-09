@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import asyncio
+import json
 import os
 import subprocess
 import sys
@@ -14,6 +15,7 @@ from anthropic import Anthropic
 from mcp.server import NotificationOptions, Server
 
 from cost_tracker import CostTracker
+from task_queue_manager import get_task_queue_manager
 from unified_database import UnifiedDatabaseManager
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "config"))
@@ -331,7 +333,7 @@ async def handle_list_tools() -> list[types.Tool]:
         ),
         types.Tool(
             name="summit_complete_task",
-            description="Simplified tool to complete a task (preferred method for OpenCode agents)",
+            description="Simple tool for completing tasks",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -350,19 +352,8 @@ async def handle_list_tools() -> list[types.Tool]:
                     },
                     "result": {
                         "type": "object",
-                        "description": "Additional result data as a dictionary/object",
+                        "description": "Result data from the task",
                         "default": {},
-                    },
-                    "summary": {
-                        "type": "string",
-                        "description": "Brief summary of work completed",
-                        "default": "",
-                    },
-                    "files_modified": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "List of files modified during task execution",
-                        "default": [],
                     },
                     "error_message": {
                         "type": "string",
@@ -371,6 +362,24 @@ async def handle_list_tools() -> list[types.Tool]:
                     },
                 },
                 "required": ["task_id", "agent_id"],
+            },
+        ),
+        types.Tool(
+            name="summit_get_next_task",
+            description="Get the next highest priority task for the agent based on its role",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "agent_id": {
+                        "type": "string",
+                        "description": "ID of the agent requesting a task",
+                    },
+                    "role": {
+                        "type": "string",
+                        "description": "The role the agent wants to fulfill",
+                    },
+                },
+                "required": ["agent_id", "role"],
             },
         ),
     ]
@@ -1106,57 +1115,32 @@ Recent Comments:"""
             raise ValueError("Task ID and agent ID are required")
 
         try:
-            from datetime import datetime
+            # Get task queue manager
+            task_queue_manager = await get_task_queue_manager()
 
-            from database_models import TaskLifecycleStage, TaskStatus
-            from unified_database import get_database
+            # Claim the task
+            task = await task_queue_manager.claim_task(task_id, agent_id)
 
-            db = await get_database()
-
-            # Get the task
-            task = await db.get_agent_task(task_id)
             if not task:
                 return [
                     types.TextContent(
-                        type="text", text=f"Task {task_id} not found"
-                    )
-                ]
-
-            # Check if task is available
-            if task.status not in [TaskStatus.PENDING, TaskStatus.FAILED]:
-                return [
-                    types.TextContent(
                         type="text",
-                        text=f"Task {task_id} is not available (status: {task.status.value})",
+                        text=f"Failed to claim task {task_id}. It may not be available or does not exist.",
                     )
                 ]
 
-            # Claim and start the task
-            updates = {
-                "status": TaskStatus.RUNNING,
-                "agent_id": agent_id,
-                "started_at": datetime.utcnow(),
-            }
-
-            updated_task = await db.update_agent_task(task_id, updates)
-
-            # Start the design stage in lifecycle
-            await db.start_stage_work(
-                task_id=task_id,
-                agent_id=agent_id,
-                stage=TaskLifecycleStage.DESIGN,
-            )
-
+            # Format response
+            task_data = task.to_dict()
             response = f"""Task started successfully:
 
 Task: {task_id}
 Agent: {agent_id}
-Type: {updated_task.task_type}
+Type: {task_data['task_type']}
 Status: RUNNING
 Started: {datetime.utcnow().isoformat()}
 
 The task is now assigned to you and in the design stage.
-Use summit_end_task when complete."""
+Use summit_complete_task when complete."""
 
             return [types.TextContent(type="text", text=response)]
 
@@ -1292,82 +1276,118 @@ The task failure has been recorded and can be retried or reassigned."""
 
     elif name == "summit_complete_task":
         """
-        A simplified tool for completing tasks - combines setting status, results, and metadata
-        This is the preferred method for OpenCode agents to mark tasks as complete
+        A simplified tool for completing tasks
         """
         task_id = arguments.get("task_id")
         agent_id = arguments.get("agent_id")
         success = arguments.get("success", True)
         result = arguments.get("result", {})
-        summary = arguments.get("summary", "")
-        files_modified = arguments.get("files_modified", [])
         error_message = arguments.get("error_message", "")
 
         if not all([task_id, agent_id]):
             raise ValueError("Task ID and agent ID are required")
 
         try:
-            from datetime import datetime
+            # Get task queue manager
+            task_queue_manager = await get_task_queue_manager()
 
-            from database_models import TaskStatus
-            from unified_database import get_database
-
-            db = await get_database()
-
-            # Set appropriate status based on success flag
-            status_enum = (
-                TaskStatus.COMPLETED if success else TaskStatus.FAILED
+            # Complete the task
+            completed = await task_queue_manager.complete_task(
+                task_id=task_id,
+                agent_id=agent_id,
+                success=success,
+                result=result,
+                error_message=error_message,
             )
 
-            # Prepare update data with metadata
-            updates = {
-                "status": status_enum,
-                "agent_id": agent_id,
-                "completed_at": datetime.utcnow(),
-            }
-
-            # Add result data
-            result_data = {
-                "summary": summary,
-                "files_modified": files_modified,
-            }
-
-            # Include any additional result data provided
-            if isinstance(result, dict):
-                result_data.update(result)
-
-            updates["result"] = result_data
-
-            # Add error message if task failed
-            if not success and error_message:
-                updates["error"] = error_message
-
-            # Update the task
-            updated_task = await db.update_agent_task(task_id, updates)
-
-            if not updated_task:
+            if not completed:
                 return [
                     types.TextContent(
-                        type="text", text=f"Task {task_id} not found"
+                        type="text",
+                        text=f"Failed to complete task {task_id}. It may not exist or may not be assigned to agent {agent_id}.",
                     )
                 ]
 
-            status_word = "completed successfully" if success else "failed"
-            response = f"""Task {status_word}:
+            # Format response
+            if success:
+                response = f"""Task completed successfully:
 
 Task: {task_id}
-Status: {status_enum.value}
 Agent: {agent_id}
-Summary: {summary[:100]}{"..." if len(summary) > 100 else ""}
-Files Modified: {', '.join(files_modified[:5])}{"..." if len(files_modified) > 5 else ""}
-"""
+Status: COMPLETED
+Completed: {datetime.utcnow().isoformat()}"""
+            else:
+                response = f"""Task failed gracefully:
+
+Task: {task_id}
+Agent: {agent_id}
+Status: FAILED
+Error: {error_message}
+Failed: {datetime.utcnow().isoformat()}"""
 
             return [types.TextContent(type="text", text=response)]
 
         except Exception as e:
             return [
                 types.TextContent(
-                    type="text", text=f"Error completing task: {e}"
+                    type="text",
+                    text=f"Error completing task: {str(e)}",
+                )
+            ]
+
+    elif name == "summit_get_next_task":
+        agent_id = arguments.get("agent_id")
+        role = arguments.get("role")
+
+        if not agent_id:
+            raise ValueError("Agent ID is required")
+
+        if not role:
+            raise ValueError("Role is required")
+
+        try:
+            # Get task queue manager
+            task_queue_manager = await get_task_queue_manager()
+
+            # Get tasks available for the agent based on its role
+            # Convert single role to list for compatibility with existing function
+            tasks = await task_queue_manager.get_next_available_task(
+                agent_id=agent_id,
+                roles=[role],  # Single role for simplicity
+                limit=1,
+            )
+
+            # No tasks available
+            if not tasks:
+                return [
+                    types.TextContent(
+                        type="text",
+                        text=f"No available tasks found for role: {role}",
+                    )
+                ]
+
+            # Get the highest priority task (should be only one with limit=1)
+            task = tasks[0]
+
+            # Format response
+            response = f"""Task assigned:
+
+Task ID: {task.id}
+Type: {task.task_type}
+Role: {role}
+Priority: {task.priority}
+Status: {task.status}
+
+The task has been automatically assigned to agent {agent_id}.
+Please complete the task and use summit_complete_task when finished."""
+
+            return [types.TextContent(type="text", text=response)]
+
+        except Exception as e:
+            return [
+                types.TextContent(
+                    type="text",
+                    text=f"Error getting next task: {str(e)}",
                 )
             ]
 
@@ -1814,6 +1834,19 @@ Environment provides: Ubuntu, Python 3.x, Git, VS Code, all dependencies
 """
 
     return instructions
+
+
+async def get_task_queue_manager():
+    """Get the task queue manager instance"""
+    from task_queue_manager import TaskQueueManager
+    from unified_database import get_database
+
+    # Initialize with database
+    db = await get_database()
+    task_queue_manager = TaskQueueManager(db)
+    await task_queue_manager.initialize()
+
+    return task_queue_manager
 
 
 async def main():

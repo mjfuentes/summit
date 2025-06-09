@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  # PostgreSQL database
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: summit
+      POSTGRES_PASSWORD: summit123
+      POSTGRES_DB: summit
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "summit"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # MCP Server
+  mcp-server:
+    build:
+      context: .
+      dockerfile: docker/mcp-server.Dockerfile
+    environment:
+      DATABASE_URL: postgresql+asyncpg://summit:summit123@postgres:5432/summit
+      MCP_SERVER_HOST: 0.0.0.0
+      MCP_SERVER_PORT: 8080
+      PYTHONPATH: /app
+      GCP_PROJECT_ID: summit-ai-platform
+      GCP_LOCATION: us-central1
+      AGENT_ENDPOINT_URL: http://agent-endpoints:8081
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./google-credentials.json:/app/google-credentials.json
+      - .:/app
+    command: python -m src.summit
+
+  # Agent Endpoints Server
+  agent-endpoints:
+    build:
+      context: .
+      dockerfile: docker/agent-endpoints.Dockerfile
+    environment:
+      DATABASE_URL: postgresql+asyncpg://summit:summit123@postgres:5432/summit
+      AGENT_ENDPOINT_PORT: 8081
+      PYTHONPATH: /app
+      GCP_PROJECT_ID: summit-ai-platform
+      GCP_LOCATION: us-central1
+      GOOGLE_APPLICATION_CREDENTIALS: /app/google-credentials.json
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./google-credentials.json:/app/google-credentials.json
+      - .:/app
+    command: python -m web.agent_endpoints
+
+volumes:
+  postgres_data: 
