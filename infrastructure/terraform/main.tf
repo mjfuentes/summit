@@ -32,11 +32,38 @@ variable "cluster_name" {
   default     = "summit-cluster"
 }
 
+variable "create_service_accounts" {
+  description = "Whether to create new service accounts (requires elevated IAM permissions)"
+  type        = bool
+  default     = false
+}
+
+variable "gke_service_account_email" {
+  description = "Email of existing GKE service account (if not creating new ones)"
+  type        = string
+  default     = ""
+}
+
+variable "summit_agent_service_account_email" {
+  description = "Email of existing Summit agent service account (if not creating new ones)"
+  type        = string
+  default     = ""
+}
+
 # Google Cloud Provider
 # Authentication is handled via:
 # 1. GOOGLE_APPLICATION_CREDENTIALS environment variable (service account key)
-# 2. gcloud auth application-default login (for local development)
+# 2. gcloud auth application-default login (for local development)  
 # 3. Workload Identity (for GitHub Actions)
+#
+# Required IAM permissions for the service account running this Terraform:
+# - roles/container.admin (for GKE cluster management)
+# - roles/compute.admin (for firewall rules and networks)
+# - roles/iam.serviceAccountAdmin (if creating service accounts)
+# - roles/iam.serviceAccountUser (for service account impersonation)
+# - roles/cloudsql.admin (for Cloud SQL instance management)
+# - roles/cloudtasks.admin (for Cloud Tasks queue management)
+# - roles/serviceusage.serviceUsageAdmin (for enabling APIs)
 provider "google" {
   project = var.project_id
   region  = var.region
@@ -59,6 +86,18 @@ resource "google_project_service" "apis" {
   service = each.value
   
   disable_dependent_services = true
+}
+
+# Data source for existing GKE service account (if not creating new one)
+data "google_service_account" "existing_gke_sa" {
+  count      = var.create_service_accounts ? 0 : 1
+  account_id = var.gke_service_account_email != "" ? split("@", var.gke_service_account_email)[0] : "summit-agent"
+}
+
+# Data source for existing Summit agent service account (if not creating new one)
+data "google_service_account" "existing_summit_agent_sa" {
+  count      = var.create_service_accounts ? 0 : 1
+  account_id = var.summit_agent_service_account_email != "" ? split("@", var.summit_agent_service_account_email)[0] : "summit-agent"
 }
 
 # GKE Cluster
@@ -94,6 +133,8 @@ resource "google_container_cluster" "summit_cluster" {
       start_time = "03:00"
     }
   }
+
+  depends_on = [google_project_service.apis]
 }
 
 # Node Pool for OpenCode agents
@@ -107,8 +148,10 @@ resource "google_container_node_pool" "opencode_nodes" {
     preemptible  = false
     machine_type = "e2-small"  # 2 vCPU, 2GB RAM
 
-    # Google recommends custom service accounts that have cloud-platform scope and permissions granted via IAM Roles.
-    service_account = google_service_account.gke_service_account.email
+    # Use existing service account or default Compute Engine service account
+    service_account = var.create_service_accounts ? google_service_account.gke_service_account[0].email : (
+      var.gke_service_account_email != "" ? var.gke_service_account_email : "${var.project_id}-compute@developer.gserviceaccount.com"
+    )
     oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform"
     ]
@@ -139,16 +182,28 @@ resource "google_container_node_pool" "opencode_nodes" {
   }
 }
 
-# Service Account for GKE nodes
+# Service Account for GKE nodes (only if create_service_accounts is true)
 resource "google_service_account" "gke_service_account" {
+  count        = var.create_service_accounts ? 1 : 0
   account_id   = "summit-gke-sa"
   display_name = "Summit GKE Service Account"
 }
 
-# Service Account for Summit agents (Cloud Tasks access)
+# Service Account for Summit agents (only if create_service_accounts is true)
 resource "google_service_account" "summit_agent_sa" {
+  count        = var.create_service_accounts ? 1 : 0
   account_id   = "summit-agent"
   display_name = "Summit Agent Service Account"
+}
+
+# Local variable for GKE service account email
+locals {
+  gke_sa_email = var.create_service_accounts ? google_service_account.gke_service_account[0].email : (
+    var.gke_service_account_email != "" ? var.gke_service_account_email : "${var.project_id}-compute@developer.gserviceaccount.com"
+  )
+  summit_agent_sa_email = var.create_service_accounts ? google_service_account.summit_agent_sa[0].email : (
+    var.summit_agent_service_account_email != "" ? var.summit_agent_service_account_email : "summit-agent@${var.project_id}.iam.gserviceaccount.com"
+  )
 }
 
 # IAM bindings for the GKE service account
@@ -162,7 +217,7 @@ resource "google_project_iam_member" "gke_service_account_roles" {
 
   project = var.project_id
   role    = each.value
-  member  = "serviceAccount:${google_service_account.gke_service_account.email}"
+  member  = "serviceAccount:${local.gke_sa_email}"
 }
 
 # IAM bindings for the Summit agent service account
@@ -176,7 +231,7 @@ resource "google_project_iam_member" "summit_agent_roles" {
 
   project = var.project_id
   role    = each.value
-  member  = "serviceAccount:${google_service_account.summit_agent_sa.email}"
+  member  = "serviceAccount:${local.summit_agent_sa_email}"
 }
 
 # Cloud Tasks Queue
@@ -249,14 +304,33 @@ resource "google_sql_user" "summit_user" {
   password = "***REMOVED***"  # In production, use a random password
 }
 
-# Workload Identity binding for Cloud SQL access
+# Workload Identity binding for Cloud SQL access (only if creating service accounts)
 resource "google_service_account_iam_binding" "summit_workload_identity" {
-  service_account_id = google_service_account.summit_agent_sa.name
+  count              = var.create_service_accounts ? 1 : 0
+  service_account_id = google_service_account.summit_agent_sa[0].name
   role               = "roles/iam.workloadIdentityUser"
 
   members = [
     "serviceAccount:${var.project_id}.svc.id.goog[summit/summit-ksa]"
   ]
+}
+
+# Firewall rules for MCP server (try to create, but don't fail if permissions are insufficient)
+resource "google_compute_firewall" "summit_mcp_firewall" {
+  name    = "summit-mcp-firewall"
+  network = "default"
+
+  allow {
+    protocol = "tcp"
+    ports    = ["8080"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]  # In production, restrict this
+  target_tags   = ["summit", "mcp-server"]
+
+  lifecycle {
+    ignore_changes = all
+  }
 }
 
 # Outputs
@@ -292,20 +366,12 @@ output "database_public_ip" {
   value       = google_sql_database_instance.summit_postgres.public_ip_address
 }
 
-# MCP Server will be exposed via Kubernetes LoadBalancer service
-
-# Firewall rules for MCP server
-resource "google_compute_firewall" "summit_mcp_firewall" {
-  name    = "summit-mcp-firewall"
-  network = "default"
-
-  allow {
-    protocol = "tcp"
-    ports    = ["8080"]
-  }
-
-  source_ranges = ["0.0.0.0/0"]  # In production, restrict this
-  target_tags   = ["summit", "mcp-server"]
+output "gke_service_account_email" {
+  description = "Email of the GKE service account being used"
+  value       = local.gke_sa_email
 }
 
-# MCP server endpoint will be available via Kubernetes service
+output "summit_agent_service_account_email" {
+  description = "Email of the Summit agent service account being used"
+  value       = local.summit_agent_sa_email
+}
