@@ -6,7 +6,7 @@ The Summit Task Queue System provides a hybrid approach to task distribution, co
 
 1. **PostgreSQL Database** - For reliable task storage and state management
 2. **Google Cloud Tasks** - For scalable task distribution and delivery
-3. **MCP Server API** - For task creation, assignment, and completion
+3. **FastMCP Server API** - For task creation, assignment, and completion
 
 This architecture provides several advantages:
 - Database as single source of truth for task state
@@ -38,12 +38,19 @@ The Task Queue Manager (`src/task_queue_manager.py`) handles the integration bet
 - Handles task claiming through atomic database operations
 - Tracks task completion and lifecycle stages
 
-### MCP Server API
+### FastMCP Server API
 
-The MCP Server provides the following simplified tools for task management:
+The FastMCP Server provides the following tools for task management:
 
 - `summit_get_next_task` - Get the next highest priority task for an agent based on its role
 - `summit_complete_task` - Complete a task with results or error information
+- `summit_register_agent` - Register a new agent with the platform
+
+The server uses the FastMCP framework which provides:
+- Multiple transport protocols (stdio, SSE, streamable-http)
+- Structured progress reporting
+- Typesafe request validation with Pydantic
+- Comprehensive logging and error handling
 
 ### Agent Endpoints Server
 
@@ -103,54 +110,45 @@ async def submit_code_review_task(pr_number, branch_name):
 ### Getting and Starting Tasks
 
 ```python
-from src.summit_mcp_client import MCPClient
+from src.summit_client import SummitClient
 
 async def get_next_task(agent_id, role):
-    # Initialize MCP client
-    client = MCPClient()
-    
-    # Get the next task for this role
-    response = await client.call_tool(
-        "summit_get_next_task",
-        {
-            "agent_id": agent_id,
-            "role": role,  # e.g., "code_review"
-        },
-    )
-    
-    # Parse task ID from response
-    # This is a simple parsing example - production code would be more robust
-    if "Task assigned" in response:
-        lines = response.split("\n")
-        for line in lines:
-            if line.startswith("Task ID:"):
-                return line.split("Task ID:")[1].strip()
-    
-    return None
+    # Initialize Summit client
+    async with SummitClient() as client:
+        # Get the next task for this role
+        response = await client.get_next_task(
+            agent_id=agent_id,
+            role=role  # e.g., "engineering"
+        )
+        
+        # Check if a task was assigned
+        if response.get("status") == "success" and "task" in response:
+            task = response["task"]
+            return task["id"]
+        
+        return None
 ```
 
 ### Completing Tasks
 
 ```python
-from src.summit_mcp_client import MCPClient
+from src.summit_client import SummitClient
 
 async def complete_task(task_id, agent_id, success=True, result=None):
-    # Initialize MCP client
-    client = MCPClient()
-    
-    # Complete the task
-    response = await client.call_tool(
-        "summit_complete_task",
-        {
-            "task_id": task_id,
-            "agent_id": agent_id,
-            "success": success,
-            "result": result or {},
-            "error_message": "" if success else "Task failed"
-        },
-    )
-    
-    return "completed successfully" in response
+    # Initialize Summit client
+    async with SummitClient() as client:
+        # Complete the task
+        response = await client.complete_task(
+            task_id=task_id,
+            agent_id=agent_id,
+            success=success,
+            result=result or {},
+            summary="Task execution completed",
+            files_modified=["file1.py", "file2.py"],
+            error_message="" if success else "Task failed"
+        )
+        
+        return response.get("status") == "success"
 ```
 
 ## Running the System
@@ -160,6 +158,12 @@ The system can be run using Docker Compose:
 ```bash
 # Start the system
 docker-compose up -d
+
+# Start the FastMCP server directly
+./start_mcp_server.sh
+
+# Start with specific transport
+./start_mcp_server.sh --transport sse --port 8080
 
 # Submit a test task
 python scripts/submit_test_task.py --type test_task --role engineering --priority high
@@ -177,6 +181,9 @@ The system can be configured using environment variables:
 - `GCP_LOCATION` - Google Cloud region
 - `AGENT_ENDPOINT_URL` - URL of the Agent Endpoints server
 - `GOOGLE_APPLICATION_CREDENTIALS` - Path to Google Cloud credentials file
+- `MCP_TRANSPORT` - Transport protocol (stdio, sse, streamable-http)
+- `PORT` - Port number for the FastMCP server
+- `HOST` - Host address for the FastMCP server
 
 ## Monitoring
 

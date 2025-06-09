@@ -20,7 +20,7 @@ cd web && ./start.sh
 
 ```bash
 cd web
-python3 server.py
+python3 autonomous_server.py
 ```
 
 ## Features
@@ -110,3 +110,19 @@ The web server runs with auto-reload enabled, so changes to the code will automa
 - Port: `8000`  
 - Reload: `True` (development mode)
 - Log Level: `info` 
+
+## Running the Web Server
+
+To start the Summit web interface:
+
+```bash
+cd web
+python3 autonomous_server.py
+```
+
+Or use the start script:
+
+```bash
+cd web
+./start.sh
+``` 

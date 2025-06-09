@@ -23,7 +23,7 @@ spec:
         image: ghcr.io/mjfuentes/summit/mcp-server:latest
         imagePullPolicy: Always
         command: ["python3"]
-        args: ["/app/src/summit.py"]
+        args: ["-m", "src.fastmcp_server"]
         ports:
         - containerPort: 8080
           name: mcp-port
@@ -32,9 +32,11 @@ spec:
           value: "postgresql+asyncpg://summit:summit123@localhost:5432/summit"
         - name: PYTHONPATH
           value: "/app/src"
-        - name: MCP_SERVER_PORT
+        - name: MCP_TRANSPORT
+          value: "sse"
+        - name: PORT
           value: "8080"
-        - name: MCP_SERVER_HOST
+        - name: HOST
           value: "0.0.0.0"
         - name: ANTHROPIC_API_KEY
           valueFrom:

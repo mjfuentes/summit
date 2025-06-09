@@ -67,33 +67,70 @@ class OpenCodeManager:
             return False
 
     async def install_opencode(self) -> bool:
-        """Install OpenCode using the official installer"""
+        """Install OpenCode"""
         try:
+            # Check if already installed
+            if await self.check_installation():
+                self.logger.info("OpenCode already installed")
+                return True
+
             self.logger.info("Installing OpenCode...")
 
-            # Download and run the installer
-            install_cmd = [
-                "curl",
-                "-fsSL",
-                "https://raw.githubusercontent.com/opencode-ai/opencode/main/install",
-                "|",
-                "bash",
-            ]
+            # Use tempfile to generate secure temporary file path
+            import os
+            import tempfile
 
-            # Use shell for this particular command since it contains pipes
-            # This is safer than our previous implementation since we're using a fixed command
-            # from a trusted source (opencode-ai/opencode)
-            install_cmd_str = " ".join(install_cmd)
-            result = await self._run_command(install_cmd_str, shell=True)
+            # Create a secure temporary file
+            temp_fd, temp_path = tempfile.mkstemp(suffix=".sh")
+            os.close(temp_fd)  # Close the file descriptor
 
-            if result["success"]:
-                self.logger.info("OpenCode installed successfully")
-                return await self.check_installation()
-            else:
-                self.logger.error(
-                    f"Failed to install OpenCode: {result['error']}"
-                )
-                return False
+            try:
+                # Create installation commands safely - avoid shell=True
+                install_cmd = [
+                    "curl",
+                    "-s",
+                    "https://raw.githubusercontent.com/opencode-ai/opencode/main/install.sh",
+                    "-o",
+                    temp_path,
+                ]
+
+                # Download the install script
+                result = await self._run_command(install_cmd)
+                if not result["success"]:
+                    self.logger.error(
+                        f"Failed to download installation script: {result['error']}"
+                    )
+                    return False
+
+                # Make the script executable
+                chmod_cmd = ["chmod", "+x", temp_path]
+                result = await self._run_command(chmod_cmd)
+                if not result["success"]:
+                    self.logger.error(
+                        f"Failed to make script executable: {result['error']}"
+                    )
+                    return False
+
+                # Execute the script
+                exec_cmd = [temp_path]
+                result = await self._run_command(exec_cmd)
+
+                if result["success"]:
+                    self.logger.info("OpenCode installed successfully")
+                    return await self.check_installation()
+                else:
+                    self.logger.error(
+                        f"Failed to install OpenCode: {result['error']}"
+                    )
+                    return False
+            finally:
+                # Clean up the temporary file
+                try:
+                    os.remove(temp_path)
+                except Exception as e:
+                    self.logger.warning(
+                        f"Failed to remove temporary file {temp_path}: {e}"
+                    )
 
         except Exception as e:
             self.logger.error(f"Error installing OpenCode: {e}")
@@ -432,21 +469,13 @@ Use the available tools to read, write, and test code as needed."""
     ) -> Dict[str, Any]:
         """Run a command and return the result"""
         try:
-            if shell:
-                cmd_str = " ".join(cmd)
-                process = await asyncio.create_subprocess_shell(
-                    cmd_str,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                    cwd=self.config.working_directory,
-                )
-            else:
-                process = await asyncio.create_subprocess_exec(
-                    *cmd,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                    cwd=self.config.working_directory,
-                )
+            # Never use shell=True for security
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=self.config.working_directory,
+            )
 
             try:
                 stdout, stderr = await asyncio.wait_for(

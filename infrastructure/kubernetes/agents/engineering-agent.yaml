@@ -66,7 +66,7 @@ spec:
       - name: engineering-agent
         image: ghcr.io/mjfuentes/summit/opencode-agents:latest
         command: ["/bin/bash"]
-        args: ["-c", "mkdir -p ~/.opencode && echo '{\"mcpServers\":{\"summit\":{\"type\":\"sse\",\"url\":\"http://summit-mcp-service.summit.svc.cluster.local:8080\"}},\"providers\":{\"anthropic\":{\"apiKey\":\"'\"$ANTHROPIC_API_KEY\"'\"}},\"agents\":{\"coder\":{\"model\":\"claude-3.5-sonnet\",\"maxTokens\":8000}}}' > ~/.opencode/config.json && cd /workspace && opencode -p 'I am a Summit Engineering Agent. Register with Summit MCP server using summit_register_agent tool with role=engineering and capabilities=[\"code-development\",\"bug-fixing\",\"testing\",\"deployment\"]. Check for tasks with summit_get_next_task. When you get a task, implement the solution based on the task details, test it, and create a PR.'"]
+        args: ["-c", "mkdir -p ~/.opencode && echo '{\"mcpServers\":{\"summit\":{\"type\":\"sse\",\"url\":\"http://summit-mcp-service.summit.svc.cluster.local:8080\"}},\"providers\":{\"anthropic\":{\"apiKey\":\"'\"$ANTHROPIC_API_KEY\"'\"}},\"agents\":{\"coder\":{\"model\":\"claude-3.5-sonnet\",\"maxTokens\":8000}}}' > ~/.opencode/config.json && cd /workspace && opencode -p 'I am a Summit Engineering Agent. Register with Summit FastMCP server using summit_register_agent tool with role=engineering and capabilities=[\"code-development\",\"bug-fixing\",\"testing\",\"deployment\"]. Check for tasks with summit_get_next_task. When you get a task, implement the solution based on the task details, test it, and create a PR.'"]
         env:
         - name: AGENT_ROLE
           value: "engineering"

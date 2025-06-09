@@ -12,8 +12,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy requirements file
 COPY requirements.txt .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies including FastMCP
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir fastmcp>=0.4.1
 
 # Copy source code
 COPY . .
@@ -21,9 +22,10 @@ COPY . .
 # Set environment variables
 ENV PYTHONPATH="/app"
 ENV PYTHONUNBUFFERED=1
+ENV MCP_TRANSPORT="sse"
 
 # Expose port
 EXPOSE 8080
 
-# Run the MCP server
-CMD ["python", "-m", "src.summit"] 
+# Run the FastMCP server
+CMD ["python", "-m", "src.fastmcp_server"] 

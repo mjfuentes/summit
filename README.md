@@ -121,7 +121,8 @@ docker build -f infrastructure/docker/Dockerfile.summit-api .
 ```
 summit/
  src/                    # Core source code
-    summit.py          # Main MCP server
+    fastmcp_server.py  # FastMCP server implementation
+    summit_client.py   # FastMCP client for connecting to server
     cost_tracker.py    # Budget management
     pr_reviewers.py    # AI code review system
     agent_git_api.py   # Git automation wrapper
@@ -202,7 +203,7 @@ MAX_RECURSION_DEPTH=3       # Learning recursion limit
 python run_coverage.py
 
 # Specific test file
-pytest tests/test_summit.py -v
+pytest tests/test_summit_basic.py -v
 
 # Parallel execution
 pytest tests/ -n auto

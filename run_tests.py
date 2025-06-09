@@ -154,7 +154,9 @@ if __name__ == "__main__":
                 sys.exit(run_single_test(sys.argv[2]))
             else:
                 print("Error: --single requires a test name")
-                print("Usage: python run_tests.py --single test_summit.py")
+                print(
+                    "Usage: python run_tests.py --single test_summit_basic.py"
+                )
                 sys.exit(1)
         elif sys.argv[1] == "--autonomous":
             sys.exit(run_autonomous_tests())

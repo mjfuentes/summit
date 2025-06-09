@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Test SoundCloud integration functionality"""
+"""
+ARCHIVED: This test file is deprecated and has been archived.
+It tested an integration that is no longer used.
+
+Test suite for Soundcloud API integration
+"""
 
 import os
 import sys

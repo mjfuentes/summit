@@ -124,6 +124,21 @@ python tools/emoji_linter.py --verbose
 - Keep documentation concise and focused on core capabilities
 - Update relevant documentation when changing functionality
 
+### Architecture Documentation
+- **Document all major architectural changes** in the `docs/architecture_changes/` directory
+- Use the naming convention `YYYYMMDD_descriptive_name.md` with the current date
+- Include the following sections in each architecture document:
+  1. **Overview**: Brief description of the change
+  2. **Motivation**: Why the change was necessary
+  3. **Implementation Details**: Key technical components of the change
+  4. **Migration Path**: How to migrate from the previous architecture
+  5. **Advantages**: Benefits of the new architecture
+  6. **Potential Issues**: Known limitations or challenges
+  7. **Future Considerations**: Planned improvements or next steps
+- Update the main README.md to reflect current architecture
+- Keep architecture diagrams up-to-date
+- Document backward compatibility considerations
+
 ### Code Structure
 - Use meaningful variable and function names
 - Keep functions focused on a single responsibility

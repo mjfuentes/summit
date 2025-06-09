@@ -9,7 +9,8 @@ Summit is now a complete "Learning AI System" that can learn to do anything you 
 ```
 summit/
  src/                    # Core source code
-    summit.py          # Main MCP server
+    fastmcp_server.py  # FastMCP server implementation
+    summit_client.py   # FastMCP client for connecting to server
     cost_tracker.py    # Budget management & safety
     autonomous_server.py  # Autonomous Claude Code task management
  config/                # Configuration files

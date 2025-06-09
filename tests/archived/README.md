@@ -1,6 +1,34 @@
 # Archived Tests
 
-This directory contains test files that have been moved from the main test suite but are preserved for reference and potential future use.
+This directory contains test files that have been archived due to one of the following reasons:
+
+1. They tested functionality that has been replaced or significantly refactored
+2. They were dependent on deprecated APIs or implementation details
+3. They have been superseded by newer, more comprehensive tests
+
+## FastMCP Migration
+
+The following tests were archived during the FastMCP migration because they were dependent on the old MCP server implementation:
+
+- `test_mcp_task_management.py`: Tests for MCP task management features using the deprecated `handle_call_tool` function
+- `test_task_lifecycle.py`: Task lifecycle tests using the old MCP API
+- `test_summit.py`: Tests for the original Summit MCP server implementation
+- `test_soundcloud_integration.py`: Tests for a deprecated integration
+
+These tests have been replaced by:
+
+- `test_mcp_tools.py`: Updated to test the FastMCP implementation directly
+- `test_summit_basic.py`: Updated to test the FastMCP server basic functionality
+
+## Maintenance
+
+Tests in this directory should be periodically reviewed to determine if:
+
+1. They can be updated and moved back to the main test directory
+2. They should be permanently removed when the code they tested is fully deprecated
+3. They provide historical value for understanding past implementation details
+
+No new tests should be added to this directory. If a test is no longer needed, it should be moved here rather than deleted.
 
 ## Purpose
 

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
-Summit Web Server Startup Script
-Automatically starts the Summit AI web interface
+Start script for Summit web server - this is the main entry point for the web interface.
 """
 
 import os
@@ -46,9 +45,9 @@ def main():
     web_dir = project_root / "web"
 
     # Check if required files exist
-    server_file = web_dir / "server.py"
+    server_file = web_dir / "autonomous_server.py"
     if not server_file.exists():
-        print("ERROR: server.py not found in web/ directory")
+        print("ERROR: autonomous_server.py not found in web/ directory")
         print(f"   Expected: {server_file}")
         sys.exit(1)
 
@@ -102,7 +101,7 @@ def main():
         browser_thread.start()
 
         # Start the server
-        subprocess.run([sys.executable, "standalone_server.py"], check=True)
+        subprocess.run([sys.executable, "autonomous_server.py"], check=True)
 
     except KeyboardInterrupt:
         print("\n\nServer stopped by user")
@@ -112,7 +111,7 @@ def main():
         print("\nTroubleshooting:")
         print("1. Check if port 8000 is already in use")
         print("2. Ensure all dependencies are installed")
-        print("3. Try running manually: cd web && python server.py")
+        print("3. Try running manually: cd web && python autonomous_server.py")
         sys.exit(1)
     except Exception as e:
         print(f"\nERROR: Unexpected error: {e}")
