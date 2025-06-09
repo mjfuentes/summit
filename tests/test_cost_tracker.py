@@ -1,45 +1,39 @@
 #!/usr/bin/env python3
 
-import os
-import sys
+import pytest
 
-from cost_tracker import CostTracker
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+from src.cost_tracker import CostTracker
 
 
-def test_cost_tracker():
+def test_cost_tracker(tmp_path):
     """Test the cost tracking functionality"""
 
-    print("Testing Summit Cost Tracker")
-    print("=" * 40)
+    # Use a temporary file so tests don't interfere with real data
+    data_file = tmp_path / "costs.json"
+    ct = CostTracker(data_file=str(data_file))
 
-    # Initialize cost tracker
-    ct = CostTracker()
+    # Estimate cost should use configured token prices
+    assert ct.estimate_cost(50, 100) == pytest.approx(0.00165)
 
-    print(f"Daily budget: ${ct.daily_budget}")
-    print(f"Hourly budget: ${ct.hourly_budget}")
-    print(f"Max recursion depth: {ct.max_recursion_depth}")
-
-    # Test cost estimation
-    cost = ct.estimate_cost(50, 100)
-    print(f"Estimated cost (50→100 tokens): ${cost:.6f}")
-
-    # Test budget checking
+    # A small call should be allowed
     can_call, reason = ct.can_make_call(0.01, 0)
-    print(f"Can make $0.01 call: {can_call} ({reason})")
+    assert can_call is True
+    assert reason == "OK"
 
-    # Test recursion limit
-    can_call, reason = ct.can_make_call(0.01, 5)
-    print(f"Can make call at depth 5: {can_call}")
-    print(f"   Reason: {reason}")
+    # Calls beyond recursion depth should be blocked
+    can_call, reason = ct.can_make_call(0.01, ct.max_recursion_depth + 1)
+    assert can_call is False
+    assert "Maximum recursion depth" in reason
 
-    # Test status
+    # Status fields should mirror tracker values
     status = ct.get_status()
-    print(f"Daily spent: ${status['daily_spent']:.4f}")
-    print(f"Total lifetime cost: ${status['total_lifetime_cost']:.4f}")
-
-    print("\nCost tracker functionality verified successfully.")
+    assert status["daily_budget"] == ct.daily_budget
+    assert status["hourly_budget"] == ct.hourly_budget
+    assert status["max_recursion_depth"] == ct.max_recursion_depth
+    assert status["daily_spent"] == ct.get_daily_spent()
+    assert status["hourly_spent"] == ct.get_hourly_spent()
+    assert status["total_lifetime_cost"] == ct.total_costs
+    assert status["total_calls_today"] == 0
 
 
 if __name__ == "__main__":
