@@ -188,6 +188,8 @@ class ChatMessage(BaseModel):
 @app.on_event("startup")
 async def startup_event():
     """Initialize database and other startup tasks"""
+    # Load environment variables
+    load_environment()
     await get_database()
     print("Summit Autonomous AI started successfully")
 
