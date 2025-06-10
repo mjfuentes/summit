@@ -24,7 +24,7 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}/mcp-server
+  IMAGE_NAME: ${{ github.repository }}
   PYTHON_VERSION: '3.12'
 
 jobs:
@@ -128,7 +128,7 @@ jobs:
     outputs:
       image-tag: ${{ steps.meta.outputs.tags }}
       image-digest: ${{ steps.build.outputs.digest }}
-      primary-tag: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+      primary-tag: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:mcp
     
     steps:
     - name: Checkout code
@@ -150,12 +150,12 @@ jobs:
       with:
         images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
         tags: |
-          type=ref,event=branch
-          type=ref,event=pr
-          type=sha,prefix={{branch}}-
-          type=raw,value=latest,enable={{is_default_branch}}
-          type=raw,value=stable,enable={{is_default_branch}}
-          type=raw,value={{date 'YYYY-MM-DD-HHmmss'}},enable={{is_default_branch}}
+          type=ref,event=branch,suffix=-mcp
+          type=ref,event=pr,suffix=-mcp
+          type=sha,prefix={{branch}}-mcp-
+          type=raw,value=mcp,enable={{is_default_branch}}
+          type=raw,value=mcp-stable,enable={{is_default_branch}}
+          type=raw,value=mcp-{{date 'YYYY-MM-DD-HHmmss'}},enable={{is_default_branch}}
           
     - name: Build and push MCP Server image
       id: build
