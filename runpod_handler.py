@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """
-RunPod Serverless Handler for Summit AI
+RunPod Serverless Handler for Summit AI (Claude API Version)
 
 This script handles incoming requests to Summit AI when deployed on RunPod
-serverless infrastructure. It provides a standardized interface for AI
-operations while leveraging GPU acceleration.
+serverless infrastructure using the Anthropic Claude API. It provides a
+standardized interface for AI operations while leveraging GPU acceleration.
+
+For open source model support (Llama, Mistral), use runpod_handler_opensource.py.
 """
 
 import asyncio

@@ -260,9 +260,10 @@ class TaskQueueManager:
         """
         Get next available task for an agent based on role
 
-        TODO: Consider migrating to Redis or Pub/Sub for better task distribution
-        and backpressure management. Current implementation uses database polling
-        which may not scale well with many agents.
+        Note: Current implementation uses database polling for task distribution.
+        For better scalability with many concurrent agents, consider migrating
+        to Redis pub/sub or Cloud Pub/Sub for real-time task notifications.
+        See docs/TASK_QUEUE_USAGE.md for performance characteristics.
 
         Args:
             agent_id: Agent ID

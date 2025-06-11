@@ -234,10 +234,11 @@ class UnifiedDatabaseManager:
 
     async def claim_agent_task(self, task_id, agent_id: str) -> bool:
         """
-        Atomically claim a task for an agent
+        Atomically claim a task for an agent using database-level atomic updates.
 
-        TODO: This is a basic implementation. For better backpressure and
-        distribution, consider migrating to Cloud Tasks or Pub/Sub.
+        Note: This implementation uses database locking for atomicity. For high
+        throughput scenarios, consider using Cloud Tasks or Redis pub/sub for
+        better task distribution and reduced database contention.
         """
         async with self.get_session() as session:
             # Handle both string and UUID types

@@ -5,6 +5,9 @@ RunPod Serverless Handler for Summit AI with Open Source Models
 This script handles incoming requests to Summit AI when deployed on RunPod
 serverless infrastructure using open source models like Llama 3.1, Code Llama,
 and Mistral for cost-effective AI operations.
+
+This provides an alternative to the Claude API version (runpod_handler.py) for
+scenarios requiring fully open source inference or reduced API costs.
 """
 
 import asyncio
