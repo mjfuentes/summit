@@ -10,13 +10,13 @@ Summit is a learning AI system that can **learn to do anything you tell it to do
 
 ### Web Interface (Recommended)
 ```bash
-python start_web.py
+python bin/start_web.py
 ```
 Visit `http://localhost:8000` for the full web interface with voice input support.
 
 ### Command Line
 ```bash
-python run_summit.py
+python bin/run_summit.py
 ```
 
 ### Basic Usage
@@ -93,7 +93,7 @@ Summit features **optimized Docker builds** that reduce build time from 20+ minu
 pip install -r requirements.txt -r dev-requirements.txt
 
 # Production build (lightweight)
-docker build -f infrastructure/docker/Dockerfile.summit-api .
+docker build -f deployment/docker/Dockerfile.summit-api .
 ```
 
 ## Core Capabilities
@@ -128,9 +128,17 @@ summit/
     agent_git_api.py   # Git automation wrapper
     task_manager.py    # Task orchestration
  tests/                 # Comprehensive test suite (104+ tests)
+ bin/                   # Executable scripts (start_web.py, run_summit.py)
+ scripts/               # Development and automation scripts
+ examples/              # Demo and example scripts
+ utilities/             # Utility and testing scripts
+ deployment/            # Deployment configurations
+    docker/            # Docker files and configurations
+    runpod/            # RunPod deployment scripts
+    render/            # Render deployment configurations
+    kubernetes/        # Kubernetes configurations
  .github/workflows/     # CI/CD automation
  .githooks/             # Enhanced pre-commit hooks
- scripts/               # Automation scripts
  docs/                  # Detailed documentation
  config/                # Configuration files
 ```
@@ -200,7 +208,7 @@ MAX_RECURSION_DEPTH=3       # Learning recursion limit
 ### Run Tests Locally
 ```bash
 # Full test suite with coverage
-python run_coverage.py
+python bin/run_coverage.py
 
 # Specific test file
 pytest tests/test_summit_basic.py -v

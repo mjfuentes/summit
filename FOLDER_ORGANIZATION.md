@@ -1,0 +1,136 @@
+# Summit Folder Organization
+
+This document describes the organized folder structure for the Summit project, implemented to improve code maintainability and clarity.
+
+## Directory Structure
+
+```
+summit/
+ bin/                          # Executable scripts and entry points
+    run_summit.py            # Main CLI entry point
+    start_web.py             # Web interface launcher
+    start_server.py          # Server startup script
+    start_mcp_server.sh      # MCP server startup script
+    run_tests.py             # Test runner script
+    run_coverage.py          # Coverage analysis script
+
+ src/                          # Core application source code
+    fastmcp_server.py        # FastMCP server implementation
+    agent_git_api.py         # Git automation wrapper
+    cost_tracker.py          # Budget management
+    pr_reviewers.py          # AI code review system
+    task_manager.py          # Task orchestration
+    unified_database.py      # Database abstraction layer
+
+ tests/                        # Test suite (70%+ coverage)
+    test_*.py                # Unit and integration tests
+    archived/                # Legacy test files
+
+ scripts/                      # Development automation scripts
+    deploy_*.py              # Deployment automation
+    fix_*.py                 # Code quality fixes
+    setup_*.py               # Environment setup
+    *.sh                     # Shell automation scripts
+
+ examples/                     # Demo and example code
+    demo_enhanced_search.py  # Search functionality demo
+    demo_save_work.py        # Git workflow demo
+
+ utilities/                    # Utility and helper scripts
+    test_*.py                # Testing utilities
+    monitor_*.py             # Monitoring tools
+    create_pr.py             # PR creation template
+
+ deployment/                   # Deployment configurations
+    docker/                  # Docker configurations
+       Dockerfile.runpod    # RunPod deployment image
+       Dockerfile.opencode-agents # OpenCode agents image
+       docker-compose.yml   # Local development setup
+   
+    runpod/                  # RunPod specific deployments
+       runpod_handler.py    # Claude API handler
+       runpod_handler_opensource.py # Open source models handler
+       deploy_to_runpod.py  # Deployment script
+       opencode_config.json # OpenCode configuration
+       OPENCODE_RUNPOD_SETUP.md # Setup documentation
+   
+    render/                  # Render.com deployments
+       render.yaml          # Render configuration
+       RENDER_DEPLOYMENT.md # Basic deployment guide
+       RENDER_DEPLOYMENT_GUIDE.md # Detailed guide
+   
+    kubernetes/              # Kubernetes deployments
+        KUBERNETES_SETUP.md  # K8s setup documentation
+
+ web/                         # Web interface and API
+ docs/                        # Project documentation
+ config/                      # Configuration files
+ infrastructure/              # Infrastructure as code
+ tools/                       # Development tools
+ logs/                        # Application logs
+```
+
+## Organizational Principles
+
+### 1. **Clear Separation of Concerns**
+- **bin/**: User-facing executable scripts
+- **src/**: Core application logic
+- **scripts/**: Developer automation tools
+- **deployment/**: Environment-specific configurations
+
+### 2. **Logical Grouping**
+- **examples/**: Educational and demonstration code
+- **utilities/**: Helper scripts and tools
+- **tests/**: All testing related files
+
+### 3. **Deployment Isolation**
+- Each deployment platform has its own subdirectory
+- Platform-specific configurations are contained
+- Common patterns are shared where appropriate
+
+### 4. **Developer Experience**
+- Entry points are clearly marked in `bin/`
+- Development tools are organized in `scripts/`
+- Documentation is comprehensive and current
+
+## Migration Notes
+
+The following files were reorganized:
+
+### Moved to `bin/`:
+- `run_summit.py`, `start_web.py`, `start_server.py`
+- `run_tests.py`, `run_coverage.py`
+- `start_mcp_server.sh`
+
+### Moved to `deployment/`:
+- Docker files → `deployment/docker/`
+- RunPod handlers → `deployment/runpod/`
+- Render configs → `deployment/render/`
+- Kubernetes docs → `deployment/kubernetes/`
+
+### Moved to `examples/`:
+- `demo_*.py` files
+
+### Moved to `utilities/`:
+- `test_*.py` utilities
+- `monitor_*.py` tools
+- `create_pr.py` template
+
+## Benefits
+
+1. **Improved Discoverability**: Developers can quickly find what they need
+2. **Reduced Root Clutter**: Clean project root with logical organization
+3. **Better Maintenance**: Related files are grouped together
+4. **Deployment Clarity**: Each platform's needs are clearly separated
+5. **Consistent Patterns**: Similar file types follow predictable locations
+
+## Updating References
+
+When moving files, ensure you update:
+- README.md instructions
+- CI/CD pipeline references
+- Docker build contexts
+- Import statements
+- Documentation links
+
+This organization supports Summit's growth while maintaining clarity and maintainability. 

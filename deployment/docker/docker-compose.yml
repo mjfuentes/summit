@@ -21,8 +21,8 @@ services:
   # MCP Server
   mcp-server:
     build:
-      context: .
-      dockerfile: docker/mcp-server.Dockerfile
+      context: ../..
+      dockerfile: infrastructure/docker/Dockerfile.mcp-server
     environment:
       DATABASE_URL: postgresql+asyncpg://summit:summit123@postgres:5432/summit
       MCP_SERVER_HOST: 0.0.0.0
@@ -37,15 +37,15 @@ services:
       postgres:
         condition: service_healthy
     volumes:
-      - ./google-credentials.json:/app/google-credentials.json
-      - .:/app
+      - ../../google-credentials.json:/app/google-credentials.json
+      - ../..:/app
     command: python -m src.summit
 
   # Agent Endpoints Server
   agent-endpoints:
     build:
-      context: .
-      dockerfile: docker/agent-endpoints.Dockerfile
+      context: ../..
+      dockerfile: infrastructure/docker/Dockerfile.agent-endpoints
     environment:
       DATABASE_URL: postgresql+asyncpg://summit:summit123@postgres:5432/summit
       AGENT_ENDPOINT_PORT: 8081
@@ -59,8 +59,8 @@ services:
       postgres:
         condition: service_healthy
     volumes:
-      - ./google-credentials.json:/app/google-credentials.json
-      - .:/app
+      - ../../google-credentials.json:/app/google-credentials.json
+      - ../..:/app
     command: python -m web.agent_endpoints
 
 volumes:

@@ -147,10 +147,9 @@ def build_docker_image():
     """Build the Docker image for RunPod deployment"""
     print(" Building Docker image for RunPod...")
 
-    # This would build the Docker image
     # For now, just show the commands needed
     print(" To build and push the Docker image:")
-    print("   1. docker build -f Dockerfile.runpod -t summit-ai:latest .")
+    print("   1. docker build -f deployment/docker/Dockerfile.runpod -t summit-ai:latest .")
     print("   2. docker tag summit-ai:latest your-registry/summit-ai:latest")
     print("   3. docker push your-registry/summit-ai:latest")
     print(
