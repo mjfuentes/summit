@@ -1,6 +1,6 @@
 {
   "defaultAgent": "coder",
-  "localEndpoint": "https://api.runpod.ai/v2/26xsjcfv6hlyqe/run",
+  "localEndpoint": "https://api.runpod.ai/v2/h6b1xw36mmhtrh/openai/v1",
   "localApiKey": "***REMOVED***",
   "agents": {
     "coder": {

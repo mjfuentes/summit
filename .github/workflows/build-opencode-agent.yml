@@ -1,0 +1,88 @@
+name: Build and Deploy OpenCode Agent
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'opencode-agent/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'opencode-agent/**'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: opencode-agent
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./opencode-agent
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+        
+    - name: Setup Google Cloud CLI
+      uses: google-github-actions/setup-gcloud@v2
+    
+    - name: Get GKE credentials
+      run: |
+        gcloud container clusters get-credentials summit-cluster --region us-central1
+    
+    - name: Deploy to GKE
+      run: |
+        # Update image in deployment with new SHA
+        export IMAGE_TAG="${{ github.sha }}"
+        sed -i "s|ghcr.io/matifuentes/opencode-agent:latest|ghcr.io/matifuentes/opencode-agent:main-${IMAGE_TAG:0:7}|g" opencode-agent/k8s-deployment.yaml
+        
+        # Apply deployment
+        kubectl apply -f opencode-agent/k8s-deployment.yaml
+        
+        # Wait for rollout to complete
+        kubectl rollout status deployment/opencode-agent --timeout=300s
+        
+        # Verify deployment
+        kubectl get pods -l app=opencode-agent 

@@ -15,6 +15,8 @@ spec:
       labels:
         app: bridge-service
     spec:
+      imagePullSecrets:
+      - name: ghcr-login-secret
       containers:
       - name: bridge-service
         image: ghcr.io/mjfuentes/summit/bridge-service:latest
@@ -40,13 +42,13 @@ spec:
             cpu: "500m"
         livenessProbe:
           httpGet:
-            path: /health
+            path: /
             port: 8000
           initialDelaySeconds: 30
           periodSeconds: 10
         readinessProbe:
           httpGet:
-            path: /health
+            path: /
             port: 8000
           initialDelaySeconds: 5
           periodSeconds: 5
@@ -73,7 +75,7 @@ metadata:
   name: bridge-config
   namespace: summit
 data:
-  runpod-endpoint-id: "hmiivp3ibw6kyd"  # Your RunPod endpoint ID
+  runpod-endpoint-id: "h6b1xw36mmhtrh"  # Your RunPod endpoint ID
 ---
 apiVersion: v1
 kind: Secret

@@ -23,7 +23,7 @@ from pydantic import BaseModel
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="OpenCode-RunPod Bridge", version="1.0.0")
+app = FastAPI(title="OpenCode-RunPod Bridge", version="1.0.1")
 
 # Configuration
 RUNPOD_API_KEY = os.getenv("RUNPOD_API_KEY")
@@ -48,6 +48,9 @@ class ChatCompletionRequest(BaseModel):
     model: str
     messages: List[ChatMessage]
     tools: Optional[List[Dict]] = None
+    functions: Optional[List[Dict]] = None
+    function_call: Optional[str] = None
+    tool_choice: Optional[str] = None
     stream: Optional[bool] = False
     max_tokens: Optional[int] = 4096
     temperature: Optional[float] = 0.7
@@ -140,14 +143,20 @@ class MessageTranslator:
 
     @staticmethod
     def opencode_to_runpod_tools(
-        tools: Optional[List[Dict]],
+        tools: Optional[List[Dict]], functions: Optional[List[Dict]]
     ) -> Optional[List[Dict]]:
-        """Convert OpenCode tools to RunPod format"""
-        if not tools:
-            return None
-
-        # OpenCode uses OpenAI format, which should be compatible
-        return tools
+        """Convert OpenCode tools/functions to RunPod format"""
+        # Prefer functions (legacy format) over tools (new format)
+        if functions:
+            return functions
+        elif tools:
+            # Convert tools format to functions format
+            functions_list = []
+            for tool in tools:
+                if tool.get("type") == "function" and "function" in tool:
+                    functions_list.append(tool["function"])
+            return functions_list if functions_list else None
+        return None
 
     @staticmethod
     def runpod_to_opencode_response(
@@ -176,7 +185,21 @@ class MessageTranslator:
                 "finish_reason": "stop",
             }
 
-        # Handle tool calls (custom format)
+        # Handle function calls (legacy format)
+        elif isinstance(output, dict) and output.get("function_call"):
+            function_call = output.get("function_call")
+
+            choice = {
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": None,
+                    "function_call": function_call,
+                },
+                "finish_reason": "function_call",
+            }
+
+        # Handle tool calls (newer format)
         elif isinstance(output, dict) and output.get(
             "requires_tool_execution"
         ):
@@ -307,13 +330,22 @@ async def chat_completions(request: ChatCompletionRequest):
         # Check if this is a follow-up with tool results
         has_tool_results = any(msg.role == "tool" for msg in request.messages)
 
-        # Translate to RunPod format
+        # Translate to RunPod format - always use legacy functions format
         runpod_payload = {
             "messages": MessageTranslator.opencode_to_runpod_messages(
                 request.messages
             ),
-            "tools": MessageTranslator.opencode_to_runpod_tools(request.tools),
         }
+
+        # Convert tools to functions format (legacy OpenAI format)
+        if request.tools:
+            functions = []
+            for tool in request.tools:
+                if tool.get("type") == "function" and "function" in tool:
+                    functions.append(tool["function"])
+            if functions:
+                runpod_payload["functions"] = functions
+                runpod_payload["function_call"] = "auto"
 
         # Add tool outputs if this is a follow-up
         if has_tool_results:

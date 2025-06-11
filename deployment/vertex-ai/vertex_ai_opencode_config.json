@@ -1,0 +1,38 @@
+{
+  "defaultAgent": "coder",
+  "localEndpoint": "https://us-central1-aiplatform.googleapis.com/v1beta1/projects/summit-ai-platform/locations/us-central1/endpoints/openapi/chat/completions",
+  "localApiKey": "VERTEX_AI_TOKEN",
+  "agents": {
+    "coder": {
+      "model": "google/gemini-2.0-flash-001",
+      "reasoningEffort": "high", 
+      "temperature": 0.1,
+      "maxTokens": 4096
+    },
+    "reviewer": {
+      "model": "google/gemini-2.5-flash-002",
+      "reasoningEffort": "high",
+      "temperature": 0.1,
+      "maxTokens": 4096
+    }
+  },
+  "tools": {
+    "bash": {
+      "enabled": true,
+      "timeout": 60
+    },
+    "read": {
+      "enabled": true
+    },
+    "write": {
+      "enabled": true
+    },
+    "search": {
+      "enabled": true
+    }
+  },
+  "functionCalling": {
+    "enabled": true,
+    "mode": "auto"
+  }
+} 

@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opencode-agent
+  namespace: default
+  labels:
+    app: opencode-agent
+    version: "1.0.0"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: opencode-agent
+  template:
+    metadata:
+      labels:
+        app: opencode-agent
+        version: "1.0.0"
+    spec:
+      containers:
+      - name: opencode-agent
+        image: ghcr.io/matifuentes/opencode-agent:latest
+        imagePullPolicy: Always
+        env:
+        - name: VERTEXAI_PROJECT
+          value: "summit-ai-platform"
+        - name: VERTEXAI_LOCATION
+          value: "us-central1"
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: "/var/secrets/google/credentials.json"
+        volumeMounts:
+        - name: google-cloud-credentials
+          mountPath: /var/secrets/google
+          readOnly: true
+        - name: workspace
+          mountPath: /workspace
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        # Keep container running for interactive use
+        command: ["/entrypoint.sh"]
+        tty: true
+        stdin: true
+      volumes:
+      - name: google-cloud-credentials
+        secret:
+          secretName: google-cloud-credentials
+      - name: workspace
+        emptyDir: {}
+      serviceAccountName: opencode-agent-sa
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: opencode-agent-sa
+  namespace: default
+  annotations:
+    iam.gke.io/gcp-service-account: opencode-agent@summit-ai-platform.iam.gserviceaccount.com
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: opencode-agent-service
+  namespace: default
+spec:
+  selector:
+    app: opencode-agent
+  ports:
+  - name: ssh
+    port: 22
+    targetPort: 22
+  type: ClusterIP 
