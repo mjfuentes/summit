@@ -1,6 +1,9 @@
-# GitHub Secrets Setup for Summit Infrastructure
+# GitHub Secrets Setup Guide
 
-This document explains how to configure GitHub repository secrets for the Summit Cloud Tasks infrastructure deployment workflow.
+**Last Updated:** December 2024  
+**Version:** 1.1
+
+This document provides step-by-step instructions for configuring GitHub repository secrets required for Summit's CI/CD pipeline.
 
 ## Required Secrets
 

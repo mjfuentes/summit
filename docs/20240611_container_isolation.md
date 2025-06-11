@@ -1,4 +1,9 @@
-# Container Isolation Documentation
+# Container Isolation for Summit AI
+
+**Last Updated:** December 2024  
+**Version:** 1.1
+
+This document describes the container-based isolation strategy for Summit AI development and deployment.
 
 ## Overview
 This document explains how the Summit AI system ensures that all Claude Code tasks only modify files inside containers and never touch local host files.

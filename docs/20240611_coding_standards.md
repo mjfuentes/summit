@@ -1,4 +1,9 @@
-# Summit Coding Standards & Development Workflow
+# Summit AI Coding Standards
+
+**Last Updated:** December 2024  
+**Version:** 2.1
+
+This document outlines the mandatory coding standards, development processes, and quality requirements for the Summit AI project.
 
 ## MANDATORY DEVELOPMENT PROCESS
 

@@ -1,4 +1,9 @@
-# AI Agent Manifesto
+# Summit AI Agent Manifesto
+
+**Last Updated:** December 2024  
+**Version:** 1.0
+
+This document defines the core principles and values that guide Summit's autonomous AI agents.
 
 ## Core Purpose
 

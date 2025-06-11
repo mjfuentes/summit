@@ -11,17 +11,24 @@ RUN apt-get update && apt-get install -y \
 # Set working directory
 WORKDIR /workspace
 
-# Install Python dependencies
+# Install Python dependencies in stages to avoid timeouts
 RUN pip install --upgrade pip
-RUN pip install \
+
+# Install core dependencies first
+RUN pip install --no-cache-dir \
     runpod \
     transformers>=4.35.0 \
-    torch>=2.0.0 \
-    accelerate>=0.20.0 \
+    accelerate>=0.20.0
+
+# Install tokenization and utility libraries
+RUN pip install --no-cache-dir \
     sentencepiece \
     tiktoken \
-    einops \
-    bitsandbytes
+    einops
+
+# Skip bitsandbytes for now - it's problematic in Docker builds
+# and not essential for basic inference
+# RUN pip install bitsandbytes
 
 # Copy our handler code
 COPY runpod_handler_for_bridge.py handler.py

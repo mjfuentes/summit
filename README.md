@@ -265,9 +265,11 @@ chmod +x .git/hooks/pre-commit
 ## Support & Documentation
 
 - **Detailed Documentation**: See [docs/README.md](docs/README.md) for complete system overview
-- **Project Status**: See [PROJECT_STATUS.md](PROJECT_STATUS.md) for current capabilities
-- **Coding Standards**: See [CODING_STANDARDS.md](CODING_STANDARDS.md) for development guidelines
-- **Architecture Vision**: See [FUTURE_ARCHITECTURE.md](FUTURE_ARCHITECTURE.md) for roadmap
+- **Project Status**: See [docs/project_status.md](docs/project_status.md) for current capabilities
+- **Coding Standards**: See [docs/coding_standards.md](docs/coding_standards.md) for development guidelines
+- **Architecture Vision**: See [docs/future_architecture.md](docs/future_architecture.md) for roadmap
+- **Folder Organization**: See [docs/folder_organization.md](docs/folder_organization.md) for directory structure
+- **Container Isolation**: See [docs/container_isolation.md](docs/container_isolation.md) for security practices
 
 ## License
 

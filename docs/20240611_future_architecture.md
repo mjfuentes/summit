@@ -1,3 +1,10 @@
+# Summit Future Architecture
+
+**Last Updated:** December 2024  
+**Version:** 1.2
+
+This document outlines the planned architectural evolution of Summit, focusing on enhanced autonomy, distributed processing, and advanced AI capabilities.
+
 # Future Architecture: Parallel Domain-Specific Sub-Tasks
 
 ## Vision: Distributed Agent Architecture

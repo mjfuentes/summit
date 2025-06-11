@@ -6,6 +6,12 @@ This document describes the organized folder structure for the Summit project, i
 
 ```
 summit/
+ README.md                     # Main project documentation
+ requirements.txt              # Core dependencies
+ dev-requirements.txt          # Development dependencies
+ pytest.ini                    # Test configuration
+ version.txt                   # Version information
+
  bin/                          # Executable scripts and entry points
     run_summit.py            # Main CLI entry point
     start_web.py             # Web interface launcher
@@ -62,8 +68,17 @@ summit/
     kubernetes/              # Kubernetes deployments
         KUBERNETES_SETUP.md  # K8s setup documentation
 
+ docs/                         # Project documentation
+    CODING_STANDARDS.md     # Development guidelines
+    PROJECT_STATUS.md       # Current capabilities
+    FUTURE_ARCHITECTURE.md  # Architecture roadmap
+    FOLDER_ORGANIZATION.md  # Directory structure guide
+    CONTAINER_ISOLATION.md  # Security practices
+    AI_AGENT_MANIFESTO.md   # AI principles
+    SUMMIT_ANALYSIS.md      # System analysis
+    GITHUB_SECRETS_SETUP.md # GitHub configuration
+
  web/                         # Web interface and API
- docs/                        # Project documentation
  config/                      # Configuration files
  infrastructure/              # Infrastructure as code
  tools/                       # Development tools
@@ -115,6 +130,16 @@ The following files were reorganized:
 - `test_*.py` utilities
 - `monitor_*.py` tools
 - `create_pr.py` template
+
+### Moved to `docs/`:
+- `CODING_STANDARDS.md` → `docs/CODING_STANDARDS.md`
+- `PROJECT_STATUS.md` → `docs/PROJECT_STATUS.md`
+- `GITHUB_SECRETS_SETUP.md` → `docs/GITHUB_SECRETS_SETUP.md`
+- `AI_AGENT_MANIFESTO.md` → `docs/AI_AGENT_MANIFESTO.md`
+- `FUTURE_ARCHITECTURE.md` → `docs/FUTURE_ARCHITECTURE.md`
+- `CONTAINER_ISOLATION.md` → `docs/CONTAINER_ISOLATION.md`
+- `SUMMIT_ANALYSIS.md` → `docs/SUMMIT_ANALYSIS.md`
+- `FOLDER_ORGANIZATION.md` → `docs/FOLDER_ORGANIZATION.md`
 
 ## Benefits
 
