@@ -1,0 +1,53 @@
+{
+  "providers": {
+    "anthropic": {
+      "apiKey": "dummy",
+      "disabled": false
+    }
+  },
+  "agents": {
+    "coder": {
+      "model": "vertex:gemini-2.0-flash-001",
+      "reasoningEffort": "high",
+      "maxTokens": 4096
+    },
+    "reviewer": {
+      "model": "vertex:gemini-2.0-flash-001", 
+      "reasoningEffort": "medium",
+      "maxTokens": 2048
+    },
+    "debugger": {
+      "model": "vertex:gemini-2.0-flash-001",
+      "reasoningEffort": "high", 
+      "maxTokens": 4096
+    }
+  },
+  "mcpServers": {
+    "jira": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["/Users/matifuentes/Workspace/Jira-MCP-Server/build/index.js"],
+      "cwd": "/Users/matifuentes/Workspace/Jira-MCP-Server",
+      "env": [
+        "JIRA_HOST=***REMOVED***",
+        "JIRA_EMAIL=***REMOVED***",
+        "JIRA_API_TOKEN=***REMOVED***"
+      ]
+    },
+    "github": {
+      "type": "stdio",
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "ghcr.io/github/github-mcp-server"
+      ],
+      "env": [
+        "GITHUB_PERSONAL_ACCESS_TOKEN=***REMOVED***"
+      ]
+    }
+  }
+} 
