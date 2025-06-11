@@ -54,12 +54,16 @@ echo " OpenCode configuration loaded"
 echo " Config contents:"
 cat /root/.config/opencode/config.json
 
-# If no command provided, start interactive mode
+# If no command provided, start with registration task
 if [ $# -eq 0 ]; then
-    echo " Starting OpenCode in interactive mode..."
-    echo "   Use 'opencode -h' for help"
+    echo " Starting OpenCode with automatic registration task..."
     echo "   Available agents: coder, reviewer, debugger"
-    exec /bin/bash
+    
+    # Give OpenCode an initial prompt to register and start working
+    REGISTRATION_PROMPT="Hello! I am an OpenCode agent starting up. Please help me register with the Summit platform and begin working on tasks. First, use the summit_register_agent tool to register myself as a 'coder' agent with the Summit platform. Then use summit_get_next_task to check for any available tasks. If there are tasks available, work on them. If no tasks are available, wait and check periodically."
+    
+    echo " Executing registration prompt..."
+    exec /root/.opencode/bin/opencode -p "$REGISTRATION_PROMPT"
 fi
 
 # Execute the provided command
