@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bridge-service
+  namespace: summit
+  labels:
+    app: bridge-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: bridge-service
+  template:
+    metadata:
+      labels:
+        app: bridge-service
+    spec:
+      containers:
+      - name: bridge-service
+        image: ghcr.io/mjfuentes/summit/bridge-service:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: RUNPOD_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: runpod-secrets
+              key: api-key
+        - name: RUNPOD_ENDPOINT_ID
+          valueFrom:
+            configMapKeyRef:
+              name: bridge-config
+              key: runpod-endpoint-id
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bridge-service
+  namespace: summit
+  labels:
+    app: bridge-service
+spec:
+  selector:
+    app: bridge-service
+  ports:
+  - port: 8000
+    targetPort: 8000
+    protocol: TCP
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bridge-config
+  namespace: summit
+data:
+  runpod-endpoint-id: "hmiivp3ibw6kyd"  # Your RunPod endpoint ID
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: runpod-secrets
+  namespace: summit
+type: Opaque
+stringData:
+  api-key: "***REMOVED***"  # Your RunPod API key 
