@@ -1,22 +1,19 @@
 #!/usr/bin/env python3
 """
-FastMCP Server - Modern MCP server for Summit
-Simplified implementation with essential task management endpoints
+FastMCP Server - Lightweight MCP server for Summit
+Communicates with Summit app via HTTP API instead of direct database access
 """
 
 import asyncio
 import json
 import logging
 import os
-from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
-from uuid import UUID
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
 
+import httpx
 from fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
-
-from task_queue_manager import get_task_queue_manager
-from unified_database import get_database
 
 # Configure logging
 logging.basicConfig(
@@ -29,6 +26,13 @@ logger = logging.getLogger(__name__)
 mcp = FastMCP(
     name="Summit MCP Server",
 )
+
+# Initialize startup time when module loads
+mcp.start_time = datetime.now(timezone.utc)
+
+# Summit app configuration
+SUMMIT_API_BASE = os.environ.get("SUMMIT_API_BASE", "http://localhost:8000")
+SUMMIT_API_TIMEOUT = float(os.environ.get("SUMMIT_API_TIMEOUT", "30.0"))
 
 
 # Pydantic models for request validation
@@ -83,30 +87,14 @@ class TaskResponse(BaseModel):
     claimed_at: Optional[str] = None
 
 
-# Add FastMCP 2.0 lifecycle event handlers
-@mcp.on_startup
-async def on_startup():
-    """Initialize the server on startup"""
-    logger.info("FastMCP server starting...")
-    mcp.start_time = datetime.utcnow()
-    await initialize_database()
-
-    # Log available resources and tools
-    resources = await mcp.list_resources()
-    logger.info(f"Registered resources: {[r.uri for r in resources]}")
-
-    tools = await mcp.list_tools()
-    logger.info(f"Registered tools: {[t.name for t in tools]}")
-
-    logger.info("FastMCP server started successfully")
-
-
-@mcp.on_shutdown
-async def on_shutdown():
-    """Clean up resources on shutdown"""
-    logger.info("FastMCP server shutting down...")
-    await cleanup_resources()
-    logger.info("FastMCP server shutdown complete")
+# HTTP client for Summit API communication
+async def get_http_client() -> httpx.AsyncClient:
+    """Get HTTP client for Summit API communication"""
+    return httpx.AsyncClient(
+        base_url=SUMMIT_API_BASE,
+        timeout=SUMMIT_API_TIMEOUT,
+        headers={"Content-Type": "application/json"},
+    )
 
 
 # Resources - provide static and dynamic data to clients
@@ -121,10 +109,11 @@ async def system_info() -> Dict[str, Any]:
             mcp.start_time.isoformat() if hasattr(mcp, "start_time") else None
         ),
         "uptime_seconds": (
-            (datetime.utcnow() - mcp.start_time).total_seconds()
+            (datetime.now(timezone.utc) - mcp.start_time).total_seconds()
             if hasattr(mcp, "start_time")
             else 0
         ),
+        "summit_api_base": SUMMIT_API_BASE,
     }
 
 
@@ -152,7 +141,7 @@ For more information, visit our documentation at https://summit-ai.example.com/d
 
 
 # Task management tools
-@mcp.tool
+@mcp.tool()
 async def summit_get_next_task(
     request: GetNextTaskRequest, ctx: Context
 ) -> Dict[str, Any]:
@@ -166,9 +155,6 @@ async def summit_get_next_task(
     Returns:
         Task information or status message
     """
-    # Initialize database if needed
-    await initialize_database()
-
     logger.info(
         f"Agent {request.agent_id} requesting task for role {request.role}"
     )
@@ -176,58 +162,42 @@ async def summit_get_next_task(
 
     try:
         # Report progress to client
-        await ctx.report_progress(0.1, "Connecting to task queue")
+        await ctx.report_progress(0.1, "Connecting to Summit API")
 
-        # Get task queue manager
-        task_queue_manager = await get_task_queue_manager()
+        async with await get_http_client() as client:
+            # Make request to Summit API
+            await ctx.report_progress(0.4, "Searching for available tasks")
 
-        # Get tasks available for the agent based on its role
-        await ctx.report_progress(0.4, "Searching for available tasks")
-        tasks = await task_queue_manager.get_next_available_task(
-            agent_id=request.agent_id,
-            roles=[request.role],  # Convert to list for compatibility
-            limit=1,
-        )
-
-        await ctx.report_progress(0.8, "Processing results")
-
-        # No tasks available
-        if not tasks:
-            await ctx.info(
-                f"No available tasks found for role: {request.role}"
+            response = await client.post(
+                "/api/tasks/next",
+                json={
+                    "agent_id": request.agent_id,
+                    "role": request.role,
+                },
             )
-            return {
-                "status": "no_tasks",
-                "message": f"No available tasks found for role: {request.role}",
-            }
 
-        # Return the first task
-        task = tasks[0]
+            await ctx.report_progress(0.8, "Processing results")
 
-        # Format response
-        await ctx.report_progress(1.0, "Task assigned")
-        await ctx.info(f"Assigned task {task.id} to agent {request.agent_id}")
-
-        # Create structured response
-        return {
-            "status": "success",
-            "task": TaskResponse(
-                id=str(task.id),
-                type=task.task_type,
-                priority=task.priority.value,
-                role=task.assigned_role,
-                status=task.status.value,
-                description=task.payload.get("description", ""),
-                details=task.payload,
-                context=task.context,
-                created_at=(
-                    task.created_at.isoformat() if task.created_at else None
-                ),
-                claimed_at=(
-                    task.claimed_at.isoformat() if task.claimed_at else None
-                ),
-            ).model_dump(),
-        }
+            if response.status_code == 200:
+                data = response.json()
+                await ctx.report_progress(1.0, "Task assigned")
+                await ctx.info(f"Assigned task to agent {request.agent_id}")
+                return {"status": "success", "task": data}
+            elif response.status_code == 404:
+                await ctx.info(
+                    f"No available tasks found for role: {request.role}"
+                )
+                return {
+                    "status": "no_tasks",
+                    "message": f"No available tasks found for role: {request.role}",
+                }
+            else:
+                error_msg = f"Summit API error: {response.status_code}"
+                await ctx.error(error_msg)
+                return {
+                    "status": "error",
+                    "message": error_msg,
+                }
 
     except Exception as e:
         logger.error(f"Error getting next task: {str(e)}", exc_info=True)
@@ -238,7 +208,7 @@ async def summit_get_next_task(
         }
 
 
-@mcp.tool
+@mcp.tool()
 async def summit_complete_task(
     request: CompleteTaskRequest, ctx: Context
 ) -> Dict[str, Any]:
@@ -252,17 +222,11 @@ async def summit_complete_task(
     Returns:
         Status message
     """
-    # Initialize database if needed
-    await initialize_database()
-
     logger.info(f"Agent {request.agent_id} completing task {request.task_id}")
 
     try:
         # Report progress to client
         await ctx.report_progress(0.2, "Processing task completion request")
-
-        # Get task queue manager
-        task_queue_manager = await get_task_queue_manager()
 
         # Update client with the files being processed
         if request.files_modified:
@@ -270,44 +234,54 @@ async def summit_complete_task(
                 f"Task modified {len(request.files_modified)} files: {', '.join(request.files_modified[:5])}"
             )
 
-        # Complete the task
-        await ctx.report_progress(0.5, "Updating task status in database")
-        completed = await task_queue_manager.complete_task(
-            task_id=request.task_id,
-            agent_id=request.agent_id,
-            success=request.success,
-            result=request.result,
-            error_message=request.error_message,
-        )
-
-        await ctx.report_progress(0.9, "Finalizing task status")
-
-        if not completed:
-            await ctx.error(f"Failed to complete task {request.task_id}")
-            return {
-                "status": "error",
-                "message": f"Failed to complete task {request.task_id}. It may not exist or may not be assigned to agent {request.agent_id}.",
-            }
-
-        # Format response
-        await ctx.report_progress(1.0, "Task status updated")
-
-        if request.success:
-            await ctx.info(f"Task {request.task_id} completed successfully")
-            return {
-                "status": "success",
-                "message": f"Task {request.task_id} completed successfully",
-                "completed_at": datetime.utcnow().isoformat(),
-            }
-        else:
-            await ctx.warning(
-                f"Task {request.task_id} failed: {request.error_message}"
+        async with await get_http_client() as client:
+            # Complete the task via Summit API
+            await ctx.report_progress(
+                0.5, "Updating task status via Summit API"
             )
-            return {
-                "status": "error",
-                "message": f"Task {request.task_id} failed: {request.error_message}",
-                "failed_at": datetime.utcnow().isoformat(),
-            }
+
+            response = await client.post(
+                f"/api/tasks/{request.task_id}/complete",
+                json={
+                    "agent_id": request.agent_id,
+                    "success": request.success,
+                    "result": request.result,
+                    "summary": request.summary,
+                    "files_modified": request.files_modified,
+                    "error_message": request.error_message,
+                },
+            )
+
+            await ctx.report_progress(0.9, "Finalizing task status")
+
+            if response.status_code == 200:
+                await ctx.report_progress(1.0, "Task status updated")
+
+                if request.success:
+                    await ctx.info(
+                        f"Task {request.task_id} completed successfully"
+                    )
+                    return {
+                        "status": "success",
+                        "message": f"Task {request.task_id} completed successfully",
+                        "completed_at": datetime.now(timezone.utc).isoformat(),
+                    }
+                else:
+                    await ctx.warning(
+                        f"Task {request.task_id} failed: {request.error_message}"
+                    )
+                    return {
+                        "status": "error",
+                        "message": f"Task {request.task_id} failed: {request.error_message}",
+                        "failed_at": datetime.now(timezone.utc).isoformat(),
+                    }
+            else:
+                error_msg = f"Summit API error: {response.status_code}"
+                await ctx.error(error_msg)
+                return {
+                    "status": "error",
+                    "message": error_msg,
+                }
 
     except Exception as e:
         logger.error(f"Error completing task: {str(e)}", exc_info=True)
@@ -318,7 +292,7 @@ async def summit_complete_task(
         }
 
 
-@mcp.tool
+@mcp.tool()
 async def summit_register_agent(
     request: RegisterAgentRequest, ctx: Context
 ) -> Dict[str, Any]:
@@ -332,9 +306,6 @@ async def summit_register_agent(
     Returns:
         Registration status and agent information
     """
-    # Initialize database if needed
-    await initialize_database()
-
     logger.info(
         f"Registering agent {request.agent_id} with role {request.role}"
     )
@@ -343,44 +314,43 @@ async def summit_register_agent(
         # Report progress to client
         await ctx.report_progress(0.3, "Processing registration request")
 
-        # Get database manager
-        db = await get_database()
+        async with await get_http_client() as client:
+            # Register the agent via Summit API
+            await ctx.report_progress(0.6, "Registering agent via Summit API")
 
-        # Register the agent
-        await ctx.report_progress(0.6, "Registering agent in database")
-        agent = await db.register_agent(
-            agent_id=request.agent_id,
-            agent_type=request.agent_type,
-            role=request.role,
-            capabilities=request.capabilities,
-            model=request.model,
-            system_info=request.system_info,
-        )
+            response = await client.post(
+                "/api/agents/register",
+                json={
+                    "agent_id": request.agent_id,
+                    "agent_type": request.agent_type,
+                    "role": request.role,
+                    "capabilities": request.capabilities,
+                    "model": request.model,
+                    "system_info": request.system_info,
+                },
+            )
 
-        await ctx.report_progress(0.9, "Finalizing registration")
+            await ctx.report_progress(0.9, "Finalizing registration")
 
-        if not agent:
-            await ctx.error(f"Failed to register agent {request.agent_id}")
-            return {
-                "status": "error",
-                "message": f"Failed to register agent {request.agent_id}",
-            }
+            if response.status_code == 200:
+                data = response.json()
+                await ctx.report_progress(1.0, "Registration complete")
+                await ctx.info(
+                    f"Agent {request.agent_id} registered successfully"
+                )
 
-        await ctx.report_progress(1.0, "Registration complete")
-        await ctx.info(f"Agent {request.agent_id} registered successfully")
-
-        # Return structured response
-        return {
-            "status": "success",
-            "message": f"Agent {request.agent_id} registered successfully",
-            "agent": {
-                "id": agent.id,
-                "role": request.role,
-                "type": request.agent_type,
-                "capabilities": request.capabilities,
-                "registered_at": datetime.utcnow().isoformat(),
-            },
-        }
+                return {
+                    "status": "success",
+                    "message": f"Agent {request.agent_id} registered successfully",
+                    "agent": data,
+                }
+            else:
+                error_msg = f"Summit API error: {response.status_code}"
+                await ctx.error(error_msg)
+                return {
+                    "status": "error",
+                    "message": error_msg,
+                }
 
     except Exception as e:
         logger.error(f"Error registering agent: {str(e)}", exc_info=True)
@@ -391,11 +361,11 @@ async def summit_register_agent(
         }
 
 
-# Health check and misc tools
-@mcp.tool
+# Health check tool
+@mcp.tool()
 async def summit_health(ctx: Context) -> Dict[str, Any]:
     """
-    Check the health of the Summit MCP server
+    Check the health of the Summit MCP server and Summit API
 
     Args:
         ctx: MCP context for logging and client interaction
@@ -403,26 +373,26 @@ async def summit_health(ctx: Context) -> Dict[str, Any]:
     Returns:
         Health status information
     """
-    # Initialize database if needed
-    await initialize_database()
-
-    # Get database status
-    db_status = "unknown"
+    # Check Summit API connectivity
+    summit_api_status = "unknown"
     try:
-        db = await get_database()
-        # Simple query to check database connectivity
-        await db.get_all_agents()
-        db_status = "connected"
-    except Exception:
-        db_status = "error"
+        async with await get_http_client() as client:
+            response = await client.get("/api/health")
+            if response.status_code == 200:
+                summit_api_status = "connected"
+            else:
+                summit_api_status = f"error_{response.status_code}"
+    except Exception as e:
+        summit_api_status = f"error: {str(e)}"
 
     health_info = {
         "status": "ok",
         "version": "1.0.0",
-        "timestamp": datetime.utcnow().isoformat(),
-        "database": db_status,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "summit_api": summit_api_status,
+        "summit_api_base": SUMMIT_API_BASE,
         "uptime": (
-            str(datetime.utcnow() - mcp.start_time)
+            str(datetime.now(timezone.utc) - mcp.start_time)
             if hasattr(mcp, "start_time")
             else "unknown"
         ),
@@ -432,36 +402,11 @@ async def summit_health(ctx: Context) -> Dict[str, Any]:
     return health_info
 
 
-# Initialize database on first request
-async def initialize_database():
-    """Initialize database if not already done"""
-    if not hasattr(mcp, "db_initialized"):
-        try:
-            logger.info("Initializing database...")
-            db = await get_database()
-            await db.init_database()
-            mcp.db_initialized = True
-            logger.info("Database initialized successfully")
-        except Exception as e:
-            logger.error(
-                f"Error initializing database: {str(e)}", exc_info=True
-            )
-            # Continue even if DB initialization fails - may recover later
-
-
-# Cleanup function for resource shutdown
-async def cleanup_resources():
-    """Clean up resources"""
-    logger.info("Shutting down Summit FastMCP server...")
-    from task_queue_manager import close_task_queue_manager
-    from unified_database import close_database
-
-    try:
-        await close_task_queue_manager()
-        await close_database()
-        logger.info("Resources cleaned up successfully")
-    except Exception as e:
-        logger.error(f"Error during shutdown: {str(e)}", exc_info=True)
+async def startup_initialization():
+    """Initialize the server on startup"""
+    logger.info("FastMCP server starting...")
+    logger.info(f"Summit API base URL: {SUMMIT_API_BASE}")
+    logger.info("FastMCP server started successfully")
 
 
 if __name__ == "__main__":
@@ -471,8 +416,12 @@ if __name__ == "__main__":
     # Log startup information
     logger.info(f"Starting Summit FastMCP server with transport: {transport}")
 
+    # Initialize server
+    import asyncio
+
+    asyncio.run(startup_initialization())
+
     # Run the main server in blocking mode with the specified transport
-    # The FastMCP 2.0 server run method handles startup and shutdown events
     try:
         mcp.run(transport=transport)
     except KeyboardInterrupt:
