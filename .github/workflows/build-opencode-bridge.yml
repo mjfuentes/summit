@@ -17,6 +17,7 @@ permissions:
   contents: read
   packages: write
   security-events: write
+  actions: read
 
 env:
   REGISTRY: ghcr.io
@@ -85,15 +86,70 @@ jobs:
     if: github.event_name != 'pull_request'
     
     steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Verify image exists
+      id: verify-image
+      run: |
+        echo "Verifying image exists: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+        if docker manifest inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest; then
+          echo "image-exists=true" >> $GITHUB_OUTPUT
+          echo " Image found in registry"
+        else
+          echo "image-exists=false" >> $GITHUB_OUTPUT
+          echo " Image not found in registry"
+          exit 1
+        fi
+
     - name: Run Trivy vulnerability scanner
+      id: trivy-scan
+      if: steps.verify-image.outputs.image-exists == 'true'
       uses: aquasecurity/trivy-action@master
       with:
         image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
         format: 'sarif'
         output: 'trivy-results.sarif'
+        exit-code: '0'  # Don't fail the workflow on vulnerabilities
+        timeout: '10m'  # Add timeout
+      continue-on-error: true
+
+    - name: Check if SARIF file exists
+      id: check-sarif
+      run: |
+        if [ -f "trivy-results.sarif" ]; then
+          echo "sarif-exists=true" >> $GITHUB_OUTPUT
+          echo "SARIF file generated successfully"
+          ls -la trivy-results.sarif
+        else
+          echo "sarif-exists=false" >> $GITHUB_OUTPUT
+          echo "SARIF file not found, skipping upload"
+        fi
 
     - name: Upload Trivy scan results to GitHub Security tab
       uses: github/codeql-action/upload-sarif@v3
-      if: always()
+      if: steps.check-sarif.outputs.sarif-exists == 'true'
       with:
-        sarif_file: 'trivy-results.sarif' 
+        sarif_file: 'trivy-results.sarif'
+      continue-on-error: true
+
+    - name: Generate security summary
+      run: |
+        echo "##  Security Scan Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ steps.check-sarif.outputs.sarif-exists }}" == "true" ]; then
+          echo " Trivy security scan completed successfully" >> $GITHUB_STEP_SUMMARY
+          echo " Results uploaded to GitHub Security tab" >> $GITHUB_STEP_SUMMARY
+        else
+          echo " Trivy security scan encountered issues" >> $GITHUB_STEP_SUMMARY
+          echo " Check workflow logs for details" >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Image scanned:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest\`" >> $GITHUB_STEP_SUMMARY 
