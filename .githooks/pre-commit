@@ -124,7 +124,9 @@ else
         echo "  -> Will run full verification on auto-fixed code..."
         
         # Re-run the commit with the original message and allow pre-commit hook to verify
-        exec git commit -m "$ORIGINAL_MSG"
+        # Use git commit without exec to avoid HEAD reference issues
+        git commit -m "$ORIGINAL_MSG"
+        exit 0
     fi
 fi
 

@@ -14,22 +14,27 @@ if [ -z "$VERTEXAI_LOCATION" ]; then
     exit 1
 fi
 
-# Check for Google Application Credentials
-if [ -z "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
-    echo " Error: GOOGLE_APPLICATION_CREDENTIALS environment variable is required"
-    echo "   This should point to a mounted service account JSON file"
+# Check for Google Application Credentials (optional for workload identity)
+if [ -n "$GOOGLE_APPLICATION_CREDENTIALS" ] && [ ! -f "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
+    echo " Error: Credentials file not found at $GOOGLE_APPLICATION_CREDENTIALS"
     exit 1
 fi
 
-if [ ! -f "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
-    echo " Error: Credentials file not found at $GOOGLE_APPLICATION_CREDENTIALS"
-    exit 1
+# Test authentication (works with both service account files and workload identity)
+echo " Testing Google Cloud authentication..."
+if gcloud auth list --filter=status:ACTIVE --format="value(account)" | grep -q .; then
+    ACTIVE_ACCOUNT=$(gcloud auth list --filter=status:ACTIVE --format="value(account)" | head -1)
+    echo " Active account: $ACTIVE_ACCOUNT"
+elif [ -n "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
+    echo " Using service account credentials: $GOOGLE_APPLICATION_CREDENTIALS"
+else
+    echo " Using workload identity (metadata service)"
 fi
 
 echo " Environment configured:"
 echo "   Project: $VERTEXAI_PROJECT"
 echo "   Location: $VERTEXAI_LOCATION"
-echo "   Credentials: $GOOGLE_APPLICATION_CREDENTIALS"
+echo "   Auth method: $([ -n "$GOOGLE_APPLICATION_CREDENTIALS" ] && echo "Service Account" || echo "Workload Identity")"
 
 # Verify OpenCode installation
 if [ ! -f "/root/.opencode/bin/opencode" ]; then
