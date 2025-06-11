@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
       - name: opencode-agent
-        image: ghcr.io/matifuentes/opencode-agent:latest
+        image: ghcr.io/mjfuentes/opencode-agent:latest
         imagePullPolicy: Always
         env:
         - name: VERTEXAI_PROJECT
@@ -36,11 +36,11 @@ spec:
           mountPath: /workspace
         resources:
           requests:
-            memory: "512Mi"
-            cpu: "250m"
+            memory: "256Mi"
+            cpu: "100m"
           limits:
-            memory: "2Gi"
-            cpu: "1000m"
+            memory: "1Gi"
+            cpu: "500m"
         # Keep container running for interactive use
         command: ["/entrypoint.sh"]
         tty: true
@@ -52,6 +52,8 @@ spec:
       - name: workspace
         emptyDir: {}
       serviceAccountName: opencode-agent-sa
+      imagePullSecrets:
+      - name: ghcr-secret
 ---
 apiVersion: v1
 kind: ServiceAccount

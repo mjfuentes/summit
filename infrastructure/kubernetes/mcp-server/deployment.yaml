@@ -18,9 +18,11 @@ spec:
         component: mcp-server
     spec:
       serviceAccountName: summit-agent-sa
+      imagePullSecrets:
+      - name: ghcr-login-secret
       containers:
       - name: mcp-server
-        image: ghcr.io/mjfuentes/summit/mcp-server:latest
+        image: ghcr.io/mjfuentes/summit:mcp
         imagePullPolicy: Always
         command: ["python3"]
         args: ["-m", "src.fastmcp_server"]

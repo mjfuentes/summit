@@ -25,11 +25,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Create FastMCP server with description and metadata
+# Create FastMCP server
 mcp = FastMCP(
     name="Summit MCP Server",
-    description="MCP server for Summit task management system",
-    version="1.0.0",
 )
 
 
@@ -41,8 +39,12 @@ class GetNextTaskRequest(BaseModel):
 
 class CompleteTaskRequest(BaseModel):
     task_id: str = Field(..., description="ID of the task being completed")
-    agent_id: str = Field(..., description="ID of the agent completing the task")
-    success: bool = Field(True, description="Whether the task completed successfully")
+    agent_id: str = Field(
+        ..., description="ID of the agent completing the task"
+    )
+    success: bool = Field(
+        True, description="Whether the task completed successfully"
+    )
     result: Dict[str, Any] = Field(
         default_factory=dict, description="Result data as a dictionary"
     )
@@ -88,14 +90,14 @@ async def on_startup():
     logger.info("FastMCP server starting...")
     mcp.start_time = datetime.utcnow()
     await initialize_database()
-    
+
     # Log available resources and tools
     resources = await mcp.list_resources()
     logger.info(f"Registered resources: {[r.uri for r in resources]}")
 
     tools = await mcp.list_tools()
     logger.info(f"Registered tools: {[t.name for t in tools]}")
-    
+
     logger.info("FastMCP server started successfully")
 
 
@@ -167,7 +169,9 @@ async def summit_get_next_task(
     # Initialize database if needed
     await initialize_database()
 
-    logger.info(f"Agent {request.agent_id} requesting task for role {request.role}")
+    logger.info(
+        f"Agent {request.agent_id} requesting task for role {request.role}"
+    )
     await ctx.info(f"Processing task request for role: {request.role}")
 
     try:
@@ -189,7 +193,9 @@ async def summit_get_next_task(
 
         # No tasks available
         if not tasks:
-            await ctx.info(f"No available tasks found for role: {request.role}")
+            await ctx.info(
+                f"No available tasks found for role: {request.role}"
+            )
             return {
                 "status": "no_tasks",
                 "message": f"No available tasks found for role: {request.role}",
@@ -214,8 +220,12 @@ async def summit_get_next_task(
                 description=task.payload.get("description", ""),
                 details=task.payload,
                 context=task.context,
-                created_at=(task.created_at.isoformat() if task.created_at else None),
-                claimed_at=(task.claimed_at.isoformat() if task.claimed_at else None),
+                created_at=(
+                    task.created_at.isoformat() if task.created_at else None
+                ),
+                claimed_at=(
+                    task.claimed_at.isoformat() if task.claimed_at else None
+                ),
             ).model_dump(),
         }
 
@@ -290,7 +300,9 @@ async def summit_complete_task(
                 "completed_at": datetime.utcnow().isoformat(),
             }
         else:
-            await ctx.warning(f"Task {request.task_id} failed: {request.error_message}")
+            await ctx.warning(
+                f"Task {request.task_id} failed: {request.error_message}"
+            )
             return {
                 "status": "error",
                 "message": f"Task {request.task_id} failed: {request.error_message}",
@@ -323,7 +335,9 @@ async def summit_register_agent(
     # Initialize database if needed
     await initialize_database()
 
-    logger.info(f"Registering agent {request.agent_id} with role {request.role}")
+    logger.info(
+        f"Registering agent {request.agent_id} with role {request.role}"
+    )
 
     try:
         # Report progress to client
@@ -429,7 +443,9 @@ async def initialize_database():
             mcp.db_initialized = True
             logger.info("Database initialized successfully")
         except Exception as e:
-            logger.error(f"Error initializing database: {str(e)}", exc_info=True)
+            logger.error(
+                f"Error initializing database: {str(e)}", exc_info=True
+            )
             # Continue even if DB initialization fails - may recover later
 
 
