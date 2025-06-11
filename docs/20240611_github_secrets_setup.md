@@ -20,7 +20,7 @@ The workflow supports two authentication methods. Configure **one** of the follo
    - Add as repository secret
 
 2. **GCP_PROJECT_ID**: Your Google Cloud project ID
-   - Example: `summit-ai-platform`
+   - Value: `summit-ai-platform`
 
 #### Option 2: Workload Identity Federation (Recommended for production)
 

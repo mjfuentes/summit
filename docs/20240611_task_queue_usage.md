@@ -177,7 +177,7 @@ python scripts/test_task_lifecycle.py
 The system can be configured using environment variables:
 
 - `DATABASE_URL` - PostgreSQL connection string
-- `GCP_PROJECT_ID` - Google Cloud project ID
+- `GCP_PROJECT_ID` - Google Cloud project ID (default: summit-ai-platform)
 - `GCP_LOCATION` - Google Cloud region
 - `AGENT_ENDPOINT_URL` - URL of the Agent Endpoints server
 - `GOOGLE_APPLICATION_CREDENTIALS` - Path to Google Cloud credentials file

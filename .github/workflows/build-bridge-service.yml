@@ -23,7 +23,7 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}/bridge-service
   CONTEXT_PATH: bridge-service
-  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID || 'summit-ai-platform' }}
   GKE_CLUSTER: summit-cluster
   GKE_ZONE: us-central1
 

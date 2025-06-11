@@ -27,7 +27,7 @@ This guide walks you through deploying Summit's OpenCode agents to Kubernetes wh
 
 ```bash
 # Set your project ID
-export PROJECT_ID="your-gcp-project-id"
+export PROJECT_ID="summit-ai-platform"
 gcloud config set project $PROJECT_ID
 
 # Enable required APIs
@@ -68,10 +68,10 @@ cd infrastructure/terraform
 terraform init
 
 # Plan deployment
-terraform plan -var="project_id=your-gcp-project-id"
+terraform plan -var="project_id=summit-ai-platform"
 
 # Apply
-terraform apply -var="project_id=your-gcp-project-id"
+terraform apply -var="project_id=summit-ai-platform"
 ```
 
 ### 2. Deploy OpenCode

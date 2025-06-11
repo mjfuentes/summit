@@ -16,6 +16,7 @@ terraform {
 variable "project_id" {
   description = "GCP Project ID"
   type        = string
+  default     = "summit-ai-platform"
 }
 
 variable "region" {
