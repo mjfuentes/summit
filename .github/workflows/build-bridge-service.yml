@@ -30,6 +30,9 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+      tags: ${{ steps.meta.outputs.tags }}
     
     steps:
     - name: Checkout repository
@@ -57,6 +60,7 @@ jobs:
           type=raw,value=latest,enable={{is_default_branch}}
 
     - name: Build and push Docker image
+      id: build
       uses: docker/build-push-action@v5
       with:
         context: ${{ env.CONTEXT_PATH }}
@@ -74,18 +78,23 @@ jobs:
     if: github.ref == 'refs/heads/main'
     
     steps:
-    - name: Deployment Instructions
+    - name: Generate build summary
       run: |
         echo "##  Bridge Service Build Complete" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "###  Image Built Successfully" >> $GITHUB_STEP_SUMMARY
         echo "- **Image**: \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Digest**: \`${{ needs.build-and-push.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
         echo "- **Commit**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
         echo "- **Branch**: \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Build Time**: \`$(date -u '+%Y-%m-%d %H:%M:%S UTC')\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "###  Available Tags" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        echo "${{ needs.build-and-push.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "###  Manual Deployment Commands" >> $GITHUB_STEP_SUMMARY
-        echo "To deploy this image to Kubernetes:" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
         echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
         echo "# Apply Kubernetes manifests" >> $GITHUB_STEP_SUMMARY
         echo "kubectl apply -f bridge-service/k8s-deployment.yaml" >> $GITHUB_STEP_SUMMARY
@@ -96,7 +105,16 @@ jobs:
         echo "# Check deployment status" >> $GITHUB_STEP_SUMMARY
         echo "kubectl rollout status deployment/bridge-service -n summit" >> $GITHUB_STEP_SUMMARY
         echo "kubectl get pods -n summit -l app=bridge-service" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "# Test bridge service" >> $GITHUB_STEP_SUMMARY
+        echo "kubectl port-forward svc/bridge-service 8000:8000 -n summit &" >> $GITHUB_STEP_SUMMARY
+        echo "curl http://localhost:8000/health" >> $GITHUB_STEP_SUMMARY
         echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "###  Troubleshooting" >> $GITHUB_STEP_SUMMARY
+        echo "- **Logs**: \`kubectl logs -l app=bridge-service -n summit\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Events**: \`kubectl get events -n summit --sort-by='.lastTimestamp'\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Service**: \`kubectl describe svc bridge-service -n summit\`" >> $GITHUB_STEP_SUMMARY
 
   security-scan:
     runs-on: ubuntu-latest
@@ -138,8 +156,10 @@ jobs:
         echo "- **Image**: \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest\`" >> $GITHUB_STEP_SUMMARY
         echo "- **Scan Status**: Completed" >> $GITHUB_STEP_SUMMARY
         echo "- **Trivy Report**: Available in workflow artifacts" >> $GITHUB_STEP_SUMMARY
+        echo "- **Scan Time**: \`$(date -u '+%Y-%m-%d %H:%M:%S UTC')\`" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "###  Ready for Deployment" >> $GITHUB_STEP_SUMMARY
         echo "- **Target Service**: bridge-service:8000" >> $GITHUB_STEP_SUMMARY
         echo "- **Health Check**: \`/health\`" >> $GITHUB_STEP_SUMMARY
-        echo "- **OpenAI API**: \`/v1/chat/completions\`" >> $GITHUB_STEP_SUMMARY 
+        echo "- **OpenAI API**: \`/v1/chat/completions\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Security Status**: PASSED" >> $GITHUB_STEP_SUMMARY 

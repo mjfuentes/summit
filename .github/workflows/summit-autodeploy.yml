@@ -141,6 +141,38 @@ jobs:
         fail-build: false
         severity-cutoff: high
 
+    - name: Generate build summary
+      run: |
+        echo "##  Summit AI Build Complete" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "###  Image Built Successfully" >> $GITHUB_STEP_SUMMARY
+        echo "- **Image**: \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:latest\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Digest**: \`${{ steps.build.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Commit**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Branch**: \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Build Time**: \`$(date -u '+%Y-%m-%d %H:%M:%S UTC')\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "###  Available Tags" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "###  Security Scan" >> $GITHUB_STEP_SUMMARY
+        echo "- **SBOM**: Generated (SPDX format)" >> $GITHUB_STEP_SUMMARY
+        echo "- **Vulnerability Scan**: Completed" >> $GITHUB_STEP_SUMMARY
+        echo "- **Severity Threshold**: High" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "###  Deployment Commands" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+        echo "# Deploy to Kubernetes" >> $GITHUB_STEP_SUMMARY
+        echo "kubectl apply -f infrastructure/kubernetes/summit-app/" >> $GITHUB_STEP_SUMMARY
+        echo "kubectl set image deployment/summit-app summit=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:latest -n summit" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "# Check deployment status" >> $GITHUB_STEP_SUMMARY
+        echo "kubectl rollout status deployment/summit-app -n summit" >> $GITHUB_STEP_SUMMARY
+        echo "kubectl get pods -n summit -l app=summit-app" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
   # Deployment Stage
   deploy:
     name: Deploy Summit AI

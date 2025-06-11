@@ -191,15 +191,43 @@ jobs:
         severity-cutoff: high
       continue-on-error: true
 
-    - name: Output image details
+    - name: Generate build summary
       run: |
-        echo "🚀 MCP Server image built and pushed successfully!"
-        echo "📦 Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-        echo "🔍 Digest: ${{ steps.build.outputs.digest }}"
-        echo "🏷️  Available tags:"
-        echo "${{ steps.meta.outputs.tags }}"
-        echo ""
-        echo "⚡ Build completed in record time with advanced caching!"
+        echo "##  MCP Server Build Complete" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "###  Image Built Successfully" >> $GITHUB_STEP_SUMMARY
+        echo "- **Image**: \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:mcp\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Digest**: \`${{ steps.build.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Commit**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Branch**: \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Build Time**: \`$(date -u '+%Y-%m-%d %H:%M:%S UTC')\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "###  Available Tags" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "###  Manual Deployment Commands" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+        echo "# Update MCP server deployment" >> $GITHUB_STEP_SUMMARY
+        echo "kubectl set image deployment/summit-mcp-server mcp-server=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:mcp -n summit" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "# Apply updated manifests" >> $GITHUB_STEP_SUMMARY
+        echo "kubectl apply -f infrastructure/kubernetes/mcp-server/" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "# Check deployment status" >> $GITHUB_STEP_SUMMARY
+        echo "kubectl rollout status deployment/summit-mcp-server -n summit" >> $GITHUB_STEP_SUMMARY
+        echo "kubectl get pods -n summit -l app=summit-mcp-server" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "# Check MCP server health" >> $GITHUB_STEP_SUMMARY
+        echo "kubectl port-forward svc/summit-mcp-service 8080:8080 -n summit &" >> $GITHUB_STEP_SUMMARY
+        echo "curl http://localhost:8080/health" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "###  Troubleshooting" >> $GITHUB_STEP_SUMMARY
+        echo "- **Logs**: \`kubectl logs -l app=summit-mcp-server -n summit\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Events**: \`kubectl get events -n summit --sort-by='.lastTimestamp'\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Service**: \`kubectl describe svc summit-mcp-service -n summit\`" >> $GITHUB_STEP_SUMMARY
 
   deploy:
     name: Update Kubernetes Deployment
@@ -211,24 +239,28 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Update Kubernetes deployment
+    - name: Generate deployment summary
       run: |
-        echo "🎯 MCP Server image ready for deployment:"
-        echo "📦 Image: ${{ needs.build.outputs.primary-tag }}"
-        echo "🔍 Digest: ${{ needs.build.outputs.image-digest }}"
-        echo ""
-        echo "🚀 Quick deployment commands:"
-        echo "kubectl set image deployment/summit-mcp-server mcp-server=${{ needs.build.outputs.primary-tag }} -n summit"
-        echo ""
-        echo "📋 Or apply updated manifests:"
-        echo "kubectl apply -f infrastructure/kubernetes/mcp-server/"
-        
-    - name: Deployment summary
-      run: |
-        echo "=== ⚡ Lightning-Fast MCP Server Deployment Summary ==="
-        echo "✅ Status: SUCCESS"
-        echo "📦 Image: ${{ needs.build.outputs.primary-tag }}"
-        echo "⏰ Timestamp: $(date)"
-        echo "🔗 Commit: ${{ github.sha }}"
-        echo "🎯 Ready for Kubernetes deployment"
-        echo "🚀 Optimized build pipeline complete!" 
+        echo "##  MCP Server Deployment Ready" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "###  Image Information" >> $GITHUB_STEP_SUMMARY
+        echo "- **Primary Tag**: \`${{ needs.build.outputs.primary-tag }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Digest**: \`${{ needs.build.outputs.image-digest }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Deployment Time**: \`$(date -u '+%Y-%m-%d %H:%M:%S UTC')\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Commit**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "###  Quick Deployment" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+        echo "kubectl set image deployment/summit-mcp-server mcp-server=${{ needs.build.outputs.primary-tag }} -n summit" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "###  Full Deployment Process" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+        echo "kubectl apply -f infrastructure/kubernetes/mcp-server/" >> $GITHUB_STEP_SUMMARY
+        echo "kubectl rollout status deployment/summit-mcp-server -n summit" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "###  Status" >> $GITHUB_STEP_SUMMARY
+        echo "- **Build**: SUCCESS" >> $GITHUB_STEP_SUMMARY
+        echo "- **Security Scan**: COMPLETED" >> $GITHUB_STEP_SUMMARY
+        echo "- **Ready for Deployment**: YES" >> $GITHUB_STEP_SUMMARY 

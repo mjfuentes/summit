@@ -20,6 +20,9 @@ jobs:
     permissions:
       contents: read
       packages: write
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+      tags: ${{ steps.meta.outputs.tags }}
 
     steps:
     - name: Checkout repository
@@ -44,12 +47,16 @@ jobs:
           type=raw,value=latest,enable={{is_default_branch}}
 
     - name: Build and push Docker image
+      id: build
       uses: docker/build-push-action@v5
       with:
         context: ./opencode-agent
+        platforms: linux/amd64
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
 
   deployment-info:
     runs-on: ubuntu-latest
@@ -57,18 +64,23 @@ jobs:
     if: github.ref == 'refs/heads/main'
     
     steps:
-    - name: Deployment Instructions
+    - name: Generate build summary
       run: |
         echo "##  OpenCode Agent Build Complete" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "###  Image Built Successfully" >> $GITHUB_STEP_SUMMARY
         echo "- **Image**: \`${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Digest**: \`${{ needs.build.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
         echo "- **Commit**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
         echo "- **Branch**: \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Build Time**: \`$(date -u '+%Y-%m-%d %H:%M:%S UTC')\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "###  Available Tags" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        echo "${{ needs.build.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "###  Manual Deployment Commands" >> $GITHUB_STEP_SUMMARY
-        echo "To deploy this image to Kubernetes:" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
         echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
         echo "# Apply Kubernetes manifests" >> $GITHUB_STEP_SUMMARY
         echo "kubectl apply -f opencode-agent/k8s-deployment.yaml" >> $GITHUB_STEP_SUMMARY
@@ -79,4 +91,12 @@ jobs:
         echo "# Check deployment status" >> $GITHUB_STEP_SUMMARY
         echo "kubectl rollout status deployment/opencode-agent" >> $GITHUB_STEP_SUMMARY
         echo "kubectl get pods -l app=opencode-agent" >> $GITHUB_STEP_SUMMARY
-        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY 
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "# Check agent logs" >> $GITHUB_STEP_SUMMARY
+        echo "kubectl logs -l app=opencode-agent --tail=50" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "###  Troubleshooting" >> $GITHUB_STEP_SUMMARY
+        echo "- **Logs**: \`kubectl logs -l app=opencode-agent\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Events**: \`kubectl get events --sort-by='.lastTimestamp'\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Pod Status**: \`kubectl describe pod -l app=opencode-agent\`" >> $GITHUB_STEP_SUMMARY 
