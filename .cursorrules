@@ -130,6 +130,9 @@ This project represents the future of autonomous software development - an AI th
 - Emphasize learning and self-improvement aspects
 - Use professional technical writing style
 - Avoid marketing language or hype
+- ALL DOCUMENTATION MUST GO IN THE `/docs` DIRECTORY
+- Use descriptive filenames with hyphens (e.g., `github-cicd-monitor.md`)
+- Include comprehensive usage examples and troubleshooting sections
 
 ## Code Comments
 - NEVER add obvious/redundant comments like "# Test passed", "# Success", "# End of function"

@@ -1,0 +1,10 @@
+#!/bin/bash
+# GitHub CI/CD Monitor Shortcut
+# Usage: ./scripts/cicd [options]
+
+# Get the directory of this script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# Run the GitHub CI/CD monitor with all passed arguments
+python "$SCRIPT_DIR/github_cicd_monitor.py" "$@" 
