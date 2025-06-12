@@ -413,8 +413,13 @@ if __name__ == "__main__":
     # Determine transport method from environment
     transport = os.environ.get("MCP_TRANSPORT", "sse").lower()
 
+    # Get host and port from environment
+    host = os.environ.get("HOST", "0.0.0.0")
+    port = int(os.environ.get("PORT", "8080"))
+
     # Log startup information
     logger.info(f"Starting Summit FastMCP server with transport: {transport}")
+    logger.info(f"Server will bind to: {host}:{port}")
 
     # Initialize server
     import asyncio
@@ -423,7 +428,7 @@ if __name__ == "__main__":
 
     # Run the main server in blocking mode with the specified transport
     try:
-        mcp.run(transport=transport)
+        mcp.run(transport=transport, host=host, port=port)
     except KeyboardInterrupt:
         # Handle graceful shutdown on Ctrl+C
         logger.info("Server shutdown requested by keyboard interrupt")
