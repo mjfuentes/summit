@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: opencode-agent
-  namespace: default
+  namespace: summit
   labels:
     app: opencode-agent
     version: "1.0.0"
@@ -27,9 +27,9 @@ spec:
         - name: VERTEXAI_LOCATION
           value: "us-central1"
         - name: GOOGLE_APPLICATION_CREDENTIALS
-          value: "/var/secrets/google/credentials.json"
+          value: "/var/secrets/google/key.json"
         volumeMounts:
-        - name: google-cloud-credentials
+        - name: google-cloud-key
           mountPath: /var/secrets/google
           readOnly: true
         - name: workspace
@@ -46,9 +46,9 @@ spec:
         tty: true
         stdin: true
       volumes:
-      - name: google-cloud-credentials
+      - name: google-cloud-key
         secret:
-          secretName: google-cloud-credentials
+          secretName: google-cloud-key
       - name: workspace
         emptyDir: {}
       serviceAccountName: opencode-agent-sa
@@ -59,7 +59,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: opencode-agent-sa
-  namespace: default
+  namespace: summit
   annotations:
     iam.gke.io/gcp-service-account: opencode-agent@summit-ai-platform.iam.gserviceaccount.com
 ---
@@ -67,7 +67,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: opencode-agent-service
-  namespace: default
+  namespace: summit
 spec:
   selector:
     app: opencode-agent
