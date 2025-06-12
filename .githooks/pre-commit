@@ -211,7 +211,30 @@ if [ ! -z "$PYTHON_FILES" ]; then
     echo "  -> Python syntax check passed"
 fi
 
-# 6. Check for debugging statements and common issues
+# 6. Run security scan with Bandit (if available and we have Python files)
+if [ ! -z "$PYTHON_FILES" ]; then
+    echo "Running security scan with Bandit..."
+    if python -c "import bandit" 2>/dev/null; then
+        echo "  -> Scanning Python files for security issues..."
+        
+        # Run bandit on staged Python files
+        # Use -ll (low confidence) to catch more issues but exclude some common false positives
+        # Skip B101 (assert_used) as it's common in tests
+        # Skip B601 (shell_injection) for specific cases where we control the input
+        if ! python -m bandit $PYTHON_FILES -f txt -ll -s B101 --quiet; then
+            echo "  -> Security issues found. Please review and fix before committing."
+            echo "  -> Use '# nosec BXXX' comments to suppress false positives with justification."
+            echo "  -> For more info: https://bandit.readthedocs.io/en/latest/"
+            exit 1
+        fi
+        echo "  -> Security scan passed"
+    else
+        echo "  -> Bandit not available, skipping security scan"
+        echo "  -> Install bandit to enable security scanning: pip install bandit"
+    fi
+fi
+
+# 7. Check for debugging statements and common issues
 echo "Checking for debugging statements..."
 STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM)
 staged_count=$(echo "$STAGED_FILES" | wc -l | tr -d ' ')
@@ -235,7 +258,7 @@ for file in $STAGED_FILES; do
 done
 echo "  -> Debugging statement check passed"
 
-# 7. Ensure no emojis in commit message
+# 8. Ensure no emojis in commit message
 echo "Checking commit message..."
 COMMIT_MSG_FILE=".git/COMMIT_EDITMSG"
 if [ -f "$COMMIT_MSG_FILE" ]; then
@@ -247,7 +270,7 @@ if [ -f "$COMMIT_MSG_FILE" ]; then
     echo "  -> Commit message check passed"
 fi
 
-# 8. Prevent deletion of test files
+# 9. Prevent deletion of test files
 echo "Checking for test file deletions..."
 DELETED_TEST_FILES=$(git diff --cached --name-only --diff-filter=D | grep -E '^tests/.*\.py$|test_.*\.py$|.*_test\.py$' || true)
 if [ ! -z "$DELETED_TEST_FILES" ]; then

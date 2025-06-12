@@ -414,7 +414,8 @@ if __name__ == "__main__":
     transport = os.environ.get("MCP_TRANSPORT", "sse").lower()
 
     # Get host and port from environment
-    host = os.environ.get("HOST", "0.0.0.0")
+    # Note: Binding to 0.0.0.0 is required for Kubernetes deployment
+    host = os.environ.get("HOST", "0.0.0.0")  # nosec B104
     port = int(os.environ.get("PORT", "8080"))
 
     # Log startup information
