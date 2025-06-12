@@ -5,10 +5,12 @@ on:
     branches: [ main ]
     paths:
       - 'opencode-agent/**'
+      - '.github/workflows/build-opencode-agent.yml'
   pull_request:
     branches: [ main ]
     paths:
       - 'opencode-agent/**'
+      - '.github/workflows/build-opencode-agent.yml'
 
 env:
   REGISTRY: ghcr.io
