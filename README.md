@@ -4,7 +4,9 @@
 [![Coverage](https://img.shields.io/badge/coverage-71.9%25-brightgreen)](https://github.com/mjfuentes/summit)
 [![Code Quality](https://img.shields.io/badge/code%20quality-passing-brightgreen)](https://github.com/mjfuentes/summit)
 
-Summit is a learning AI system that can **learn to do anything you tell it to do** through autonomous self-modification and iterative improvement. When Summit doesn't know how to perform a task, it learns how to do it by modifying its own code, testing the changes, and validating the results.
+> **Status: archived, June 2025.** First attempt at an agent that extends its own code: it writes the change, runs the tests, and only merges when CI is green. Unfinished. The ideas carried into [AMIGA](https://github.com/mjfuentes/amiga) and then [cc+](https://github.com/kerplunkstudio/ccplus).
+
+Summit modifies its own code to add capabilities: it writes the change, tests it and validates the result before merging. The interesting part is the gate, not the generator.
 
 ## Quick Start
 
